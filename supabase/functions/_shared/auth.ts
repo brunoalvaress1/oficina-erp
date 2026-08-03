@@ -43,3 +43,19 @@ export async function autenticarFuncionario(
 
   return { id: funcionario.id, oficinaId: funcionario.oficina_id, nome: funcionario.nome }
 }
+
+// Barreira pro painel super-admin (gestão de oficinas) — usuário da
+// plataforma, não vinculado a nenhuma oficina específica.
+export async function autenticarSuperAdmin(req: Request, admin: SupabaseClient): Promise<{ userId: string }> {
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader) throw new Error('NAO_AUTENTICADO')
+
+  const token = authHeader.replace('Bearer ', '')
+  const { data: userData, error: userError } = await admin.auth.getUser(token)
+  if (userError || !userData.user) throw new Error('NAO_AUTENTICADO')
+
+  const { data: superAdmin } = await admin.from('super_admins').select('id').eq('user_id', userData.user.id).maybeSingle()
+  if (!superAdmin) throw new Error('SEM_PERMISSAO')
+
+  return { userId: userData.user.id }
+}

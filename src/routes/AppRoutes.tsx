@@ -2,6 +2,8 @@ import { Routes, Route } from 'react-router-dom'
 import { MainLayout } from '@/layouts/MainLayout'
 import { ProtectedRoute } from './ProtectedRoute'
 import { PermissionRoute } from './PermissionRoute'
+import { SuperAdminRoute } from './SuperAdminRoute'
+import { SuperAdminOficinas } from '@/features/superAdmin/pages/SuperAdminOficinas'
 import { Login } from '@/pages/Login'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { ClientesList } from '@/features/clientes/pages/ClientesList'
@@ -127,6 +129,8 @@ export function AppRoutes() {
         <Route path="/configuracoes/whatsapp" element={<PermissionRoute codigo="configuracoes.visualizar"><WhatsApp /></PermissionRoute>} />
 
         <Route path="/notas-fiscais" element={<PermissionRoute codigo="notas_fiscais.visualizar"><NotasFiscaisSaidaList /></PermissionRoute>} />
+
+        <Route path="/admin/oficinas" element={<SuperAdminRoute><SuperAdminOficinas /></SuperAdminRoute>} />
       </Route>
 
       <Route path="*" element={<PlaceholderPage title="Página não encontrada (404)" />} />
