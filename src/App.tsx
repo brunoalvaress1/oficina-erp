@@ -1,11 +1,12 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppRoutes } from '@/routes/AppRoutes'
+import { RaizRedirect } from '@/routes/RaizRedirect'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<RaizRedirect />} />
       </Routes>
       <AppRoutes />
     </BrowserRouter>

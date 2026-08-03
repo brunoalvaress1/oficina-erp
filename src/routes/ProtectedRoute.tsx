@@ -3,9 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/providers/AuthProvider'
 import { supabase } from '@/lib/supabase'
+import { useSouSuperAdmin } from '@/features/superAdmin/hooks/useSuperAdmin'
 
 interface ProtectedRouteProps {
   children: ReactNode
+  // true quando protegendo a própria área /admin — evita o redirecionamento
+  // "super admin sem oficina vai pro /admin" virar um loop nela mesma.
+  admin?: boolean
 }
 
 // A RLS de `oficinas` deixa o funcionário ver a própria oficina mesmo
@@ -22,11 +26,12 @@ function useStatusOficina(habilitado: boolean) {
   })
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, admin }: ProtectedRouteProps) {
   const { session, loading } = useAuth()
   const { data: oficina, isLoading: carregandoOficina } = useStatusOficina(!!session)
+  const { data: souSuperAdmin, isLoading: carregandoSuperAdmin } = useSouSuperAdmin()
 
-  if (loading || (session && carregandoOficina)) {
+  if (loading || (session && carregandoOficina) || (session && !admin && carregandoSuperAdmin)) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Carregando...
@@ -36,6 +41,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!session) {
     return <Navigate to="/login" replace />
+  }
+
+  // Dono do sistema (sem funcionário/oficina vinculado) não tem o que fazer
+  // nas telas de operação de uma oficina — manda direto pro painel dele.
+  if (!admin && souSuperAdmin && !oficina) {
+    return <Navigate to="/admin" replace />
   }
 
   if (oficina?.status_assinatura === 'bloqueada') {

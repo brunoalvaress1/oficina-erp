@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '@/providers/AuthProvider'
+import { souSuperAdmin } from '@/features/superAdmin/services/superAdminService'
 
 export function Login() {
   const { signIn } = useAuth()
@@ -26,7 +27,10 @@ export function Login() {
     }
 
     toast.success('Login realizado com sucesso')
-    navigate('/dashboard')
+    // Login do dono do sistema vai pro painel administrativo, nunca pro
+    // sistema de uma oficina específica.
+    const ehSuperAdmin = await souSuperAdmin().catch(() => false)
+    navigate(ehSuperAdmin ? '/admin' : '/dashboard')
   }
 
   return (

@@ -17,11 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useSouSuperAdmin } from '@/features/superAdmin/hooks/useSuperAdmin'
 
 interface SidebarProps {
   collapsed: boolean
@@ -126,14 +124,8 @@ const menuItems: MenuItem[] = [
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation()
   const { hasPermission, isLoading: carregandoPermissoes } = usePermissions()
-  const { data: souSuperAdmin } = useSouSuperAdmin()
 
-  const itensVisiveis = carregandoPermissoes
-    ? []
-    : [
-        ...menuItems.filter((item) => !item.codigo || hasPermission(item.codigo)),
-        ...(souSuperAdmin ? [{ to: '/admin/oficinas', icon: ShieldCheck, label: 'Oficinas (Admin)' }] : []),
-      ]
+  const itensVisiveis = carregandoPermissoes ? [] : menuItems.filter((item) => !item.codigo || hasPermission(item.codigo))
 
   const grupoAtivoInicial = itensVisiveis.find(
     (item) => item.children?.some((filho) => location.pathname === filho.to || location.pathname.startsWith(`${filho.to}/`)),
