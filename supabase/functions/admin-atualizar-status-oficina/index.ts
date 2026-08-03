@@ -13,20 +13,22 @@ Deno.serve(async (req) => {
 
   try {
     await autenticarSuperAdmin(req, admin)
-    const { oficinaId, statusAssinatura, motivo } = await req.json()
+    const { oficinaId, statusAssinatura, motivo, vencimentoMensalidade } = await req.json()
     if (!oficinaId) throw new Error('OFICINA_ID_OBRIGATORIO')
-    if (statusAssinatura !== 'ativa' && statusAssinatura !== 'bloqueada') throw new Error('STATUS_INVALIDO')
+    if (statusAssinatura !== undefined && statusAssinatura !== 'ativa' && statusAssinatura !== 'bloqueada') {
+      throw new Error('STATUS_INVALIDO')
+    }
+    if (statusAssinatura === undefined && vencimentoMensalidade === undefined) throw new Error('NADA_PARA_ATUALIZAR')
 
-    const { data: oficina, error } = await admin
-      .from('oficinas')
-      .update({
-        status_assinatura: statusAssinatura,
-        bloqueada_em: statusAssinatura === 'bloqueada' ? new Date().toISOString() : null,
-        bloqueada_motivo: statusAssinatura === 'bloqueada' ? motivo || null : null,
-      })
-      .eq('id', oficinaId)
-      .select('*')
-      .single()
+    const colunas: Record<string, unknown> = {}
+    if (statusAssinatura !== undefined) {
+      colunas.status_assinatura = statusAssinatura
+      colunas.bloqueada_em = statusAssinatura === 'bloqueada' ? new Date().toISOString() : null
+      colunas.bloqueada_motivo = statusAssinatura === 'bloqueada' ? motivo || null : null
+    }
+    if (vencimentoMensalidade !== undefined) colunas.vencimento_mensalidade = vencimentoMensalidade || null
+
+    const { data: oficina, error } = await admin.from('oficinas').update(colunas).eq('id', oficinaId).select('*').single()
     if (error) throw new Error(error.message)
 
     return new Response(JSON.stringify({ oficina }), {

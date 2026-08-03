@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/providers/AuthProvider'
-import { atualizarStatusOficinaAdmin, criarOficinaAdmin, listarOficinasAdmin, souSuperAdmin } from '../services/superAdminService'
+import {
+  atualizarStatusOficinaAdmin,
+  atualizarVencimentoOficinaAdmin,
+  criarOficinaAdmin,
+  listarOficinasAdmin,
+  souSuperAdmin,
+} from '../services/superAdminService'
 import type { CriarOficinaInput, StatusAssinatura } from '../types/oficinaAdmin'
 
 export function useSouSuperAdmin() {
@@ -42,5 +48,18 @@ export function useAtualizarStatusOficinaAdmin() {
       toast.success('Status da oficina atualizado')
     },
     onError: (error: Error) => toast.error('Erro ao atualizar status', { description: error.message }),
+  })
+}
+
+export function useAtualizarVencimentoOficinaAdmin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ oficinaId, vencimentoMensalidade }: { oficinaId: string; vencimentoMensalidade: string | null }) =>
+      atualizarVencimentoOficinaAdmin(oficinaId, vencimentoMensalidade),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['oficinas-admin'] })
+      toast.success('Vencimento atualizado')
+    },
+    onError: (error: Error) => toast.error('Erro ao atualizar vencimento', { description: error.message }),
   })
 }

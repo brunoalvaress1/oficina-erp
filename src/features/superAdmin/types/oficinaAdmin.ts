@@ -9,6 +9,7 @@ export interface OficinaAdmin {
   statusAssinatura: StatusAssinatura
   bloqueadaEm: string | null
   bloqueadaMotivo: string | null
+  vencimentoMensalidade: string | null
   createdAt: string
   qtdFuncionarios: number
 }

@@ -1,9 +1,30 @@
 import { useState } from 'react'
 import { Ban, CheckCircle2, Plus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { formatDate } from '@/utils/format'
-import { useAtualizarStatusOficinaAdmin, useCriarOficinaAdmin, useOficinasAdmin } from '../hooks/useSuperAdmin'
+import { useAtualizarStatusOficinaAdmin, useAtualizarVencimentoOficinaAdmin, useCriarOficinaAdmin, useOficinasAdmin } from '../hooks/useSuperAdmin'
 import type { CriarOficinaInput, OficinaAdmin } from '../types/oficinaAdmin'
+
+function estaVencida(vencimento: string | null): boolean {
+  if (!vencimento) return false
+  return new Date(`${vencimento}T00:00:00`) < new Date(new Date().toDateString())
+}
+
+function InputVencimento({ oficina }: { oficina: OficinaAdmin }) {
+  const [valor, setValor] = useState(oficina.vencimentoMensalidade ?? '')
+  const atualizar = useAtualizarVencimentoOficinaAdmin()
+
+  return (
+    <input
+      type="date"
+      value={valor}
+      onChange={(e) => setValor(e.target.value)}
+      onBlur={() => {
+        if (valor !== (oficina.vencimentoMensalidade ?? '')) atualizar.mutate({ oficinaId: oficina.id, vencimentoMensalidade: valor || null })
+      }}
+      className={`h-8 rounded-md border bg-transparent px-2 text-xs outline-none focus:ring-1 focus:ring-primary/30 ${estaVencida(oficina.vencimentoMensalidade) && oficina.statusAssinatura === 'ativa' ? 'border-destructive text-destructive' : ''}`}
+    />
+  )
+}
 
 const CAMPO_VAZIO: CriarOficinaInput = { nomeFantasia: '', razaoSocial: '', cnpj: '', emailAdmin: '', senhaAdmin: '', nomeAdmin: '' }
 
@@ -142,7 +163,7 @@ export function SuperAdminOficinas() {
               <th className="text-left font-medium px-3 py-2">CNPJ</th>
               <th className="text-left font-medium px-3 py-2">E-mail</th>
               <th className="text-left font-medium px-3 py-2">Funcionários</th>
-              <th className="text-left font-medium px-3 py-2">Criada em</th>
+              <th className="text-left font-medium px-3 py-2">Vencimento</th>
               <th className="text-left font-medium px-3 py-2">Status</th>
               <th className="text-right font-medium px-3 py-2">Ações</th>
             </tr>
@@ -160,7 +181,7 @@ export function SuperAdminOficinas() {
                 <td className="px-3 py-2">{oficina.cnpj ?? '-'}</td>
                 <td className="px-3 py-2">{oficina.email ?? '-'}</td>
                 <td className="px-3 py-2">{oficina.qtdFuncionarios}</td>
-                <td className="px-3 py-2 text-muted-foreground">{formatDate(oficina.createdAt)}</td>
+                <td className="px-3 py-2"><InputVencimento oficina={oficina} /></td>
                 <td className="px-3 py-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${oficina.statusAssinatura === 'ativa' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
                     {oficina.statusAssinatura === 'ativa' ? 'Ativa' : 'Bloqueada'}
