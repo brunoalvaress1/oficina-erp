@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
@@ -82,19 +82,32 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
     const rect = botaoRef.current?.getBoundingClientRect()
     if (rect) {
       const larguraMenu = 224
-      // Com muitas OS na lista, uma linha perto do fim da tela abria o menu
-      // pra baixo e ele saía da área visível — se não sobrar espaço embaixo,
-      // abre pra cima em vez disso.
-      const alturaEstimadaMenu = 320
-      const abrirParaCima = window.innerHeight - rect.bottom < alturaEstimadaMenu
-      setPosicaoMenu({
-        top: abrirParaCima ? undefined : rect.bottom + 4,
-        bottom: abrirParaCima ? window.innerHeight - rect.top + 4 : undefined,
-        left: Math.min(rect.left, window.innerWidth - larguraMenu - 8),
-      })
+      setPosicaoMenu({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - larguraMenu - 8) })
     }
     setMenuAberto(true)
   }
+
+  // Depois que o menu renderiza (já sabemos a altura real dele, que varia
+  // conforme quantas opções aparecem pra essa OS), corrige pra abrir pra cima
+  // se não sobrar espaço embaixo — com muitas OS na lista, uma linha perto do
+  // fim da tela abria o menu pra baixo e ele saía/ficava inacessível.
+  useLayoutEffect(() => {
+    if (!menuAberto || !menuRef.current || !botaoRef.current) return
+    const alturaMenu = menuRef.current.getBoundingClientRect().height
+    const botaoRect = botaoRef.current.getBoundingClientRect()
+    const precisaAbrirParaCima = alturaMenu > window.innerHeight - botaoRect.bottom
+    setPosicaoMenu((atual) => {
+      if (!atual) return atual
+      const jaEstaCorreto = precisaAbrirParaCima ? atual.bottom !== undefined : atual.top !== undefined
+      if (jaEstaCorreto) return atual
+      const larguraMenu = 224
+      return {
+        left: Math.min(botaoRect.left, window.innerWidth - larguraMenu - 8),
+        top: precisaAbrirParaCima ? undefined : botaoRect.bottom + 4,
+        bottom: precisaAbrirParaCima ? window.innerHeight - botaoRect.top + 4 : undefined,
+      }
+    })
+  }, [menuAberto])
 
   useEffect(() => {
     if (!menuAberto) return
