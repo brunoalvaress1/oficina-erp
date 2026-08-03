@@ -96,7 +96,12 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
     }
   }
 
+  // Nome/sexo/nascimento de um cliente já cadastrado ficam travados aqui (só
+  // dá pra mudar na tela de Clientes) — mas endereço (CEP, número,
+  // complemento) precisa poder ser completado/corrigido direto na OS, porque
+  // muitos clientes antigos foram importados sem esses dados.
   const somenteLeituraCampos = disabled || Boolean(value.clienteExistente)
+  const somenteLeituraEndereco = disabled
   const digitosDocumento = value.cpfCnpj.replace(/\D/g, '')
   const ehPessoaJuridica = digitosDocumento.length === 14
 
@@ -123,7 +128,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
           </div>
           {value.clienteExistente ? (
             <p className="text-xs text-green-600">
-              Cliente já cadastrado — dados preenchidos automaticamente (telefone e e-mail podem ser trocados aqui)
+              Cliente já cadastrado — dados preenchidos automaticamente (telefone, e-mail e endereço podem ser corrigidos aqui)
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Documento novo — preencha os dados do cliente</p>
@@ -168,7 +173,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
             <input
               value={value.cep}
               onChange={(e) => handleCepChange(e.target.value)}
-              disabled={somenteLeituraCampos}
+              disabled={somenteLeituraEndereco}
               className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
             />
             {buscandoCep && (
@@ -182,7 +187,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
           <input
             value={value.endereco}
             onChange={(e) => atualizar({ endereco: e.target.value })}
-            disabled={somenteLeituraCampos}
+            disabled={somenteLeituraEndereco}
             className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
           />
         </div>
@@ -192,7 +197,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
           <input
             value={value.numero}
             onChange={(e) => atualizar({ numero: e.target.value })}
-            disabled={somenteLeituraCampos}
+            disabled={somenteLeituraEndereco}
             className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
           />
         </div>
@@ -202,7 +207,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
           <input
             value={value.complemento}
             onChange={(e) => atualizar({ complemento: e.target.value })}
-            disabled={somenteLeituraCampos}
+            disabled={somenteLeituraEndereco}
             className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
           />
         </div>

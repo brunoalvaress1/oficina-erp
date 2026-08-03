@@ -230,11 +230,20 @@ export function OrdemForm() {
         clienteId = novoCliente.id
       } else {
         clienteId = clienteExistente.id
-        if (
+        const dadosMudaram =
           clienteBlockValue.telefone !== (clienteExistente.telefone ?? '') ||
-          clienteBlockValue.email !== (clienteExistente.email ?? '')
-        ) {
-          // Telefone/e-mail podem ser trocados na própria OS mesmo pra cliente já cadastrado.
+          clienteBlockValue.email !== (clienteExistente.email ?? '') ||
+          clienteBlockValue.cep !== (clienteExistente.cep ?? '') ||
+          clienteBlockValue.endereco !== (clienteExistente.endereco ?? '') ||
+          clienteBlockValue.numero !== (clienteExistente.numero ?? '') ||
+          clienteBlockValue.bairro !== (clienteExistente.bairro ?? '') ||
+          clienteBlockValue.cidade !== (clienteExistente.cidade ?? '') ||
+          clienteBlockValue.estado !== (clienteExistente.estado ?? '') ||
+          clienteBlockValue.codigoCidade !== (clienteExistente.codigoCidade ?? '')
+        if (dadosMudaram) {
+          // Telefone/e-mail/endereço podem ser trocados ou completados na
+          // própria OS mesmo pra cliente já cadastrado (muitos clientes
+          // antigos foram importados sem endereço completo).
           await atualizarCliente(clienteId, clienteBlockValueParaInput(clienteBlockValue))
         }
       }
