@@ -42,7 +42,7 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
   const navigate = useNavigate()
   const { data: oficina } = useDadosOficina()
   const [menuAberto, setMenuAberto] = useState(false)
-  const [posicaoMenu, setPosicaoMenu] = useState<{ top?: number; bottom?: number; left: number } | null>(null)
+  const [posicaoMenu, setPosicaoMenu] = useState<{ top?: number; bottom?: number; left: number; maxAltura: number } | null>(null)
   const [modalReceberAberto, setModalReceberAberto] = useState(false)
   const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false)
   const [modalNotaFiscalAberto, setModalNotaFiscalAberto] = useState(false)
@@ -73,7 +73,11 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
     const rect = botaoRef.current?.getBoundingClientRect()
     if (rect) {
       const larguraMenu = 224
-      setPosicaoMenu({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - larguraMenu - 8) })
+      setPosicaoMenu({
+        top: rect.bottom + 4,
+        left: Math.min(rect.left, window.innerWidth - larguraMenu - 8),
+        maxAltura: window.innerHeight - rect.bottom - 8,
+      })
     }
     setMenuAberto(true)
   }
@@ -81,12 +85,16 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
   // Depois que o menu renderiza (já sabemos a altura real dele, que varia
   // conforme quantas opções aparecem pra essa OS), corrige pra abrir pra cima
   // se não sobrar espaço embaixo — com muitas OS na lista, uma linha perto do
-  // fim da tela abria o menu pra baixo e ele saía/ficava inacessível.
+  // fim da tela abria o menu pra baixo e ele saía/ficava inacessível. O
+  // maxAltura garante rolagem interna em vez de vazar pro outro lado da tela
+  // quando nem embaixo nem em cima cabe tudo de uma vez.
   useLayoutEffect(() => {
     if (!menuAberto || !menuRef.current || !botaoRef.current) return
     const alturaMenu = menuRef.current.getBoundingClientRect().height
     const botaoRect = botaoRef.current.getBoundingClientRect()
-    const precisaAbrirParaCima = alturaMenu > window.innerHeight - botaoRect.bottom
+    const espacoAbaixo = window.innerHeight - botaoRect.bottom - 8
+    const espacoAcima = botaoRect.top - 8
+    const precisaAbrirParaCima = alturaMenu > espacoAbaixo
     setPosicaoMenu((atual) => {
       if (!atual) return atual
       const jaEstaCorreto = precisaAbrirParaCima ? atual.bottom !== undefined : atual.top !== undefined
@@ -96,6 +104,7 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
         left: Math.min(botaoRect.left, window.innerWidth - larguraMenu - 8),
         top: precisaAbrirParaCima ? undefined : botaoRect.bottom + 4,
         bottom: precisaAbrirParaCima ? window.innerHeight - botaoRect.top + 4 : undefined,
+        maxAltura: precisaAbrirParaCima ? espacoAcima : espacoAbaixo,
       }
     })
   }, [menuAberto])
@@ -163,7 +172,7 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
           createPortal(
             <div
               ref={menuRef}
-              style={{ position: 'fixed', top: posicaoMenu.top, bottom: posicaoMenu.bottom, left: posicaoMenu.left, maxHeight: '80vh', overflowY: 'auto' }}
+              style={{ position: 'fixed', top: posicaoMenu.top, bottom: posicaoMenu.bottom, left: posicaoMenu.left, maxHeight: posicaoMenu.maxAltura, overflowY: 'auto' }}
               className="w-56 rounded-md border bg-background shadow-lg z-50 py-1 text-sm"
             >
               {lancamento.status !== 'recebido' && lancamento.status !== 'cancelado' && sessaoAberta && (
@@ -267,7 +276,7 @@ function ItemMenu({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left ${destrutivo ? 'text-destructive' : ''}`}
+      className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-left ${destrutivo ? 'text-destructive' : ''}`}
     >
       <Icone size={14} /> {label}
     </button>

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useDebouncedCallback } from 'use-debounce'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatDate } from '@/utils/format'
 import { PermissionGate } from '../components/PermissionGate'
 import { FuncionarioModal } from '../components/FuncionarioModal'
 import { useFuncionarios } from '../hooks/useFuncionarios'
-import { useAtualizarFuncionario } from '../hooks/useFuncionarioMutations'
+import { useAtualizarFuncionario, useExcluirFuncionario } from '../hooks/useFuncionarioMutations'
 import type { Funcionario } from '../types/funcionario'
 
 export function FuncionariosList() {
@@ -24,6 +24,7 @@ export function FuncionariosList() {
 
   const { data, isLoading } = useFuncionarios({ page, pageSize, search: buscaDebounced })
   const atualizar = useAtualizarFuncionario()
+  const excluir = useExcluirFuncionario()
 
   const funcionarios = data?.data ?? []
   const total = data?.total ?? 0
@@ -40,6 +41,12 @@ export function FuncionariosList() {
 
   function handleAlternarAtivo(funcionario: Funcionario) {
     atualizar.mutate({ id: funcionario.id, alteracoes: { ativo: !funcionario.ativo } })
+  }
+
+  function handleExcluir(funcionario: Funcionario) {
+    if (confirm(`Excluir o funcionário "${funcionario.nome}"? Isso só funciona se ele nunca tiver usado o sistema (sem OS, caixa, etc.) — caso contrário, desative o acesso em vez de excluir.`)) {
+      excluir.mutate(funcionario.id)
+    }
   }
 
   return (
@@ -119,17 +126,30 @@ export function FuncionariosList() {
                     </button>
                   </PermissionGate>
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <PermissionGate codigo="funcionarios.editar">
-                    <button
-                      type="button"
-                      onClick={() => handleEditar(funcionario)}
-                      title="Editar"
-                      className="h-7 w-7 flex items-center justify-center rounded-md border ml-auto"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  </PermissionGate>
+                <td className="px-3 py-2">
+                  <div className="flex justify-end gap-1">
+                    <PermissionGate codigo="funcionarios.editar">
+                      <button
+                        type="button"
+                        onClick={() => handleEditar(funcionario)}
+                        title="Editar"
+                        className="h-7 w-7 flex items-center justify-center rounded-md border"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    </PermissionGate>
+                    <PermissionGate codigo="funcionarios.excluir">
+                      <button
+                        type="button"
+                        onClick={() => handleExcluir(funcionario)}
+                        disabled={excluir.isPending}
+                        title="Excluir"
+                        className="h-7 w-7 flex items-center justify-center rounded-md border text-destructive disabled:opacity-50"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </PermissionGate>
+                  </div>
                 </td>
               </tr>
             ))}

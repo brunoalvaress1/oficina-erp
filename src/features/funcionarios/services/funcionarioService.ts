@@ -42,6 +42,9 @@ function traduzirErroSignUp(mensagem: string): string {
 
 function traduzirErro(mensagem: string): string {
   if (mensagem.includes('FUNCIONARIO_NAO_ENCONTRADO')) return 'Funcionário não encontrado.'
+  if (mensagem.includes('violates foreign key constraint')) {
+    return 'Esse funcionário já tem histórico no sistema (OS, caixa, financeiro, etc.) e não pode ser excluído — desative o acesso dele em vez de excluir.'
+  }
   return mensagem
 }
 
@@ -135,6 +138,17 @@ export async function atualizarFuncionario(id: string, alteracoes: FuncionarioAt
 
   if (error) throw new Error(error.message)
   return mapRow(data)
+}
+
+// Exclui o CADASTRO do funcionário (não dá pra remover o login/auth.users
+// direto do client, só via backend com service role — o login fica orfão,
+// mas inofensivo, já que sem o registro em `funcionarios` ele não consegue
+// fazer nada no sistema). Só funciona se o funcionário nunca gerou histórico
+// (OS, caixa, financeiro, etc.) — nesse caso a Postgres bloqueia por
+// integridade referencial e a mensagem já orienta a desativar em vez disso.
+export async function excluirFuncionario(id: string): Promise<void> {
+  const { error } = await supabase.from('funcionarios').delete().eq('id', id)
+  if (error) throw new Error(traduzirErro(error.message))
 }
 
 export async function buscarPermissoesCatalogo(): Promise<PermissaoCatalogo[]> {
