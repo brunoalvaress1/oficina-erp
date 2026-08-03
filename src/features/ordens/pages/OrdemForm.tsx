@@ -5,7 +5,7 @@ import { Printer, MessageCircle } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useFuncionariosSelect } from '@/features/estoque/hooks/useFuncionariosSelect'
 import { useVeiculoDetalhe } from '@/features/veiculos/hooks/useVeiculoDetalhe'
-import { criarVeiculo } from '@/features/veiculos/services/veiculoService'
+import { buscarVeiculoPorPlaca, criarVeiculo } from '@/features/veiculos/services/veiculoService'
 import { abrirWhatsApp, montarMensagemOrdemPronta } from '@/utils/whatsapp'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
 import { atualizarCliente, buscarClientePorId, criarCliente } from '@/features/clientes/services/clienteService'
@@ -80,6 +80,7 @@ export function OrdemForm() {
   const [itensLocais, setItensLocais] = useState<ItemOrdemForm[]>([])
   const [confirmouKmMenor, setConfirmouKmMenor] = useState(false)
   const [salvandoOrquestrado, setSalvandoOrquestrado] = useState(false)
+  const [buscandoVeiculo, setBuscandoVeiculo] = useState(false)
 
   useEffect(() => {
     if (funcionario && !responsavelId) setResponsavelId(funcionario.id)
@@ -250,8 +251,20 @@ export function OrdemForm() {
 
       let veiculoId = veiculoBlockValue.veiculoExistente?.id
       if (!veiculoId) {
-        const novoVeiculo = await criarVeiculo(veiculoBlockValueParaInput(veiculoBlockValue, clienteId), funcionario!.oficinaId)
-        veiculoId = novoVeiculo.id
+        try {
+          const novoVeiculo = await criarVeiculo(veiculoBlockValueParaInput(veiculoBlockValue, clienteId), funcionario!.oficinaId)
+          veiculoId = novoVeiculo.id
+        } catch (error) {
+          // Corrida rara (ex: placa acabou de ser cadastrada em outra aba/por
+          // outra pessoa entre a busca automática e o clique em Salvar) — em
+          // vez de travar com o erro de chave duplicada do banco, busca o
+          // veículo que já existe e usa ele.
+          const mensagem = error instanceof Error ? error.message : String(error)
+          if (!mensagem.includes('idx_veiculos_placa_oficina')) throw error
+          const veiculoJaExistente = await buscarVeiculoPorPlaca(veiculoBlockValue.placa)
+          if (!veiculoJaExistente) throw error
+          veiculoId = veiculoJaExistente.id
+        }
       }
 
       criarMutation.mutate(
@@ -510,6 +523,7 @@ export function OrdemForm() {
         kmAnterior={kmAnterior}
         tentouSalvar={tentouSalvar}
         disabled={!modoCriacao || somenteLeitura}
+        onBuscandoChange={setBuscandoVeiculo}
       />
 
       <ClienteBlock
@@ -572,10 +586,14 @@ export function OrdemForm() {
           <button
             type="button"
             onClick={handleSalvarNova}
-            disabled={criarMutation.isPending || salvandoOrquestrado}
+            disabled={criarMutation.isPending || salvandoOrquestrado || buscandoVeiculo}
             className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
           >
-            {criarMutation.isPending || salvandoOrquestrado ? 'Salvando...' : 'Salvar Ordem de Serviço'}
+            {buscandoVeiculo
+              ? 'Verificando placa...'
+              : criarMutation.isPending || salvandoOrquestrado
+                ? 'Salvando...'
+                : 'Salvar Ordem de Serviço'}
           </button>
         </div>
       )}

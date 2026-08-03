@@ -12,6 +12,12 @@ interface VeiculoBlockProps {
   kmAnterior: number | null
   tentouSalvar: boolean
   disabled?: boolean
+  // Avisa o formulário pai que a busca automática da placa no nosso banco
+  // está rodando, pra ele travar o "Salvar" até terminar — sem isso, salvar
+  // rápido demais depois de digitar/colar uma placa que já existe tentava
+  // CRIAR o veículo de novo (ainda não sabíamos que já existia) e batia na
+  // trava de placa duplicada do banco.
+  onBuscandoChange?: (buscando: boolean) => void
 }
 
 export function VeiculoBlock({
@@ -22,6 +28,7 @@ export function VeiculoBlock({
   kmAnterior,
   tentouSalvar,
   disabled,
+  onBuscandoChange,
 }: VeiculoBlockProps) {
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
   const consultaPlaca = useConsultaPlaca()
@@ -45,6 +52,7 @@ export function VeiculoBlock({
     // Busca no nosso banco é grátis, então continua automática. A consulta na
     // API externa é paga — vira botão manual (ver handleBuscarNaApi).
     setBuscandoNoBanco(true)
+    onBuscandoChange?.(true)
     try {
       const veiculoDoBanco = await buscarVeiculoPorPlaca(placaFormatada)
       if (veiculoDoBanco) {
@@ -52,6 +60,7 @@ export function VeiculoBlock({
       }
     } finally {
       setBuscandoNoBanco(false)
+      onBuscandoChange?.(false)
     }
   }
 
