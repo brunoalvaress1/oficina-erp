@@ -19,6 +19,9 @@ dist-ssr
 *.csv
 relatorio-*.txt
 
+# Estado local do Supabase CLI (link do projeto), não é código.
+supabase/.temp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
