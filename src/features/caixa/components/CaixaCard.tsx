@@ -42,7 +42,7 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
   const navigate = useNavigate()
   const { data: oficina } = useDadosOficina()
   const [menuAberto, setMenuAberto] = useState(false)
-  const [posicaoMenu, setPosicaoMenu] = useState<{ top: number; left: number } | null>(null)
+  const [posicaoMenu, setPosicaoMenu] = useState<{ top?: number; bottom?: number; left: number } | null>(null)
   const [modalReceberAberto, setModalReceberAberto] = useState(false)
   const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false)
   const [modalNotaFiscalAberto, setModalNotaFiscalAberto] = useState(false)
@@ -73,7 +73,16 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
     const rect = botaoRef.current?.getBoundingClientRect()
     if (rect) {
       const larguraMenu = 224
-      setPosicaoMenu({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - larguraMenu - 8) })
+      // Com muitas OS na lista, uma linha perto do fim da tela abria o menu
+      // pra baixo e ele saía da área visível — se não sobrar espaço embaixo,
+      // abre pra cima em vez disso.
+      const alturaEstimadaMenu = 320
+      const abrirParaCima = window.innerHeight - rect.bottom < alturaEstimadaMenu
+      setPosicaoMenu({
+        top: abrirParaCima ? undefined : rect.bottom + 4,
+        bottom: abrirParaCima ? window.innerHeight - rect.top + 4 : undefined,
+        left: Math.min(rect.left, window.innerWidth - larguraMenu - 8),
+      })
     }
     setMenuAberto(true)
   }
@@ -141,7 +150,7 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
           createPortal(
             <div
               ref={menuRef}
-              style={{ position: 'fixed', top: posicaoMenu.top, left: posicaoMenu.left }}
+              style={{ position: 'fixed', top: posicaoMenu.top, bottom: posicaoMenu.bottom, left: posicaoMenu.left, maxHeight: '80vh', overflowY: 'auto' }}
               className="w-56 rounded-md border bg-background shadow-lg z-50 py-1 text-sm"
             >
               {lancamento.status !== 'recebido' && lancamento.status !== 'cancelado' && sessaoAberta && (

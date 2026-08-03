@@ -50,7 +50,7 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
   const navigate = useNavigate()
   const { data: oficina } = useDadosOficina()
   const [menuAberto, setMenuAberto] = useState(false)
-  const [posicaoMenu, setPosicaoMenu] = useState<{ top: number; left: number } | null>(null)
+  const [posicaoMenu, setPosicaoMenu] = useState<{ top?: number; bottom?: number; left: number } | null>(null)
   const [modalNotaFiscalAberto, setModalNotaFiscalAberto] = useState(false)
   const botaoRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -82,8 +82,14 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
     const rect = botaoRef.current?.getBoundingClientRect()
     if (rect) {
       const larguraMenu = 224
+      // Com muitas OS na lista, uma linha perto do fim da tela abria o menu
+      // pra baixo e ele saía da área visível — se não sobrar espaço embaixo,
+      // abre pra cima em vez disso.
+      const alturaEstimadaMenu = 320
+      const abrirParaCima = window.innerHeight - rect.bottom < alturaEstimadaMenu
       setPosicaoMenu({
-        top: rect.bottom + 4,
+        top: abrirParaCima ? undefined : rect.bottom + 4,
+        bottom: abrirParaCima ? window.innerHeight - rect.top + 4 : undefined,
         left: Math.min(rect.left, window.innerWidth - larguraMenu - 8),
       })
     }
@@ -129,7 +135,11 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
   }
 
   function handleReabrir() {
-    if (confirm(`Reabrir a OS nº ${ordem.numero}? Ela voltará para "Em Execução" e sairá do caixa.`)) {
+    const aviso =
+      ordem.status === 'paga'
+        ? `Reabrir a OS nº ${ordem.numero}? Essa OS já está PAGA — reabrir vai DESFAZER o recebimento no Caixa (o pagamento é excluído) e ela volta para "Em Execução".`
+        : `Reabrir a OS nº ${ordem.numero}? Ela voltará para "Em Execução" e sairá do caixa.`
+    if (confirm(aviso)) {
       reabrirMutation.mutate()
     }
     setMenuAberto(false)
@@ -166,7 +176,7 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
           createPortal(
             <div
               ref={menuRef}
-              style={{ position: 'fixed', top: posicaoMenu.top, left: posicaoMenu.left }}
+              style={{ position: 'fixed', top: posicaoMenu.top, bottom: posicaoMenu.bottom, left: posicaoMenu.left, maxHeight: '80vh', overflowY: 'auto' }}
               className="w-56 rounded-md border bg-background shadow-lg z-50 py-1 text-sm"
             >
               <ItemMenu icone={Eye} label="Visualizar Ordem" onClick={() => navigate(`/ordens/${ordem.id}`)} />
@@ -200,7 +210,7 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
                   <ItemMenu icone={DollarSign} label="Finalizar (Enviar ao Caixa)" onClick={handleFinalizar} />
                 </PermissionGate>
               )}
-              {(ordem.status === 'enviada_caixa' || ordem.status === 'finalizada') && (
+              {(ordem.status === 'enviada_caixa' || ordem.status === 'finalizada' || ordem.status === 'paga') && (
                 <PermissionGate codigo="ordens.reabrir">
                   <ItemMenu icone={RotateCcw} label="Reabrir OS" onClick={handleReabrir} />
                 </PermissionGate>

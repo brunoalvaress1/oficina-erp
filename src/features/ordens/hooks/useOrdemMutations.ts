@@ -84,6 +84,11 @@ export function useReabrirOrdemServico(ordemServicoId: string) {
       queryClient.invalidateQueries({ queryKey: ['ordens-servico'] })
       queryClient.invalidateQueries({ queryKey: ['produtos'] })
       queryClient.invalidateQueries({ queryKey: ['movimentacoes'] })
+      // Reabrir uma OS paga desfaz o recebimento no Caixa e o lançamento
+      // financeiro correspondente — atualiza as duas telas também.
+      queryClient.invalidateQueries({ queryKey: ['caixa-lancamentos'] })
+      queryClient.invalidateQueries({ queryKey: ['caixa-dashboard'] })
+      queryClient.invalidateQueries({ predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('financeiro') })
       toast.success('Ordem reaberta — voltou para Em Execução')
     },
     onError: (error: Error) => {

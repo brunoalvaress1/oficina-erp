@@ -121,9 +121,8 @@ function itemParaRpc(item: ItemOrdemInput) {
 function traduzirErro(mensagem: string): string {
   if (mensagem.includes('ESTOQUE_NEGATIVO')) return 'Essa operação deixaria o estoque de algum produto negativo.'
   if (mensagem.includes('ORDEM_JA_FINALIZADA')) return 'Esta ordem já foi finalizada/enviada ao caixa.'
-  if (mensagem.includes('ORDEM_NAO_PODE_REABRIR')) return 'Só é possível reabrir uma ordem finalizada ou enviada ao caixa.'
-  if (mensagem.includes('PAGAMENTO_JA_RECEBIDO'))
-    return 'Essa OS já teve o pagamento recebido no Caixa. Cancele o recebimento no Caixa antes de reabrir a ordem.'
+  if (mensagem.includes('ORDEM_NAO_PODE_REABRIR')) return 'Só é possível reabrir uma ordem finalizada, enviada ao caixa ou paga.'
+  if (mensagem.includes('NOTA_FISCAL_EMITIDA')) return 'Já existe nota fiscal emitida pra essa venda — cancele a nota fiscal antes de reabrir a OS.'
   if (mensagem.includes('ORDEM_SEM_ITENS')) return 'Adicione ao menos um produto ou serviço antes de finalizar.'
   if (mensagem.includes('ORDEM_NAO_ENCONTRADA')) return 'Ordem de serviço não encontrada.'
   if (mensagem.includes('ITEM_NAO_ENCONTRADO')) return 'Item não encontrado.'
