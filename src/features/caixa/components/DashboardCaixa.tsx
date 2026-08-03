@@ -1,8 +1,11 @@
 import { useDashboardCaixa } from '../hooks/useDashboardCaixa'
+import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency } from '@/utils/format'
 
 export function DashboardCaixa() {
   const { data, isLoading } = useDashboardCaixa()
+  const { hasPermission } = usePermissions()
+  const podeVerLucro = hasPermission('ordens.visualizar_lucro')
 
   if (isLoading || !data) {
     return (
@@ -28,6 +31,7 @@ export function DashboardCaixa() {
         </div>
         <div className="border-t pt-2 mt-2">
           <Linha label="Total Geral" valor={formatCurrency(data.totalGeral)} destaque />
+          {podeVerLucro && <Linha label="Lucro Hoje" valor={formatCurrency(data.lucroHoje)} destaque />}
         </div>
       </div>
     </div>

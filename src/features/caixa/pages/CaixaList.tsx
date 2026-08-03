@@ -6,11 +6,12 @@ import { CaixaCard } from '../components/CaixaCard'
 import { DashboardCaixa } from '../components/DashboardCaixa'
 import { AbrirCaixaModal } from '../components/AbrirCaixaModal'
 import { FecharCaixaModal } from '../components/FecharCaixaModal'
+import { ReceberPagamentoModal } from '../components/ReceberPagamentoModal'
 import { PermissionGate } from '../components/PermissionGate'
 import { useSessaoCaixaAberta } from '../hooks/useCaixaSessao'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatDate } from '@/utils/format'
-import type { FiltroCaixa } from '../types/caixa'
+import type { CaixaLancamento, FiltroCaixa } from '../types/caixa'
 
 const FILTROS: Array<{ valor: FiltroCaixa; rotulo: string }> = [
   { valor: 'todas', rotulo: 'Todas' },
@@ -27,6 +28,11 @@ export function CaixaList() {
   const [filtro, setFiltro] = useState<FiltroCaixa>('aguardando')
   const [modalAbrirAberto, setModalAbrirAberto] = useState(false)
   const [modalFecharAberto, setModalFecharAberto] = useState(false)
+  // Fica na lista (não dentro de cada <CaixaCard>) porque, ao receber o
+  // pagamento, o lançamento some da lista filtrada por "aguardando" — se o
+  // modal vivesse dentro da linha, ele seria desmontado junto e o recibo de
+  // sucesso (com o botão "Imprimir") sumiria antes do usuário conseguir usá-lo.
+  const [lancamentoRecebendo, setLancamentoRecebendo] = useState<CaixaLancamento | null>(null)
 
   const { data: sessaoAberta, isLoading: carregandoSessao } = useSessaoCaixaAberta()
 
@@ -155,7 +161,7 @@ export function CaixaList() {
                 </tr>
               )}
               {lancamentos.map((lancamento) => (
-                <CaixaCard key={lancamento.id} lancamento={lancamento} />
+                <CaixaCard key={lancamento.id} lancamento={lancamento} onAbrirReceber={setLancamentoRecebendo} />
               ))}
             </tbody>
           </table>
@@ -180,6 +186,16 @@ export function CaixaList() {
       </div>
 
       <FecharCaixaModal caixaSessaoId={sessaoAberta.id} open={modalFecharAberto} onOpenChange={setModalFecharAberto} />
+
+      {lancamentoRecebendo && (
+        <ReceberPagamentoModal
+          lancamento={lancamentoRecebendo}
+          open={Boolean(lancamentoRecebendo)}
+          onOpenChange={(open) => {
+            if (!open) setLancamentoRecebendo(null)
+          }}
+        />
+      )}
     </div>
   )
 }

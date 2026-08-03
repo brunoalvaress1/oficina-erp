@@ -14,7 +14,6 @@ import { useNotasFiscaisPorLancamento } from '@/features/notasFiscaisSaida/hooks
 import { useCaixaLancamentoDetalhe } from '../hooks/useCaixaLancamentoDetalhe'
 import { useCancelarRecebimento } from '../hooks/useCaixaMutations'
 import { useSessaoCaixaAberta } from '../hooks/useCaixaSessao'
-import { ReceberPagamentoModal } from './ReceberPagamentoModal'
 import { HistoricoLancamento } from './HistoricoLancamento'
 import { PermissionGate } from './PermissionGate'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -36,14 +35,19 @@ const ROTULO_STATUS: Record<StatusCaixaLancamento, string> = {
 
 interface CaixaCardProps {
   lancamento: CaixaLancamento
+  // O modal de receber pagamento é controlado pela lista (CaixaList), não
+  // aqui dentro — depois de receber, esse lançamento some da lista filtrada
+  // por "aguardando" e essa <tr> (com tudo que tem dentro, incluindo modais
+  // via portal) seria desmontada na hora, fechando o recibo de sucesso antes
+  // do usuário conseguir clicar em "Imprimir".
+  onAbrirReceber: (lancamento: CaixaLancamento) => void
 }
 
-export function CaixaCard({ lancamento }: CaixaCardProps) {
+export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
   const navigate = useNavigate()
   const { data: oficina } = useDadosOficina()
   const [menuAberto, setMenuAberto] = useState(false)
   const [posicaoMenu, setPosicaoMenu] = useState<{ top?: number; bottom?: number; left: number; maxAltura: number } | null>(null)
-  const [modalReceberAberto, setModalReceberAberto] = useState(false)
   const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false)
   const [modalNotaFiscalAberto, setModalNotaFiscalAberto] = useState(false)
   const botaoRef = useRef<HTMLButtonElement>(null)
@@ -116,7 +120,12 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
       if (menuRef.current?.contains(alvo) || botaoRef.current?.contains(alvo)) return
       setMenuAberto(false)
     }
-    function handleFechar() {
+    // Scroll é ouvido com capture:true pra pegar rolagem da página/tabela por
+    // trás do menu — mas isso também captura a rolagem DENTRO do próprio menu
+    // quando ele vira scrollável, fechando o menu assim que o usuário tentava
+    // rolar seu conteúdo. Ignora o evento quando vem de dentro do menu.
+    function handleFechar(event: Event) {
+      if (menuRef.current?.contains(event.target as Node)) return
       setMenuAberto(false)
     }
     document.addEventListener('mousedown', handleClickFora)
@@ -181,7 +190,7 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
                     icone={DollarSign}
                     label="Receber OS"
                     onClick={() => {
-                      setModalReceberAberto(true)
+                      onAbrirReceber(lancamento)
                       setMenuAberto(false)
                     }}
                   />
@@ -234,9 +243,6 @@ export function CaixaCard({ lancamento }: CaixaCardProps) {
       {/* Dialogs precisam ir via portal — <tr> não pode ter <div> como filho direto (HTML inválido). */}
       {createPortal(
         <>
-          {modalReceberAberto && (
-            <ReceberPagamentoModal lancamento={lancamento} open={modalReceberAberto} onOpenChange={setModalReceberAberto} />
-          )}
           {modalNotaFiscalAberto && (
             <EmitirNotaFiscalModal
               caixaLancamentoId={lancamento.id}

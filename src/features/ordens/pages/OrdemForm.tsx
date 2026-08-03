@@ -157,16 +157,18 @@ export function OrdemForm() {
     return soma
   }, 0)
 
-  const cabecalhoValido = Boolean(
-    veiculoBlockValueValido(veiculoBlockValue) &&
-      clienteBlockValueValido(clienteBlockValue) &&
-      responsavelId &&
-      dataAbertura &&
-      dataEntrada &&
-      // Quilometragem só é obrigatória quando tem veículo informado — sem
-      // veículo não tem o que registrar.
-      (!veiculoBlockValueInformado(veiculoBlockValue) || kmAtual.trim()),
-  )
+  // Mensagem de erro lista só o que realmente falta — veículo é opcional, então
+  // não pode aparecer numa mensagem genérica de "preencha veículo, ..." sempre
+  // que qualquer outro campo (ex: cliente, responsável) estiver faltando.
+  const camposFaltando: string[] = []
+  if (!veiculoBlockValueValido(veiculoBlockValue)) camposFaltando.push('modelo do veículo (placa foi informada sem modelo)')
+  if (!clienteBlockValueValido(clienteBlockValue)) camposFaltando.push('dados do cliente')
+  if (!responsavelId) camposFaltando.push('responsável')
+  if (!dataAbertura) camposFaltando.push('data de abertura')
+  if (!dataEntrada) camposFaltando.push('data de entrada')
+  if (veiculoBlockValueInformado(veiculoBlockValue) && !kmAtual.trim()) camposFaltando.push('quilometragem')
+
+  const cabecalhoValido = camposFaltando.length === 0
 
   function handleAdicionarItemLocal(item: ItemOrdemForm) {
     if (modoCriacao) {
@@ -507,17 +509,6 @@ export function OrdemForm() {
           </div>
         </div>
 
-        {!modoCriacao && !somenteLeitura && (
-          <div className="flex justify-end">
-            <button
-              onClick={handleSalvarCabecalho}
-              disabled={atualizarCabecalhoMutation.isPending}
-              className="h-8 px-3 rounded-md border text-sm"
-            >
-              {atualizarCabecalhoMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-            </button>
-          </div>
-        )}
       </div>
 
       <VeiculoBlock
@@ -586,7 +577,7 @@ export function OrdemForm() {
       {modoCriacao && (
         <div className="rounded-lg border p-4">
           {tentouSalvar && !cabecalhoValido && (
-            <p className="text-sm text-destructive mb-3">Preencha veículo, responsável, datas e quilometragem antes de salvar.</p>
+            <p className="text-sm text-destructive mb-3">Preencha antes de salvar: {camposFaltando.join(', ')}.</p>
           )}
           <button
             type="button"
@@ -604,18 +595,26 @@ export function OrdemForm() {
       )}
 
       {!modoCriacao && !somenteLeitura && (
-        <PermissionGate codigo="ordens.finalizar">
-          <div className="rounded-lg border p-4">
+        <div className="rounded-lg border p-4 flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={handleSalvarCabecalho}
+            disabled={atualizarCabecalhoMutation.isPending}
+            className="h-10 px-4 rounded-md border text-sm font-medium disabled:opacity-50 sm:flex-1"
+          >
+            {atualizarCabecalhoMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+          <PermissionGate codigo="ordens.finalizar">
             <button
               type="button"
               onClick={handleFinalizar}
               disabled={finalizarMutation.isPending}
-              className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+              className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 sm:flex-1"
             >
               {finalizarMutation.isPending ? 'Finalizando...' : 'Finalizar Ordem'}
             </button>
-          </div>
-        </PermissionGate>
+          </PermissionGate>
+        </div>
       )}
     </div>
   )

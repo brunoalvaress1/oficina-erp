@@ -236,7 +236,15 @@ export async function buscarDashboardCaixa(): Promise<DashboardCaixa> {
   const [recebimentosResp, pendentesResp] = await Promise.all([
     supabase
       .from('caixa_recebimentos')
-      .select('id, valor_total, caixa_recebimento_formas(valor, forma_pagamento)')
+      .select(`
+        id, valor_total,
+        caixa_recebimento_formas(valor, forma_pagamento),
+        caixa_lancamentos(
+          ordens_servico(
+            ordem_servico_itens(tipo, quantidade, valor_total, valor_custo)
+          )
+        )
+      `)
       .eq('cancelado', false)
       .gte('created_at', inicio)
       .lte('created_at', fim),
@@ -247,14 +255,24 @@ export async function buscarDashboardCaixa(): Promise<DashboardCaixa> {
   if (pendentesResp.error) throw new Error(pendentesResp.error.message)
 
   const recebimentos = recebimentosResp.data ?? []
-  const formas = recebimentos.flatMap((r) => r.caixa_recebimento_formas ?? [])
+  const formas = recebimentos.flatMap((r: any) => r.caixa_recebimento_formas ?? [])
 
   function somaPorForma(forma: string): number {
     return formas.filter((f: any) => f.forma_pagamento === forma).reduce((soma: number, f: any) => soma + Number(f.valor), 0)
   }
 
+  // Lucro = valor de venda dos itens menos o custo — serviço (mão de obra) não
+  // tem custo de peça, então entra inteiro como lucro; peça sem custo
+  // registrado é ignorada (mesma regra usada no lucro estimado da OS).
+  const itens = recebimentos.flatMap((r: any) => r.caixa_lancamentos?.ordens_servico?.ordem_servico_itens ?? [])
+  const lucroHoje = itens.reduce((soma: number, item: any) => {
+    if (item.tipo === 'servico') return soma + Number(item.valor_total)
+    if (item.valor_custo != null) return soma + (Number(item.valor_total) - Number(item.valor_custo) * Number(item.quantidade))
+    return soma
+  }, 0)
+
   return {
-    recebidoHoje: recebimentos.reduce((soma, r) => soma + Number(r.valor_total), 0),
+    recebidoHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
     recebidoPix: somaPorForma('pix'),
     recebidoDinheiro: somaPorForma('dinheiro'),
     recebidoDebito: somaPorForma('debito'),
@@ -262,7 +280,8 @@ export async function buscarDashboardCaixa(): Promise<DashboardCaixa> {
     recebidoBoleto: somaPorForma('boleto'),
     pendentes: pendentesResp.count ?? 0,
     quantidadeOs: recebimentos.length,
-    totalGeral: recebimentos.reduce((soma, r) => soma + Number(r.valor_total), 0),
+    totalGeral: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
+    lucroHoje,
   }
 }
 

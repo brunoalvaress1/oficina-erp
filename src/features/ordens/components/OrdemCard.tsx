@@ -126,7 +126,13 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
       if (menuRef.current?.contains(alvo) || botaoRef.current?.contains(alvo)) return
       setMenuAberto(false)
     }
-    function handleFechar() {
+    // Scroll é ouvido com capture:true pra pegar rolagem da página/tabela por
+    // trás do menu — mas isso também captura a rolagem DENTRO do próprio menu
+    // (quando ele tem mais itens do que cabe e vira scrollável), fechando o
+    // menu assim que o usuário tentava rolar seu conteúdo. Ignora o evento
+    // quando ele se origina de dentro do próprio menu.
+    function handleFechar(event: Event) {
+      if (menuRef.current?.contains(event.target as Node)) return
       setMenuAberto(false)
     }
 

@@ -58,7 +58,7 @@ export function itemEstaCompleto(item: ItemOrdemForm): boolean {
 
   if (item.tipo === 'produto_estoque') return Boolean(item.produto)
   if (item.tipo === 'produto_terceirizado') {
-    return Boolean(item.fornecedor && item.numeroNota.trim() && Number(item.valorCusto) > 0)
+    return Boolean(item.fornecedor && Number(item.valorCusto) > 0)
   }
   return true
 }

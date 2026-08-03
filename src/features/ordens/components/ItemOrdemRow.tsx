@@ -180,13 +180,11 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando }: ItemOrdemRowNovoP
               {tentouAdicionar && !item.fornecedor && <p className="text-xs text-destructive">Obrigatório</p>}
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Número Nota *</label>
+              <label className="text-sm font-medium">Número Nota</label>
               <input
                 value={item.numeroNota}
                 onChange={(e) => atualizar({ numeroNota: e.target.value })}
-                className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
-                  tentouAdicionar && !item.numeroNota.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
-                }`}
+                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
           </>
