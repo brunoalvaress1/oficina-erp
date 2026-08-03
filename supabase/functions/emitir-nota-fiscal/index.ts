@@ -1,0 +1,332 @@
+// Emite NFC-e/NF-e para as PEÇAS de uma OS já recebida no Caixa (Fase 1 — mão
+// de obra/serviço fica de fora, isso é NFS-e e é uma integração separada, ver
+// emitir-nfse/index.ts).
+//
+// Payload e lógica de sucesso conferidos contra a especificação OpenAPI oficial
+// da Focus (doc.focusnfe.com.br) — inclusive campos exigidos (local_destino) e
+// o fato de a emissão de NFC-e ser síncrona (o resultado final já vem na
+// resposta do POST), enquanto a de NF-e pode ser assíncrona (HTTP 202,
+// "processando_autorizacao" — precisa consultar depois). Ainda assim, nunca
+// foi testado contra uma conta real (aguardando credenciamento na Sefaz) —
+// emita uma nota de teste em homologação antes de confiar de olhos fechados.
+import { corsHeaders } from '../_shared/cors.ts'
+import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
+import { CODIGO_FORMA_PAGAMENTO_SEFAZ, dataEmissaoBrasilia, focusNfePost, normalizarUf, resolverCaminhoFocus, type AmbienteNfe } from '../_shared/focusnfe.ts'
+
+type TipoNota = 'nfce' | 'nfe'
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  const admin = criarClienteAdmin()
+
+  try {
+    const funcionario = await autenticarFuncionario(req, admin, 'notas_fiscais.emitir')
+    const { caixaLancamentoId, tipo } = await req.json()
+    if (!caixaLancamentoId) throw new Error('CAIXA_LANCAMENTO_ID_OBRIGATORIO')
+    const tipoNota: TipoNota = tipo === 'nfe' ? 'nfe' : 'nfce'
+
+    // 1. Carrega o lançamento + OS (dados vêm do servidor, não do client, pra
+    // ninguém conseguir montar uma nota com valores diferentes do que foi
+    // realmente recebido no Caixa).
+    const { data: lancamento, error: erroLancamento } = await admin
+      .from('caixa_lancamentos')
+      .select('id, oficina_id, status, ordem_servico_id')
+      .eq('id', caixaLancamentoId)
+      .single()
+    if (erroLancamento || !lancamento) throw new Error('LANCAMENTO_NAO_ENCONTRADO')
+    if (lancamento.status !== 'recebido') throw new Error('LANCAMENTO_NAO_RECEBIDO')
+
+    const { data: notaExistente } = await admin
+      .from('notas_fiscais_saida')
+      .select('id, status')
+      .eq('caixa_lancamento_id', caixaLancamentoId)
+      .not('status', 'in', '(cancelada,erro,rejeitada)')
+      .maybeSingle()
+    if (notaExistente) throw new Error('NOTA_JA_EMITIDA')
+
+    const { data: ordem, error: erroOrdem } = await admin
+      .from('ordens_servico')
+      .select('id, numero, cliente_id, valor_total')
+      .eq('id', lancamento.ordem_servico_id)
+      .single()
+    if (erroOrdem || !ordem) throw new Error('ORDEM_NAO_ENCONTRADA')
+
+    const { data: itensOrdem, error: erroItens } = await admin
+      .from('ordem_servico_itens')
+      .select('id, tipo, produto_id, descricao, quantidade, valor_unitario, valor_total')
+      .eq('ordem_servico_id', ordem.id)
+      .in('tipo', ['produto_estoque', 'produto_terceirizado'])
+    if (erroItens) throw new Error(erroItens.message)
+    if (!itensOrdem || itensOrdem.length === 0) throw new Error('SEM_ITENS_DE_PECA')
+
+    const valorTotalPecas = itensOrdem.reduce((soma, item) => soma + Number(item.valor_total), 0)
+
+    // Config de ambiente + imposto padrão — vive em `integracoes`, não tem
+    // token nenhum ali (o token real é o FOCUS_NFE_TOKEN do secret).
+    const { data: integracao } = await admin
+      .from('integracoes')
+      .select('config, status')
+      .eq('oficina_id', lancamento.oficina_id)
+      .eq('codigo', 'nfe')
+      .maybeSingle()
+    if (!integracao?.status) throw new Error('NFE_NAO_CONFIGURADA: ative a integração de Nota Fiscal em Configurações antes de emitir.')
+    const ambiente: AmbienteNfe = (integracao.config as any)?.ambiente === 'producao' ? 'producao' : 'homologacao'
+    const impostoPadraoId: string | null = (integracao.config as any)?.impostoPadraoId ?? null
+
+    let impostoPadrao: any = null
+    if (impostoPadraoId) {
+      const { data } = await admin
+        .from('impostos')
+        .select('ncm, cfop, icms_percentual, classe_fiscal, origem')
+        .eq('id', impostoPadraoId)
+        .maybeSingle()
+      impostoPadrao = data
+    }
+
+    const produtoIds = [...new Set(itensOrdem.map((i) => i.produto_id).filter(Boolean))]
+    let produtos: any[] = []
+    if (produtoIds.length > 0) {
+      const { data, error: erroProdutos } = await admin
+        .from('produtos')
+        .select('id, nome, ncm, imposto_id, impostos(ncm, cfop, icms_percentual, classe_fiscal, origem)')
+        .in('id', produtoIds)
+      if (erroProdutos) throw new Error(erroProdutos.message)
+      produtos = data ?? []
+    }
+
+    const produtoPorId = new Map(produtos.map((p: any) => [p.id, p]))
+    const itensSemImposto = itensOrdem.filter((item) => {
+      const produto = item.produto_id ? produtoPorId.get(item.produto_id) : null
+      return !produto?.imposto_id && !impostoPadrao
+    })
+    if (itensSemImposto.length > 0) {
+      throw new Error(
+        `ITENS_SEM_IMPOSTO_CONFIGURADO: ${itensSemImposto.map((i) => i.descricao).join(', ')} — configure o imposto desses produtos em Produtos, ou configure um Imposto Padrão em Configurações → Nota Fiscal.`,
+      )
+    }
+
+    const { data: cliente, error: erroCliente } = await admin
+      .from('clientes')
+      .select('nome, cpf_cnpj, cep, endereco, numero, bairro, cidade, estado, codigo_cidade, telefone, email')
+      .eq('id', ordem.cliente_id)
+      .single()
+    if (erroCliente || !cliente) throw new Error('CLIENTE_NAO_ENCONTRADO')
+    if (!cliente.cpf_cnpj || !cliente.endereco || !cliente.codigo_cidade) {
+      throw new Error('CLIENTE_SEM_CADASTRO_COMPLETO: falta CPF/CNPJ, endereço ou código do município do cliente para emitir a nota.')
+    }
+
+    const { data: oficina, error: erroOficina } = await admin
+      .from('oficinas')
+      .select('cnpj, razao_social, nome_fantasia, endereco, numero, bairro, cidade, estado, cep')
+      .eq('id', lancamento.oficina_id)
+      .single()
+    if (erroOficina || !oficina) throw new Error('OFICINA_NAO_ENCONTRADA')
+    if (!oficina.cnpj) throw new Error('OFICINA_SEM_CNPJ_CONFIGURADO')
+
+    const { data: recebimento } = await admin
+      .from('caixa_recebimentos')
+      .select('id, caixa_recebimento_formas(valor, forma_pagamento)')
+      .eq('caixa_lancamento_id', caixaLancamentoId)
+      .eq('cancelado', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    // A nota cobre só as peças (Fase 1), mas o que foi pago no Caixa cobre a
+    // OS inteira (peças + mão de obra) — a Sefaz exige que a soma dos
+    // pagamentos bata exatamente com o total da nota, então rateamos
+    // proporcionalmente e ajustamos a última forma pra fechar centavo a centavo.
+    const formasOriginais = recebimento?.caixa_recebimento_formas ?? []
+    const valorTotalPago = formasOriginais.reduce((soma: number, f: any) => soma + Number(f.valor), 0)
+    const proporcaoPecas = valorTotalPago > 0 ? valorTotalPecas / valorTotalPago : 1
+
+    const formasPagamento = formasOriginais.map((f: any, indice: number) => {
+      const ehUltima = indice === formasOriginais.length - 1
+      const valorRateado = ehUltima
+        ? Number(valorTotalPecas) -
+          formasOriginais.slice(0, -1).reduce((soma: number, x: any) => soma + Math.round(Number(x.valor) * proporcaoPecas * 100) / 100, 0)
+        : Math.round(Number(f.valor) * proporcaoPecas * 100) / 100
+      return {
+        forma_pagamento: CODIGO_FORMA_PAGAMENTO_SEFAZ[f.forma_pagamento] ?? '99',
+        valor_pagamento: valorRateado.toFixed(2),
+      }
+    })
+
+    // 3. Monta o payload da NFC-e (natureza_operacao/CFOP/CST podem precisar de
+    // ajuste fino por estado — ver comentário no topo do arquivo).
+    // A referência inclui timestamp pra cada tentativa ser única — se uma
+    // tentativa anterior falhou (nunca chegou a ser autorizada pela Sefaz),
+    // uma nova tentativa não pode esbarrar na referência da que deu erro.
+    const referencia = `caixa-${caixaLancamentoId}-${Date.now()}`
+    const itensPayload = itensOrdem.map((item, indice) => {
+      // Itens de peça terceirizada (comprada avulsa pra essa OS) não têm
+      // produto_id — não estão cadastrados no catálogo de Produtos.
+      const produto = item.produto_id ? produtoPorId.get(item.produto_id) : undefined
+      const imposto = produto?.impostos ?? impostoPadrao
+      const valorBruto = Number(item.valor_total).toFixed(2)
+      return {
+        numero_item: String(indice + 1),
+        codigo_produto: item.produto_id || item.id,
+        descricao: item.descricao || produto?.nome || 'Peça',
+        cfop: imposto?.cfop || '5102',
+        codigo_ncm: (imposto?.ncm || produto?.ncm || '').replace(/\D/g, ''),
+        unidade_comercial: 'UN',
+        quantidade_comercial: Number(item.quantidade).toFixed(4),
+        valor_unitario_comercial: Number(item.valor_unitario).toFixed(2),
+        valor_bruto: valorBruto,
+        unidade_tributavel: 'UN',
+        quantidade_tributavel: Number(item.quantidade).toFixed(4),
+        valor_unitario_tributavel: Number(item.valor_unitario).toFixed(2),
+        indicador_total: '1',
+        icms_origem: imposto?.origem ?? '0',
+        icms_situacao_tributaria: imposto?.classe_fiscal ?? '102',
+        icms_aliquota: imposto?.icms_percentual != null ? Number(imposto.icms_percentual).toFixed(2) : undefined,
+        // PIS/COFINS — o grupo é obrigatório em NF-e (a NFC-e aceitou sem, mas
+        // a Sefaz rejeita NF-e com "sem grupo do PIS" se ele faltar). Não
+        // calculamos PIS/COFINS por produto (não temos essa informação
+        // cadastrada), então usamos CST 07 (Operação Isenta da Contribuição)
+        // — é o próprio valor de exemplo da documentação oficial da Focus e
+        // não exige base/alíquota/valor adicionais. Revisar com o contador se
+        // o regime tributário exigir apuração de PIS/COFINS por item.
+        pis_situacao_tributaria: '07',
+        cofins_situacao_tributaria: '07',
+        // IBS/CBS (Reforma Tributária) — obrigatório desde 2026 pra qualquer
+        // regime, inclusive Simples Nacional. Usando as alíquotas de teste
+        // oficiais do período de transição (0,1% IBS + 0,9% CBS, conforme
+        // documentação da Focus) — revisar com o contador conforme a reforma
+        // avança e as alíquotas de verdade entrarem em vigor.
+        ibs_cbs_situacao_tributaria: '000',
+        ibs_cbs_classificacao_tributaria: '000001',
+        ibs_cbs_base_calculo: valorBruto,
+        cbs_aliquota: '0.90',
+        cbs_valor: (Number(valorBruto) * 0.009).toFixed(2),
+        ibs_uf_aliquota: '0.10',
+        ibs_uf_valor: (Number(valorBruto) * 0.001).toFixed(2),
+        ibs_mun_aliquota: '0.00',
+        ibs_mun_valor: '0.00',
+        ibs_valor_total: (Number(valorBruto) * 0.001).toFixed(2),
+      }
+    })
+
+    // local_destino é obrigatório pelo schema oficial da Focus (1-Interna,
+    // 2-Interestadual, 3-Exterior) — comparamos a UF da oficina com a do
+    // cliente, normalizando primeiro (o campo Estado às vezes foi cadastrado
+    // com o nome completo do estado em vez da sigla, ex: "São Paulo" x "SP").
+    const ufOficina = normalizarUf(oficina.estado)
+    const ufCliente = normalizarUf(cliente.estado)
+    const localDestino = ufCliente && ufOficina && ufCliente !== ufOficina ? '2' : '1'
+
+    const payload: Record<string, unknown> = {
+      natureza_operacao: 'Venda de mercadoria',
+      data_emissao: dataEmissaoBrasilia(),
+      presenca_comprador: '1',
+      modalidade_frete: '9', // 9 = sem transporte (padrão pra venda de balcão)
+      local_destino: localDestino,
+      cnpj_emitente: oficina.cnpj.replace(/\D/g, ''),
+      nome_destinatario: cliente.nome,
+      cpf_destinatario: cliente.cpf_cnpj.replace(/\D/g, '').length <= 11 ? cliente.cpf_cnpj.replace(/\D/g, '') : undefined,
+      cnpj_destinatario: cliente.cpf_cnpj.replace(/\D/g, '').length > 11 ? cliente.cpf_cnpj.replace(/\D/g, '') : undefined,
+      logradouro_destinatario: cliente.endereco,
+      numero_destinatario: cliente.numero || 'S/N',
+      bairro_destinatario: cliente.bairro,
+      municipio_destinatario: cliente.cidade,
+      uf_destinatario: ufCliente,
+      cep_destinatario: (cliente.cep || '').replace(/\D/g, ''),
+      codigo_municipio_destinatario: cliente.codigo_cidade,
+      items: itensPayload,
+      formas_pagamento: formasPagamento,
+    }
+
+    // NF-e comum exige alguns campos extras que a NFC-e não tem (ela já é
+    // implicitamente venda presencial ao consumidor final). Como não
+    // coletamos a Inscrição Estadual do cliente, tratamos sempre como não
+    // contribuinte de ICMS (indicador "9") — cenário normal de venda de
+    // balcão pra pessoa física/empresa não inscrita.
+    if (tipoNota === 'nfe') {
+      payload.tipo_documento = '1' // 1 = saída
+      payload.finalidade_emissao = '1' // 1 = normal
+      payload.consumidor_final = '1'
+      payload.indicador_ie_destinatario = '9'
+    }
+
+    // 4. Envia pra Focus. A emissão de NFC-e é SÍNCRONA (a doc oficial da Focus
+    // confirma isso) — o resultado final (autorizado ou rejeitado) já vem
+    // nessa mesma resposta, não tem "processando" de verdade pra esperar depois.
+    // A de NF-e pode vir assíncrona (HTTP 202, status "processando_autorizacao")
+    // — nesse caso ainda não temos o resultado final, fica como "processando"
+    // até o usuário clicar em "Verificar status" (consultar-nota-fiscal).
+    // Importante: quem diz se deu certo é o campo "status" DENTRO do corpo
+    // ("autorizado" | "erro_autorizacao" | "processando_autorizacao"), não o
+    // código HTTP — a Focus devolve HTTP 201 tanto pra autorizado quanto pra
+    // rejeitado pela Sefaz (código HTTP diferente, tipo 400/422, é só pra erro
+    // de formato do nosso payload antes de sequer chegar na Sefaz).
+    const caminhoEmissao = tipoNota === 'nfe' ? '/v2/nfe' : '/v2/nfce'
+    const { data: respostaFocus } = await focusNfePost(ambiente, `${caminhoEmissao}?ref=${referencia}`, payload)
+    const autorizada = respostaFocus?.status === 'autorizado'
+    const processando = respostaFocus?.status === 'processando_autorizacao'
+    const rejeitadaPelaSefaz = respostaFocus?.status === 'erro_autorizacao' || respostaFocus?.status === 'denegado'
+    const statusInicial = autorizada ? 'autorizada' : processando ? 'processando' : rejeitadaPelaSefaz ? 'rejeitada' : 'erro'
+
+    // Duas formas de erro possíveis: erro de formato (codigo/mensagem/erros,
+    // antes de chegar na Sefaz) ou rejeição da própria Sefaz (mensagem_sefaz).
+    const mensagemFocusLegivel = rejeitadaPelaSefaz
+      ? respostaFocus?.mensagem_sefaz || 'Rejeitado pela Sefaz.'
+      : !autorizada && !processando && Array.isArray(respostaFocus?.erros) && respostaFocus.erros.length > 0
+        ? `${respostaFocus.mensagem ?? 'Erro na Focus'}: ${respostaFocus.erros.map((e: any) => e.mensagem).join('; ')}`
+        : autorizada || processando
+          ? null
+          : respostaFocus?.mensagem || respostaFocus?.mensagem_sefaz || JSON.stringify(respostaFocus)
+
+    const { data: notaCriada, error: erroInsert } = await admin
+      .from('notas_fiscais_saida')
+      .insert({
+        oficina_id: lancamento.oficina_id,
+        caixa_lancamento_id: caixaLancamentoId,
+        ordem_servico_id: ordem.id,
+        tipo: tipoNota,
+        ambiente,
+        status: statusInicial,
+        referencia,
+        numero: respostaFocus?.numero ?? null,
+        serie: respostaFocus?.serie ?? null,
+        chave_acesso: respostaFocus?.chave_nfe ?? null,
+        protocolo_autorizacao: respostaFocus?.numero_protocolo ?? respostaFocus?.protocolo ?? null,
+        url_danfe: resolverCaminhoFocus(ambiente, respostaFocus?.caminho_danfe),
+        url_xml: resolverCaminhoFocus(ambiente, respostaFocus?.caminho_xml_nota_fiscal),
+        qrcode_url: respostaFocus?.qrcode_url ?? null,
+        valor_total: ordem.valor_total,
+        cliente_nome: cliente.nome,
+        mensagem_erro: mensagemFocusLegivel,
+        payload_enviado: payload,
+        resposta_provedor: respostaFocus,
+        criado_por: funcionario.id,
+      })
+      .select('*')
+      .single()
+    if (erroInsert) throw new Error(erroInsert.message)
+
+    await admin.from('notas_fiscais_saida_historico').insert({
+      nota_fiscal_id: notaCriada.id,
+      status_anterior: null,
+      status_novo: statusInicial,
+      mensagem: autorizada
+        ? 'Nota autorizada pela Sefaz.'
+        : processando
+          ? 'Nota enviada, aguardando autorização da Sefaz.'
+          : mensagemFocusLegivel,
+    })
+
+    const sucesso = autorizada || processando
+    return new Response(JSON.stringify({ nota: notaCriada, error: sucesso ? undefined : mensagemFocusLegivel }), {
+      status: autorizada ? 200 : processando ? 202 : 422,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    const mensagem = error instanceof Error ? error.message : String(error)
+    return new Response(JSON.stringify({ error: mensagem }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+})

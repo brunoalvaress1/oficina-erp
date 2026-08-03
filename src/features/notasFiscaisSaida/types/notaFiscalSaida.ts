@@ -1,0 +1,67 @@
+export type TipoNotaFiscal = 'nfce' | 'nfe' | 'nfse'
+export type AmbienteNotaFiscal = 'homologacao' | 'producao'
+export type StatusNotaFiscal = 'pendente' | 'processando' | 'autorizada' | 'rejeitada' | 'cancelada' | 'erro'
+
+export const ROTULO_STATUS_NOTA_FISCAL: Record<StatusNotaFiscal, string> = {
+  pendente: 'Pendente',
+  processando: 'Processando',
+  autorizada: 'Autorizada',
+  rejeitada: 'Rejeitada',
+  cancelada: 'Cancelada',
+  erro: 'Erro',
+}
+
+export interface NotaFiscalSaida {
+  id: string
+  oficinaId: string
+  caixaLancamentoId: string | null
+  ordemServicoId: string | null
+  ordemNumero: number | null
+  tipo: TipoNotaFiscal
+  ambiente: AmbienteNotaFiscal
+  status: StatusNotaFiscal
+  referencia: string | null
+  numero: number | null
+  serie: number | null
+  chaveAcesso: string | null
+  protocoloAutorizacao: string | null
+  urlDanfe: string | null
+  urlXml: string | null
+  qrcodeUrl: string | null
+  mensagemErro: string | null
+  valorTotal: number
+  clienteNome: string | null
+  criadoPorNome: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HistoricoNotaFiscalEntry {
+  id: string
+  notaFiscalId: string
+  statusAnterior: string | null
+  statusNovo: string
+  mensagem: string | null
+  createdAt: string
+}
+
+export interface ListarNotasFiscaisParams {
+  page?: number
+  pageSize?: number
+  status?: StatusNotaFiscal
+}
+
+export interface ListarNotasFiscaisResult {
+  data: NotaFiscalSaida[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface OrdemPagaParaEmitir {
+  ordemServicoId: string
+  ordemNumero: number
+  clienteNome: string | null
+  valorTotal: number
+  caixaLancamentoId: string
+}
