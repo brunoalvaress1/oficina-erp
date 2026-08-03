@@ -38,3 +38,25 @@ export function normalizarTelefoneWhatsapp(telefone: string): string {
   const digitos = telefone.replace(/\D/g, '')
   return digitos.startsWith('55') ? digitos : `55${digitos}`
 }
+
+// Estado da sessão do WhatsApp Web pareado com a instância — 'open' (conectado),
+// 'close' (desconectado, precisa de novo QR code) ou 'connecting'.
+export async function consultarStatusInstancia(instanceName: string): Promise<RespostaEvolution> {
+  const resp = await fetch(`${baseUrl()}/instance/connectionState/${instanceName}`, {
+    method: 'GET',
+    headers: { apikey: apiKey() },
+  })
+  const data = await resp.json().catch(() => ({}))
+  return { status: resp.status, data }
+}
+
+// Gera um novo QR code pra parear o número — a resposta traz "base64" (data
+// URI da imagem do QR) quando a instância está desconectada.
+export async function gerarQrCodeInstancia(instanceName: string): Promise<RespostaEvolution> {
+  const resp = await fetch(`${baseUrl()}/instance/connect/${instanceName}`, {
+    method: 'GET',
+    headers: { apikey: apiKey() },
+  })
+  const data = await resp.json().catch(() => ({}))
+  return { status: resp.status, data }
+}

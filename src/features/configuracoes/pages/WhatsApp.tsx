@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import { useAtualizarIntegracao, useIntegracoes } from '../hooks/useIntegracoes'
+import { useGerarQrCodeWhatsapp, useStatusWhatsapp } from '@/features/whatsapp/hooks/useWhatsapp'
+
+const ROTULO_ESTADO: Record<string, { texto: string; cor: string }> = {
+  open: { texto: 'Conectado', cor: 'bg-green-500/10 text-green-600 border-green-500/30' },
+  close: { texto: 'Desconectado', cor: 'bg-red-500/10 text-red-600 border-red-500/30' },
+  connecting: { texto: 'Conectando...', cor: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+}
 
 export function WhatsApp() {
   const { data: integracoes, isLoading } = useIntegracoes()
@@ -8,6 +16,9 @@ export function WhatsApp() {
 
   const integracaoWhatsapp = (integracoes ?? []).find((i) => i.codigo === 'whatsapp')
   const [instanceName, setInstanceName] = useState('')
+  const temInstancia = !!(integracaoWhatsapp?.config as any)?.instanceName
+  const { data: estadoConexao, isFetching: consultandoStatus, refetch: reconsultarStatus } = useStatusWhatsapp(temInstancia)
+  const gerarQrCode = useGerarQrCodeWhatsapp()
 
   useEffect(() => {
     if (integracaoWhatsapp) {
@@ -72,6 +83,62 @@ export function WhatsApp() {
           className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
         />
       </div>
+
+      {temInstancia && (
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium text-sm">Conexão do número</h2>
+            <div className="flex items-center gap-2">
+              {estadoConexao && (
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROTULO_ESTADO[estadoConexao]?.cor ?? 'bg-muted text-muted-foreground'}`}>
+                  {ROTULO_ESTADO[estadoConexao]?.texto ?? estadoConexao}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => reconsultarStatus()}
+                disabled={consultandoStatus}
+                title="Verificar status"
+                className="h-7 w-7 flex items-center justify-center rounded-md border disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={consultandoStatus ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            A sessão do WhatsApp Web pode cair de tempos em tempos — quando isso acontecer, o status aqui fica
+            "Desconectado" e você precisa escanear um novo QR code, sem precisar entrar no painel da Evolution API.
+          </p>
+
+          {estadoConexao !== 'open' && (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => gerarQrCode.mutate()}
+                disabled={gerarQrCode.isPending}
+                className="h-9 px-4 rounded-md border text-sm font-medium disabled:opacity-50"
+              >
+                {gerarQrCode.isPending ? 'Gerando...' : 'Gerar QR Code'}
+              </button>
+
+              {gerarQrCode.data?.qrCodeBase64 && (
+                <div className="space-y-2">
+                  <img
+                    src={gerarQrCode.data.qrCodeBase64}
+                    alt="QR Code do WhatsApp"
+                    className="w-56 h-56 border rounded-md"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    No celular: WhatsApp → Configurações → Aparelhos conectados → Conectar um aparelho → aponte a câmera
+                    aqui.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

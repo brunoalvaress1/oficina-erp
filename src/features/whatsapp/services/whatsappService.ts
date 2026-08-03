@@ -28,3 +28,15 @@ export async function enviarWhatsappOsPronta(ordemServicoId: string): Promise<vo
   const { error } = await supabase.functions.invoke('enviar-whatsapp-os-pronta', { body: { ordemServicoId } })
   if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
 }
+
+export async function consultarStatusWhatsapp(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('whatsapp-conexao', { body: { acao: 'status' } })
+  if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
+  return data.estado as string
+}
+
+export async function gerarQrCodeWhatsapp(): Promise<{ qrCodeBase64: string | null; estado?: string }> {
+  const { data, error } = await supabase.functions.invoke('whatsapp-conexao', { body: { acao: 'qrcode' } })
+  if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
+  return data
+}
