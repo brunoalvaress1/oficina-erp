@@ -1,9 +1,9 @@
-// Status da conexão e geração de QR code da instância do WhatsApp (Evolution
-// API), pra não depender de entrar no Manager externo toda vez que a sessão
-// cair. Ação decidida pelo body: { acao: 'status' | 'qrcode' }.
+// Status da conexão, geração de QR code e desconexão da instância do
+// WhatsApp (Evolution API), pra não depender de entrar no Manager externo.
+// Ação decidida pelo body: { acao: 'status' | 'qrcode' | 'desconectar' }.
 import { corsHeaders } from '../_shared/cors.ts'
 import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
-import { consultarStatusInstancia, gerarQrCodeInstancia } from '../_shared/whatsapp.ts'
+import { consultarStatusInstancia, desconectarInstancia, gerarQrCodeInstancia } from '../_shared/whatsapp.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   try {
     const funcionario = await autenticarFuncionario(req, admin, 'configuracoes.visualizar')
     const { acao } = await req.json()
-    if (acao !== 'status' && acao !== 'qrcode') throw new Error('ACAO_INVALIDA')
+    if (acao !== 'status' && acao !== 'qrcode' && acao !== 'desconectar') throw new Error('ACAO_INVALIDA')
 
     const { data: integracao } = await admin
       .from('integracoes')
@@ -28,6 +28,15 @@ Deno.serve(async (req) => {
       const { data } = await consultarStatusInstancia(instanceName)
       const estado = data?.instance?.state ?? data?.state ?? 'desconhecido'
       return new Response(JSON.stringify({ estado }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (acao === 'desconectar') {
+      const { status, data } = await desconectarInstancia(instanceName)
+      if (status >= 400) throw new Error(data?.message || data?.error || 'Erro ao desconectar o WhatsApp.')
+      return new Response(JSON.stringify({ sucesso: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

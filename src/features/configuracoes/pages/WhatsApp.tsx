@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RefreshCw } from 'lucide-react'
+import { LogOut, RefreshCw } from 'lucide-react'
 import { useAtualizarIntegracao, useIntegracoes } from '../hooks/useIntegracoes'
-import { useGerarQrCodeWhatsapp, useStatusWhatsapp } from '@/features/whatsapp/hooks/useWhatsapp'
+import { useDesconectarWhatsapp, useGerarQrCodeWhatsapp, useStatusWhatsapp } from '@/features/whatsapp/hooks/useWhatsapp'
 
 const ROTULO_ESTADO: Record<string, { texto: string; cor: string }> = {
   open: { texto: 'Conectado', cor: 'bg-green-500/10 text-green-600 border-green-500/30' },
@@ -20,6 +20,13 @@ export function WhatsApp() {
   const temInstancia = !!(integracaoWhatsapp?.config as any)?.instanceName
   const { data: estadoConexao, isFetching: consultandoStatus, refetch: reconsultarStatus } = useStatusWhatsapp(temInstancia)
   const gerarQrCode = useGerarQrCodeWhatsapp()
+  const desconectar = useDesconectarWhatsapp()
+
+  function handleDesconectar() {
+    if (confirm('Desconectar o número atual do WhatsApp? Você vai precisar escanear um novo QR code (pode ser com outro número) pra reconectar.')) {
+      desconectar.mutate()
+    }
+  }
 
   useEffect(() => {
     if (integracaoWhatsapp) {
@@ -126,12 +133,24 @@ export function WhatsApp() {
               >
                 <RefreshCw size={13} className={consultandoStatus ? 'animate-spin' : ''} />
               </button>
+              {estadoConexao === 'open' && (
+                <button
+                  type="button"
+                  onClick={handleDesconectar}
+                  disabled={desconectar.isPending}
+                  title="Desconectar (pra trocar de número)"
+                  className="h-7 w-7 flex items-center justify-center rounded-md border text-destructive disabled:opacity-50"
+                >
+                  <LogOut size={13} />
+                </button>
+              )}
             </div>
           </div>
 
           <p className="text-xs text-muted-foreground">
             A sessão do WhatsApp Web pode cair de tempos em tempos — quando isso acontecer, o status aqui fica
-            "Desconectado" e você precisa escanear um novo QR code, sem precisar entrar no painel da Evolution API.
+            "Desconectado" e você precisa escanear um novo QR code, sem precisar entrar no painel da Evolution API. Use o
+            botão de desconectar (ícone vermelho) se quiser trocar o número conectado.
           </p>
 
           {estadoConexao !== 'open' && (

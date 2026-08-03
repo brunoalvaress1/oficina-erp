@@ -60,3 +60,25 @@ export async function gerarQrCodeInstancia(instanceName: string): Promise<Respos
   const data = await resp.json().catch(() => ({}))
   return { status: resp.status, data }
 }
+
+// Desconecta o número atual da instância (sem apagar a instância em si) —
+// usado quando o usuário quer trocar de número: depois disso, gerar um novo
+// QR code deixa parear outro celular na mesma instância.
+//
+// A documentação da Evolution API diverge entre versões sobre se esse
+// endpoint é DELETE ou POST — tenta DELETE primeiro (padrão mais comum nas
+// versões v2 recentes) e cai pra POST se vier 404/405.
+export async function desconectarInstancia(instanceName: string): Promise<RespostaEvolution> {
+  const url = `${baseUrl()}/instance/logout/${instanceName}`
+  const headers = { apikey: apiKey() }
+
+  const respDelete = await fetch(url, { method: 'DELETE', headers })
+  if (respDelete.status !== 404 && respDelete.status !== 405) {
+    const data = await respDelete.json().catch(() => ({}))
+    return { status: respDelete.status, data }
+  }
+
+  const respPost = await fetch(url, { method: 'POST', headers })
+  const data = await respPost.json().catch(() => ({}))
+  return { status: respPost.status, data }
+}

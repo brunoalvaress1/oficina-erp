@@ -48,3 +48,8 @@ export async function gerarQrCodeWhatsapp(): Promise<{ qrCodeBase64: string | nu
   if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
   return data
 }
+
+export async function desconectarWhatsapp(): Promise<void> {
+  const { error } = await supabase.functions.invoke('whatsapp-conexao', { body: { acao: 'desconectar' } })
+  if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
+}
