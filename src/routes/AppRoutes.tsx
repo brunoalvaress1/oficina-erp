@@ -15,6 +15,7 @@ import { FornecedoresList } from '@/features/fornecedores/pages/FornecedoresList
 import { OrdensList } from '@/features/ordens/pages/OrdensList'
 import { OrdemForm } from '@/features/ordens/pages/OrdemForm'
 import { ItensRecusados } from '@/features/ordens/pages/ItensRecusados'
+import { AcompanharOs } from '@/features/ordens/pages/AcompanharOs'
 import { CaixaList } from '@/features/caixa/pages/CaixaList'
 import { Pendentes as CaixaPendentes } from '@/features/caixa/pages/Pendentes'
 import { Historico as CaixaHistorico } from '@/features/caixa/pages/Historico'
@@ -55,6 +56,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Pública, sem login — acessada pelo cliente via link do WhatsApp após pagar a OS. */}
+      <Route path="/os/:id" element={<AcompanharOs />} />
 
       <Route
         element={

@@ -16,6 +16,7 @@ export function WhatsApp() {
 
   const integracaoWhatsapp = (integracoes ?? []).find((i) => i.codigo === 'whatsapp')
   const [instanceName, setInstanceName] = useState('')
+  const [siteUrl, setSiteUrl] = useState('')
   const temInstancia = !!(integracaoWhatsapp?.config as any)?.instanceName
   const { data: estadoConexao, isFetching: consultandoStatus, refetch: reconsultarStatus } = useStatusWhatsapp(temInstancia)
   const gerarQrCode = useGerarQrCodeWhatsapp()
@@ -24,12 +25,18 @@ export function WhatsApp() {
     if (integracaoWhatsapp) {
       const config = integracaoWhatsapp.config as any
       setInstanceName(config?.instanceName ?? '')
+      setSiteUrl(config?.siteUrl ?? '')
     }
   }, [integracaoWhatsapp])
 
-  function salvarInstanceName() {
+  function salvarConfig(alteracoes: { instanceName?: string; siteUrl?: string }) {
     if (!integracaoWhatsapp) return
-    atualizar.mutate({ id: integracaoWhatsapp.id, alteracoes: { config: { instanceName: instanceName || null } } })
+    const novoInstanceName = alteracoes.instanceName !== undefined ? alteracoes.instanceName : instanceName
+    const novoSiteUrl = alteracoes.siteUrl !== undefined ? alteracoes.siteUrl : siteUrl
+    atualizar.mutate({
+      id: integracaoWhatsapp.id,
+      alteracoes: { config: { instanceName: novoInstanceName || null, siteUrl: novoSiteUrl || null } },
+    })
   }
 
   function alternarAtivo() {
@@ -44,9 +51,9 @@ export function WhatsApp() {
       <div>
         <h1 className="text-2xl font-semibold">WhatsApp</h1>
         <p className="text-sm text-muted-foreground">
-          Envio automático de mensagem pro cliente quando a OS é finalizada e enviada ao Caixa, via Evolution API. Usa a
-          mesma mensagem padrão configurada em{' '}
-          <Link to="/configuracoes/dados-oficina" className="text-primary underline">Configurações → Dados da Oficina</Link>.
+          Duas mensagens automáticas via Evolution API: quando a OS é finalizada (usa a mensagem padrão configurada em{' '}
+          <Link to="/configuracoes/dados-oficina" className="text-primary underline">Configurações → Dados da Oficina</Link>),
+          e quando o pagamento é recebido no Caixa (manda um link público pra OS que o cliente pode acessar).
         </p>
       </div>
 
@@ -77,9 +84,25 @@ export function WhatsApp() {
           type="text"
           value={instanceName}
           onChange={(e) => setInstanceName(e.target.value)}
-          onBlur={salvarInstanceName}
+          onBlur={() => salvarConfig({ instanceName })}
           disabled={!integracaoWhatsapp || atualizar.isPending}
           placeholder="oficina"
+          className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+        />
+      </div>
+
+      <div className="rounded-lg border p-4 space-y-3">
+        <h2 className="font-medium text-sm">Endereço do site</h2>
+        <p className="text-xs text-muted-foreground">
+          URL pública do sistema (Vercel) — usada pra montar o link da OS que o cliente recebe no WhatsApp depois de pagar.
+        </p>
+        <input
+          type="text"
+          value={siteUrl}
+          onChange={(e) => setSiteUrl(e.target.value)}
+          onBlur={() => salvarConfig({ siteUrl })}
+          disabled={!integracaoWhatsapp || atualizar.isPending}
+          placeholder="https://oficina-erp-xxxxx.vercel.app"
           className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
         />
       </div>

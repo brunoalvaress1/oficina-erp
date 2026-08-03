@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 function traduzirErro(mensagem: string): string {
   if (mensagem.includes('WHATSAPP_NAO_CONFIGURADO')) return 'Integração de WhatsApp inativa — ative em Configurações → WhatsApp.'
   if (mensagem.includes('WHATSAPP_SEM_INSTANCIA')) return 'Configure o nome da instância em Configurações → WhatsApp.'
+  if (mensagem.includes('WHATSAPP_SEM_SITE_URL')) return 'Configure o endereço do site em Configurações → WhatsApp.'
   if (mensagem.includes('CLIENTE_SEM_TELEFONE')) return 'Cliente sem telefone cadastrado — mensagem não enviada.'
   return mensagem
 }
@@ -26,6 +27,13 @@ async function extrairMensagemErro(error: unknown): Promise<string> {
 // parte, normalmente com um toast silencioso/secundário.
 export async function enviarWhatsappOsPronta(ordemServicoId: string): Promise<void> {
   const { error } = await supabase.functions.invoke('enviar-whatsapp-os-pronta', { body: { ordemServicoId } })
+  if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
+}
+
+// Dispara o link público da OS pro cliente assim que o pagamento é recebido
+// no Caixa. Mesma lógica de "não travar o fluxo principal" do caso acima.
+export async function enviarWhatsappOsPaga(caixaLancamentoId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('enviar-whatsapp-os-paga', { body: { caixaLancamentoId } })
   if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
 }
 
