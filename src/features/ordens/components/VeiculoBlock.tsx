@@ -97,14 +97,18 @@ export function VeiculoBlock({
 
   const somenteLeituraCampos = disabled || Boolean(value.veiculoExistente)
   const kmMenorQueAnterior = kmAnterior != null && kmAtual.trim() !== '' && Number(kmAtual) < kmAnterior
+  // Veículo é opcional (oficina não usa PDV) — só vira obrigatório campo a
+  // campo quando a placa é preenchida (não dá pra ter só um pedaço do
+  // veículo cadastrado).
+  const veiculoInformado = Boolean(value.placa.trim())
 
   return (
     <div className="rounded-lg border p-4 space-y-4">
-      <h2 className="font-medium">Dados do Veículo</h2>
+      <h2 className="font-medium">Dados do Veículo (opcional)</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="space-y-1">
-          <label className="text-sm font-medium">Placa *</label>
+          <label className="text-sm font-medium">Placa</label>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <input
@@ -114,9 +118,7 @@ export function VeiculoBlock({
                 maxLength={7}
                 disabled={disabled}
                 placeholder="ABC1D23"
-                className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm uppercase outline-none focus:ring-1 disabled:opacity-50 ${
-                  tentouSalvar && !value.placa.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
-                }`}
+                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm uppercase outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
               />
               {buscandoNoBanco && (
                 <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -142,13 +144,13 @@ export function VeiculoBlock({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">Modelo *</label>
+          <label className="text-sm font-medium">Modelo{veiculoInformado ? ' *' : ''}</label>
           <input
             value={value.modelo}
             onChange={(e) => atualizar({ modelo: e.target.value })}
             disabled={disabled || somenteLeituraCampos}
             className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
-              tentouSalvar && !value.modelo.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
+              tentouSalvar && veiculoInformado && !value.modelo.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
             }`}
           />
         </div>
@@ -165,14 +167,14 @@ export function VeiculoBlock({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">Quilometragem Atual *</label>
+          <label className="text-sm font-medium">Quilometragem Atual{veiculoInformado ? ' *' : ''}</label>
           <input
             value={kmAtual}
             onChange={(e) => onChangeKmAtual(e.target.value.replace(/\D/g, ''))}
             inputMode="numeric"
             disabled={disabled}
             className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
-              tentouSalvar && !kmAtual.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
+              tentouSalvar && veiculoInformado && !kmAtual.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
             }`}
           />
           {kmAnterior != null && (

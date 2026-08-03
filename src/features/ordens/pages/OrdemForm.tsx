@@ -41,6 +41,7 @@ import {
   clienteBlockValueValido,
   clienteBlockValueVazio,
   veiculoBlockValueDoExistente,
+  veiculoBlockValueInformado,
   veiculoBlockValueParaInput,
   veiculoBlockValueValido,
   veiculoBlockValueVazio,
@@ -62,7 +63,7 @@ export function OrdemForm() {
   const podeEditar = hasPermission('ordens.editar')
 
   const { data: detalhe, isLoading: carregandoDetalhe } = useOrdemDetalhe(id)
-  const { data: veiculoDaOrdem } = useVeiculoDetalhe(detalhe?.ordem.veiculoId)
+  const { data: veiculoDaOrdem } = useVeiculoDetalhe(detalhe?.ordem.veiculoId ?? undefined)
   const { data: clienteDaOrdem } = useClienteDetalhe(detalhe?.ordem.clienteId)
   const { data: funcionarios = [] } = useFuncionariosSelect()
 
@@ -93,7 +94,7 @@ export function OrdemForm() {
     setMecanicoId(detalhe.ordem.mecanicoId ?? '')
     setNumeroPrisma(detalhe.ordem.numeroPrisma ?? '')
     setDataEntrada(detalhe.ordem.dataEntrada)
-    setKmAtual(String(detalhe.ordem.kmAtual))
+    setKmAtual(detalhe.ordem.kmAtual != null ? String(detalhe.ordem.kmAtual) : '')
     setDefeitosRelatados(detalhe.ordem.defeitosRelatados ?? '')
     setObservacoesInternas(detalhe.ordem.observacoesInternas ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -162,7 +163,9 @@ export function OrdemForm() {
       responsavelId &&
       dataAbertura &&
       dataEntrada &&
-      kmAtual.trim(),
+      // Quilometragem só é obrigatória quando tem veículo informado — sem
+      // veículo não tem o que registrar.
+      (!veiculoBlockValueInformado(veiculoBlockValue) || kmAtual.trim()),
   )
 
   function handleAdicionarItemLocal(item: ItemOrdemForm) {
@@ -250,7 +253,9 @@ export function OrdemForm() {
       }
 
       let veiculoId = veiculoBlockValue.veiculoExistente?.id
-      if (!veiculoId) {
+      // Oficina não usa PDV — nem toda OS tem veículo. Só cria/associa um
+      // veículo se algo foi de fato informado no bloco.
+      if (!veiculoId && veiculoBlockValueInformado(veiculoBlockValue)) {
         try {
           const novoVeiculo = await criarVeiculo(veiculoBlockValueParaInput(veiculoBlockValue, clienteId), funcionario!.oficinaId)
           veiculoId = novoVeiculo.id
@@ -270,13 +275,13 @@ export function OrdemForm() {
       criarMutation.mutate(
         {
           clienteId,
-          veiculoId,
+          veiculoId: veiculoId || undefined,
           responsavelId,
           mecanicoId: mecanicoId || undefined,
           numeroPrisma: numeroPrisma || undefined,
           dataAbertura,
           dataEntrada,
-          kmAtual: Number(kmAtual),
+          kmAtual: kmAtual.trim() ? Number(kmAtual) : undefined,
           defeitosRelatados: defeitosRelatados || undefined,
           observacoesInternas: observacoesInternas || undefined,
           itens: itensLocais.map(itemFormParaInput),

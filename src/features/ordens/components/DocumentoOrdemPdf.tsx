@@ -82,13 +82,15 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho }: DocumentoOr
           <View style={estilos.linha}>
             <Text style={estilos.rotulo}>Veículo</Text>
             <Text style={estilos.valor}>
-              {ordem.veiculoModelo ?? '-'} · Placa {ordem.veiculoPlaca ?? '-'}
+              {ordem.veiculoId ? `${ordem.veiculoModelo ?? '-'} · Placa ${ordem.veiculoPlaca ?? '-'}` : 'Nenhum veículo cadastrado'}
             </Text>
           </View>
-          <View style={estilos.linha}>
-            <Text style={estilos.rotulo}>Quilometragem</Text>
-            <Text style={estilos.valor}>{ordem.kmAtual} km</Text>
-          </View>
+          {ordem.veiculoId && (
+            <View style={estilos.linha}>
+              <Text style={estilos.rotulo}>Quilometragem</Text>
+              <Text style={estilos.valor}>{ordem.kmAtual} km</Text>
+            </View>
+          )}
           <View style={estilos.linha}>
             <Text style={estilos.rotulo}>Status</Text>
             <Text style={estilos.valor}>{ROTULO_STATUS_ORDEM[ordem.status]}</Text>

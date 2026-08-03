@@ -256,8 +256,16 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
         {ordem.numero}
       </td>
       <td className="px-3 py-2">{ordem.clienteNome ?? '-'}</td>
-      <td className="px-3 py-2">{ordem.veiculoModelo ?? '-'}</td>
-      <td className="px-3 py-2">{ordem.veiculoPlaca ?? '-'}</td>
+      {ordem.veiculoId ? (
+        <>
+          <td className="px-3 py-2">{ordem.veiculoModelo ?? '-'}</td>
+          <td className="px-3 py-2">{ordem.veiculoPlaca ?? '-'}</td>
+        </>
+      ) : (
+        <td className="px-3 py-2 text-muted-foreground italic" colSpan={2}>
+          Nenhum veículo cadastrado
+        </td>
+      )}
       <td className="px-3 py-2">{ordem.kmAtual?.toLocaleString('pt-BR') ?? '-'}</td>
       <td className="px-3 py-2">
         <span className={`text-xs px-2 py-0.5 rounded-full ${COR_STATUS[ordem.status]}`}>

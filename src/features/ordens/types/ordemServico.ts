@@ -19,7 +19,7 @@ export interface OrdemServico {
   numeroPrisma: string | null
   clienteId: string
   clienteNome?: string
-  veiculoId: string
+  veiculoId: string | null
   veiculoPlaca?: string
   veiculoModelo?: string
   responsavelId: string
@@ -28,7 +28,7 @@ export interface OrdemServico {
   mecanicoNome?: string
   dataAbertura: string
   dataEntrada: string
-  kmAtual: number
+  kmAtual: number | null
   kmAnterior: number | null
   status: StatusOrdemServico
   defeitosRelatados: string | null
@@ -97,13 +97,13 @@ export interface ItemOrdemInput {
 
 export interface CriarOrdemServicoInput {
   clienteId: string
-  veiculoId: string
+  veiculoId?: string
   responsavelId: string
   mecanicoId?: string
   numeroPrisma?: string
   dataAbertura: string
   dataEntrada: string
-  kmAtual: number
+  kmAtual?: number
   defeitosRelatados?: string
   observacoesInternas?: string
   itens: ItemOrdemInput[]

@@ -47,8 +47,16 @@ export function veiculoBlockValueDoExistente(veiculo: Veiculo): VeiculoBlockValu
   }
 }
 
+// Veículo é opcional (oficina não usa PDV, então nem toda OS tem um veículo
+// associado) — mas se a placa foi preenchida, o modelo também precisa ser
+// (não dá pra salvar uma placa "solta" sem identificar o veículo).
 export function veiculoBlockValueValido(valor: VeiculoBlockValue): boolean {
-  return Boolean(valor.placa.trim() && valor.modelo.trim())
+  if (!valor.placa.trim()) return true
+  return Boolean(valor.modelo.trim())
+}
+
+export function veiculoBlockValueInformado(valor: VeiculoBlockValue): boolean {
+  return Boolean(valor.placa.trim())
 }
 
 export function veiculoBlockValueParaInput(valor: VeiculoBlockValue, clienteId: string): VeiculoInput {
