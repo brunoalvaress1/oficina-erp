@@ -23,7 +23,7 @@ interface RespostaEvolution {
 }
 
 export async function enviarTextoWhatsapp(instanceName: string, telefone: string, texto: string): Promise<RespostaEvolution> {
-  const resp = await fetch(`${baseUrl()}/message/sendText/${instanceName}`, {
+  const resp = await fetch(`${baseUrl()}/message/sendText/${encodeURIComponent(instanceName)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: apiKey() },
     body: JSON.stringify({ number: telefone, text: texto }),
@@ -42,7 +42,7 @@ export function normalizarTelefoneWhatsapp(telefone: string): string {
 // Estado da sessão do WhatsApp Web pareado com a instância — 'open' (conectado),
 // 'close' (desconectado, precisa de novo QR code) ou 'connecting'.
 export async function consultarStatusInstancia(instanceName: string): Promise<RespostaEvolution> {
-  const resp = await fetch(`${baseUrl()}/instance/connectionState/${instanceName}`, {
+  const resp = await fetch(`${baseUrl()}/instance/connectionState/${encodeURIComponent(instanceName)}`, {
     method: 'GET',
     headers: { apikey: apiKey() },
   })
@@ -53,7 +53,7 @@ export async function consultarStatusInstancia(instanceName: string): Promise<Re
 // Gera um novo QR code pra parear o número — a resposta traz "base64" (data
 // URI da imagem do QR) quando a instância está desconectada.
 export async function gerarQrCodeInstancia(instanceName: string): Promise<RespostaEvolution> {
-  const resp = await fetch(`${baseUrl()}/instance/connect/${instanceName}`, {
+  const resp = await fetch(`${baseUrl()}/instance/connect/${encodeURIComponent(instanceName)}`, {
     method: 'GET',
     headers: { apikey: apiKey() },
   })
@@ -69,7 +69,7 @@ export async function gerarQrCodeInstancia(instanceName: string): Promise<Respos
 // endpoint é DELETE ou POST — tenta DELETE primeiro (padrão mais comum nas
 // versões v2 recentes) e cai pra POST se vier 404/405.
 export async function desconectarInstancia(instanceName: string): Promise<RespostaEvolution> {
-  const url = `${baseUrl()}/instance/logout/${instanceName}`
+  const url = `${baseUrl()}/instance/logout/${encodeURIComponent(instanceName)}`
   const headers = { apikey: apiKey() }
 
   const respDelete = await fetch(url, { method: 'DELETE', headers })
