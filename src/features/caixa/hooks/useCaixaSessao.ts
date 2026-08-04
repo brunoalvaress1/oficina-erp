@@ -50,8 +50,8 @@ export function useFecharCaixa() {
   const { funcionario } = usePermissions()
 
   return useMutation({
-    mutationFn: ({ caixaSessaoId, valorContado, observacoes }: { caixaSessaoId: string; valorContado: number; observacoes?: string }) =>
-      fecharCaixa(caixaSessaoId, funcionario!.id, valorContado, observacoes),
+    mutationFn: ({ caixaSessaoId, observacoes }: { caixaSessaoId: string; observacoes?: string }) =>
+      fecharCaixa(caixaSessaoId, funcionario!.id, observacoes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['caixa-sessao-aberta'] })
       toast.success('Caixa fechado com sucesso')

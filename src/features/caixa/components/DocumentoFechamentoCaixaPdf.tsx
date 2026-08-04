@@ -38,13 +38,11 @@ function formatarDataHora(data: string): string {
 
 interface DocumentoFechamentoCaixaPdfProps {
   resumo: ResumoSessaoCaixa
-  valorContado?: number | null
   cabecalho?: CabecalhoOficinaPdf
 }
 
-export function DocumentoFechamentoCaixaPdf({ resumo, valorContado, cabecalho }: DocumentoFechamentoCaixaPdfProps) {
+export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFechamentoCaixaPdfProps) {
   const { sessao } = resumo
-  const diferenca = valorContado != null ? valorContado - resumo.valorEsperadoDinheiro : null
 
   return (
     <Document>
@@ -118,18 +116,6 @@ export function DocumentoFechamentoCaixaPdf({ resumo, valorContado, cabecalho }:
             <Text style={estilos.rotulo}>Valor esperado em dinheiro</Text>
             <Text style={estilos.valor}>{formatarMoeda(resumo.valorEsperadoDinheiro)}</Text>
           </View>
-          {valorContado != null && (
-            <View style={estilos.linha}>
-              <Text style={estilos.rotulo}>Valor contado em caixa</Text>
-              <Text style={estilos.valor}>{formatarMoeda(valorContado)}</Text>
-            </View>
-          )}
-          {diferenca != null && (
-            <View style={estilos.linha}>
-              <Text style={estilos.rotulo}>Diferença</Text>
-              <Text style={estilos.valor}>{formatarMoeda(diferenca)}</Text>
-            </View>
-          )}
           <Text style={estilos.totalGeral}>Total Geral Recebido: {formatarMoeda(resumo.totalGeral)}</Text>
         </View>
 
@@ -160,12 +146,8 @@ export function DocumentoFechamentoCaixaPdf({ resumo, valorContado, cabecalho }:
   )
 }
 
-export async function gerarEBaixarPdfFechamento(
-  resumo: ResumoSessaoCaixa,
-  valorContado?: number | null,
-  cabecalho?: CabecalhoOficinaPdf,
-): Promise<void> {
-  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} valorContado={valorContado} cabecalho={cabecalho} />).toBlob()
+export async function gerarEBaixarPdfFechamento(resumo: ResumoSessaoCaixa, cabecalho?: CabecalhoOficinaPdf): Promise<void> {
+  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} cabecalho={cabecalho} />).toBlob()
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -176,12 +158,8 @@ export async function gerarEBaixarPdfFechamento(
   URL.revokeObjectURL(url)
 }
 
-export async function gerarEAbrirPdfFechamento(
-  resumo: ResumoSessaoCaixa,
-  valorContado?: number | null,
-  cabecalho?: CabecalhoOficinaPdf,
-): Promise<void> {
-  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} valorContado={valorContado} cabecalho={cabecalho} />).toBlob()
+export async function gerarEAbrirPdfFechamento(resumo: ResumoSessaoCaixa, cabecalho?: CabecalhoOficinaPdf): Promise<void> {
+  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} cabecalho={cabecalho} />).toBlob()
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener,noreferrer')
   setTimeout(() => URL.revokeObjectURL(url), 60_000)

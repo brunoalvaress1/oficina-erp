@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Download, Printer } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { formatCurrency } from '@/utils/format'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
 import { useResumoSessaoCaixa, useFecharCaixa } from '../hooks/useCaixaSessao'
@@ -15,20 +14,17 @@ interface FecharCaixaModalProps {
 
 export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCaixaModalProps) {
   const [observacoes, setObservacoes] = useState('')
-  const [valorContado, setValorContado] = useState('')
   const [processandoPdf, setProcessandoPdf] = useState<'baixar' | 'imprimir' | null>(null)
   const { data: resumo, isLoading } = useResumoSessaoCaixa(open ? caixaSessaoId : undefined)
   const fecharMutation = useFecharCaixa()
   const { data: oficina } = useDadosOficina()
-
-  const diferenca = resumo && valorContado !== '' ? Number(valorContado) - resumo.valorEsperadoDinheiro : null
 
   async function handleBaixarPdf() {
     if (!resumo) return
     setProcessandoPdf('baixar')
     try {
       const { gerarEBaixarPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
-      await gerarEBaixarPdfFechamento(resumo, valorContado !== '' ? Number(valorContado) : null, {
+      await gerarEBaixarPdfFechamento(resumo, {
         nome: oficina?.nomeImpressao || oficina?.nomeFantasia,
         logoUrl: oficina?.logoUrl,
         rodape: oficina?.rodapeImpressao,
@@ -45,7 +41,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
     setProcessandoPdf('imprimir')
     try {
       const { gerarEAbrirPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
-      await gerarEAbrirPdfFechamento(resumo, valorContado !== '' ? Number(valorContado) : null, {
+      await gerarEAbrirPdfFechamento(resumo, {
         nome: oficina?.nomeImpressao || oficina?.nomeFantasia,
         logoUrl: oficina?.logoUrl,
         rodape: oficina?.rodapeImpressao,
@@ -58,10 +54,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
   }
 
   function handleFechar() {
-    fecharMutation.mutate(
-      { caixaSessaoId, valorContado: Number(valorContado) || 0, observacoes: observacoes || undefined },
-      { onSuccess: () => onOpenChange(false) },
-    )
+    fecharMutation.mutate({ caixaSessaoId, observacoes: observacoes || undefined }, { onSuccess: () => onOpenChange(false) })
   }
 
   return (
@@ -92,20 +85,6 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
               <div className="border-t pt-2">
                 <Linha label={`Total Geral (${resumo.quantidadeRecebimentos} recebimentos)`} valor={formatCurrency(resumo.totalGeral)} destaque />
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Valor Contado em Caixa (dinheiro físico)</label>
-              <CampoMoeda
-                value={valorContado}
-                onChange={setValorContado}
-                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
-              />
-              {diferenca != null && Math.abs(diferenca) > 0.009 && (
-                <p className={`text-xs ${diferenca < 0 ? 'text-destructive' : 'text-amber-600'}`}>
-                  Diferença: {formatCurrency(diferenca)} {diferenca < 0 ? '(faltando)' : '(sobrando)'}
-                </p>
-              )}
             </div>
 
             <div className="space-y-1">
@@ -140,7 +119,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
             <button
               type="button"
               onClick={handleFechar}
-              disabled={fecharMutation.isPending || valorContado === ''}
+              disabled={fecharMutation.isPending}
               className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
             >
               {fecharMutation.isPending ? 'Fechando...' : 'Confirmar Fechamento'}

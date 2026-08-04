@@ -62,17 +62,14 @@ export async function abrirCaixa(
   return data as string
 }
 
-export async function fecharCaixa(
-  caixaSessaoId: string,
-  funcionarioId: string,
-  valorContado: number,
-  observacoes?: string,
-): Promise<void> {
+// Sem conferência de caixa físico — fecha direto com o que já está
+// registrado no sistema, sem pedir contagem de dinheiro nem calcular
+// diferença.
+export async function fecharCaixa(caixaSessaoId: string, funcionarioId: string, observacoes?: string): Promise<void> {
   const { error } = await supabase.rpc('caixa_fechar_sessao', {
     p_caixa_sessao_id: caixaSessaoId,
     p_funcionario_id: funcionarioId,
     p_observacoes: observacoes || null,
-    p_valor_contado: valorContado,
   })
   if (error) throw new Error(traduzirErro(error.message))
 }
