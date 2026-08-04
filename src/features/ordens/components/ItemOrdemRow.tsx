@@ -20,6 +20,12 @@ const ROTULO_TIPO: Record<TipoItemOrdem, string> = {
   servico: 'Serviço',
 }
 
+const COR_TIPO_ATIVO: Record<TipoItemOrdem, string> = {
+  produto_estoque: 'bg-blue-600 text-white border-blue-600',
+  produto_terceirizado: 'bg-amber-500 text-white border-amber-500',
+  servico: 'bg-emerald-600 text-white border-emerald-600',
+}
+
 interface ItemOrdemRowNovoProps {
   onAdicionar: (item: ItemOrdemForm) => void
   adicionando?: boolean
@@ -91,15 +97,15 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando }: ItemOrdemRowNovoP
   }
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
+    <div className="rounded-lg border bg-card shadow-sm p-4 space-y-3">
       <div className="flex flex-wrap gap-2">
         {(Object.keys(ROTULO_TIPO) as TipoItemOrdem[]).map((tipo) => (
           <button
             key={tipo}
             type="button"
             onClick={() => trocarTipo(tipo)}
-            className={`h-8 px-3 rounded-md text-xs font-medium border ${
-              item.tipo === tipo ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'
+            className={`h-8 px-3 rounded-md text-xs font-medium border transition-colors ${
+              item.tipo === tipo ? COR_TIPO_ATIVO[tipo] : 'bg-background hover:bg-muted'
             }`}
           >
             {ROTULO_TIPO[tipo]}
@@ -252,7 +258,7 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando }: ItemOrdemRowNovoP
           type="button"
           onClick={handleAdicionar}
           disabled={adicionando}
-          className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+          className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           {adicionando ? 'Adicionando...' : 'Adicionar Item'}
         </button>

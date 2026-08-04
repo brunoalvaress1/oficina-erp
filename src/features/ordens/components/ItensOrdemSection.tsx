@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, Pencil, Check, X } from 'lucide-react'
+import { Trash2, Pencil, Check, X, Package } from 'lucide-react'
 import { ItemOrdemRowNovo } from './ItemOrdemRow'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { Combobox } from '@/components/ui/Combobox'
@@ -113,13 +113,18 @@ export function ItensOrdemSection({
 
   return (
     <div className="space-y-3">
-      <h2 className="font-medium">Produtos e Serviços</h2>
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center size-7 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <Package size={15} />
+        </div>
+        <h2 className="font-medium">Produtos e Serviços</h2>
+      </div>
 
       {!somenteLeitura && <ItemOrdemRowNovo onAdicionar={onAdicionar} adicionando={adicionando} />}
 
-      <div className="border rounded-lg overflow-x-auto">
+      <div className="border rounded-lg bg-card shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-muted-foreground">
+          <thead className="bg-muted/60 text-muted-foreground">
             <tr>
               <th className="text-left font-medium px-3 py-2">Descrição</th>
               <th className="text-left font-medium px-3 py-2">Tipo</th>
@@ -276,14 +281,14 @@ export function ItensOrdemSection({
                             <button
                               type="button"
                               onClick={() => iniciarEdicao(item)}
-                              className="p-1.5 rounded hover:bg-muted"
+                              className="p-1.5 rounded hover:bg-primary/10 hover:text-primary transition-colors"
                             >
                               <Pencil size={15} />
                             </button>
                             <button
                               type="button"
                               onClick={() => onRemover(item.chave)}
-                              className="p-1.5 rounded hover:bg-muted text-destructive"
+                              className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors"
                             >
                               <Trash2 size={15} />
                             </button>

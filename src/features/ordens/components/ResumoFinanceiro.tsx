@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { DollarSign, Eye, EyeOff } from 'lucide-react'
 import { formatCurrency } from '@/utils/format'
 
 interface ResumoFinanceiroProps {
@@ -24,9 +24,14 @@ export function ResumoFinanceiro({
   const [visivel, setVisivel] = useState(true)
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
+    <div className="rounded-lg border bg-card shadow-sm p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-medium">Resumo Financeiro</h2>
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center size-7 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <DollarSign size={15} />
+          </div>
+          <h2 className="font-medium">Resumo Financeiro</h2>
+        </div>
         <button
           type="button"
           onClick={() => setVisivel((v) => !v)}
@@ -54,14 +59,16 @@ export function ResumoFinanceiro({
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatCurrency(valorProdutos + valorServicos)}</span>
           </div>
-          <div className="flex justify-between text-base font-semibold border-t pt-2">
+          <div className="flex justify-between text-base font-semibold border-t pt-2 text-primary">
             <span>Total</span>
             <span>{formatCurrency(valorTotal)}</span>
           </div>
           {podeVerLucro && (
             <div className="flex justify-between border-t pt-2">
               <span className="text-muted-foreground">Lucro estimado</span>
-              <span>{lucroEstimado != null ? formatCurrency(lucroEstimado) : '-'}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                {lucroEstimado != null ? formatCurrency(lucroEstimado) : '-'}
+              </span>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Loader2, Search } from 'lucide-react'
+import { Car, Loader2, Search } from 'lucide-react'
 import { buscarVeiculoPorPlaca } from '@/features/veiculos/services/veiculoService'
 import { useConsultaPlaca } from '@/features/veiculos/hooks/useConsultaPlaca'
 import { veiculoBlockValueDoExistente, veiculoBlockValueVazio, type VeiculoBlockValue } from '../types/veiculoClienteForm'
@@ -103,8 +103,13 @@ export function VeiculoBlock({
   const veiculoInformado = Boolean(value.placa.trim())
 
   return (
-    <div className="rounded-lg border p-4 space-y-4">
-      <h2 className="font-medium">Dados do Veículo (opcional)</h2>
+    <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center size-7 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+          <Car size={15} />
+        </div>
+        <h2 className="font-medium">Dados do Veículo (opcional)</h2>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="space-y-1">

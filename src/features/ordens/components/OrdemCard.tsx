@@ -28,18 +28,7 @@ import { buscarClientePorId } from '@/features/clientes/services/clienteService'
 import type { ModoDocumentoOrdem } from './DocumentoOrdemPdf'
 import { useAtualizarCabecalhoOrdem, useFinalizarOrdemServico, useReabrirOrdemServico } from '../hooks/useOrdemMutations'
 import { PermissionGate } from './PermissionGate'
-import { ROTULO_STATUS_ORDEM, type OrdemServico } from '../types/ordemServico'
-
-const COR_STATUS: Record<string, string> = {
-  em_aberto: 'bg-blue-100 text-blue-700',
-  em_execucao: 'bg-indigo-100 text-indigo-700',
-  aguardando_aprovacao: 'bg-amber-100 text-amber-700',
-  aguardando_pecas: 'bg-orange-100 text-orange-700',
-  finalizada: 'bg-teal-100 text-teal-700',
-  enviada_caixa: 'bg-green-100 text-green-700',
-  paga: 'bg-emerald-100 text-emerald-700',
-  cancelada: 'bg-red-100 text-red-700',
-}
+import { COR_STATUS_ORDEM, ROTULO_STATUS_ORDEM, type OrdemServico } from '../types/ordemServico'
 
 interface OrdemCardProps {
   ordem: OrdemServico
@@ -274,7 +263,7 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
       )}
       <td className="px-3 py-2">{ordem.kmAtual?.toLocaleString('pt-BR') ?? '-'}</td>
       <td className="px-3 py-2">
-        <span className={`text-xs px-2 py-0.5 rounded-full ${COR_STATUS[ordem.status]}`}>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${COR_STATUS_ORDEM[ordem.status]}`}>
           {ROTULO_STATUS_ORDEM[ordem.status]}
         </span>
       </td>

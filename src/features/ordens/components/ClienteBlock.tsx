@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, User } from 'lucide-react'
 import { buscarClientePorCpfCnpj } from '@/features/clientes/services/clienteService'
 import { useConsultaCpf } from '@/features/clientes/hooks/useConsultaCpf'
 import { buscarEnderecoPorCep } from '@/utils/cep'
@@ -106,8 +106,13 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
   const ehPessoaJuridica = digitosDocumento.length === 14
 
   return (
-    <div className="rounded-lg border p-4 space-y-4">
-      <h2 className="font-medium">Dados do Cliente</h2>
+    <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center size-7 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400">
+          <User size={15} />
+        </div>
+        <h2 className="font-medium">Dados do Cliente</h2>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="space-y-1">

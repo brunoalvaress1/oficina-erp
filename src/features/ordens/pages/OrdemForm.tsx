@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Printer, MessageCircle } from 'lucide-react'
+import { ClipboardList, FileText, Printer, MessageCircle } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useFuncionariosSelect } from '@/features/estoque/hooks/useFuncionariosSelect'
 import { useVeiculoDetalhe } from '@/features/veiculos/hooks/useVeiculoDetalhe'
@@ -34,7 +34,7 @@ import { AprovacaoItens } from '../components/AprovacaoItens'
 import { HistoricoOrdem } from '../components/HistoricoOrdem'
 import { PermissionGate } from '../components/PermissionGate'
 import { itemFormParaExibicao, itemFormParaInput, type ItemOrdemForm } from '../types/itemOrdemForm'
-import { ROTULO_STATUS_ORDEM, type StatusOrdemServico } from '../types/ordemServico'
+import { COR_STATUS_ORDEM, ROTULO_STATUS_ORDEM, type StatusOrdemServico } from '../types/ordemServico'
 import {
   clienteBlockValueDoExistente,
   clienteBlockValueParaInput,
@@ -384,30 +384,38 @@ export function OrdemForm() {
   return (
     <div className="space-y-6 pb-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
-          {modoCriacao ? 'Nova Ordem de Serviço' : `Ordem de Serviço nº ${ordem?.numero}`}
-        </h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary shrink-0">
+            <ClipboardList size={20} />
+          </div>
+          <h1 className="text-2xl font-semibold">
+            {modoCriacao ? 'Nova Ordem de Serviço' : `Ordem de Serviço nº ${ordem?.numero}`}
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           {!modoCriacao && ordem && (
             <>
-              <button onClick={() => handleImprimir('os')} className="h-9 px-3 rounded-md border text-sm flex items-center gap-1">
+              <button onClick={() => handleImprimir('os')} className="h-9 px-3 rounded-md border bg-card hover:bg-muted transition-colors text-sm flex items-center gap-1">
                 <Printer size={14} /> Imprimir OS
               </button>
-              <button onClick={handleWhatsApp} className="h-9 px-3 rounded-md border text-sm flex items-center gap-1">
+              <button onClick={handleWhatsApp} className="h-9 px-3 rounded-md border bg-card hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/30 transition-colors text-sm flex items-center gap-1">
                 <MessageCircle size={14} /> WhatsApp
               </button>
             </>
           )}
-          <button type="button" onClick={() => navigate('/ordens')} className="h-9 px-4 rounded-md border text-sm font-medium">
+          <button type="button" onClick={() => navigate('/ordens')} className="h-9 px-4 rounded-md border bg-card hover:bg-muted transition-colors text-sm font-medium">
             Voltar
           </button>
         </div>
       </div>
 
       {!modoCriacao && ordem && (
-        <div className="rounded-lg border p-3 flex items-center justify-between bg-muted/20">
-          <span className="text-sm">
-            Status atual: <span className="font-medium">{ROTULO_STATUS_ORDEM[ordem.status]}</span>
+        <div className="rounded-lg border bg-card shadow-sm p-3 flex items-center justify-between">
+          <span className="text-sm flex items-center gap-2">
+            Status atual:
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${COR_STATUS_ORDEM[ordem.status]}`}>
+              {ROTULO_STATUS_ORDEM[ordem.status]}
+            </span>
           </span>
           <div className="flex gap-2">
             {!somenteLeitura && (
@@ -443,8 +451,13 @@ export function OrdemForm() {
         </div>
       )}
 
-      <div className="rounded-lg border p-4 space-y-4">
-        <h2 className="font-medium">Informações Gerais</h2>
+      <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center size-7 rounded-md bg-primary/10 text-primary">
+            <FileText size={15} />
+          </div>
+          <h2 className="font-medium">Informações Gerais</h2>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="space-y-1">
             <label className="text-sm font-medium">Responsável pela Ordem *</label>
@@ -587,7 +600,7 @@ export function OrdemForm() {
       {!modoCriacao && detalhe && <HistoricoOrdem historico={detalhe.historico} />}
 
       {modoCriacao && (
-        <div className="rounded-lg border p-4">
+        <div className="rounded-lg border bg-card shadow-sm p-4">
           {tentouSalvar && !cabecalhoValido && (
             <p className="text-sm text-destructive mb-3">Preencha antes de salvar: {camposFaltando.join(', ')}.</p>
           )}
@@ -595,7 +608,7 @@ export function OrdemForm() {
             type="button"
             onClick={handleSalvarNova}
             disabled={criarMutation.isPending || salvandoOrquestrado || buscandoVeiculo}
-            className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+            className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {buscandoVeiculo
               ? 'Verificando placa...'
@@ -607,12 +620,12 @@ export function OrdemForm() {
       )}
 
       {!modoCriacao && !somenteLeitura && (
-        <div className="rounded-lg border p-4 flex flex-col sm:flex-row gap-3">
+        <div className="rounded-lg border bg-card shadow-sm p-4 flex flex-col sm:flex-row gap-3">
           <button
             type="button"
             onClick={handleSalvarCabecalho}
             disabled={atualizarCabecalhoMutation.isPending}
-            className="h-10 px-4 rounded-md border text-sm font-medium disabled:opacity-50 sm:flex-1"
+            className="h-10 px-4 rounded-md border hover:bg-muted transition-colors text-sm font-medium disabled:opacity-50 sm:flex-1"
           >
             {atualizarCabecalhoMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
           </button>
@@ -621,7 +634,7 @@ export function OrdemForm() {
               type="button"
               onClick={handleFinalizar}
               disabled={finalizarMutation.isPending}
-              className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 sm:flex-1"
+              className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 sm:flex-1"
             >
               {finalizarMutation.isPending ? 'Finalizando...' : 'Finalizar Ordem'}
             </button>
