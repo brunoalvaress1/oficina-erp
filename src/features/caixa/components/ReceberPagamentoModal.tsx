@@ -36,7 +36,17 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
   }
 
   function handleAdicionarForma() {
-    setFormas((prev) => [...prev, criarFormaPagamentoVazia()])
+    setFormas((prev) => {
+      const somaAtual = prev.reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
+      const restante = Math.round((lancamento.valorTotal - somaAtual) * 100) / 100
+      const novaForma = criarFormaPagamentoVazia()
+      // Já entra preenchida com o que ainda falta pra fechar o total — evita
+      // ter que fazer conta de cabeça quando divide o pagamento em mais de
+      // uma forma (ex: OS de 1500, já informou 1000 no Pix, a próxima linha
+      // já nasce com 500).
+      if (restante > 0) novaForma.valor = restante.toFixed(2)
+      return [...prev, novaForma]
+    })
   }
 
   function handleRemoverForma(chave: string) {
