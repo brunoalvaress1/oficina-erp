@@ -6,6 +6,7 @@ import type {
   CaixaLancamentoHistoricoEntry,
   CaixaRecebimento,
   DashboardCaixa,
+  FormaPagamento,
   FormaPagamentoInput,
   ListarCaixaParams,
   ListarCaixaResult,
@@ -340,4 +341,25 @@ export async function buscarCaixaLancamentoIdPorOrdem(ordemServicoId: string): P
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data?.id ?? null
+}
+
+// Usado na impressão da OS pra mostrar como o cliente pagou (só existe
+// depois que a OS foi recebida no caixa — antes disso volta lista vazia).
+export async function buscarFormasPagamentoDaOrdem(
+  ordemServicoId: string,
+): Promise<Array<{ formaPagamento: FormaPagamento; valor: number }>> {
+  const lancamentoId = await buscarCaixaLancamentoIdPorOrdem(ordemServicoId)
+  if (!lancamentoId) return []
+
+  const { data, error } = await supabase
+    .from('caixa_recebimentos')
+    .select('caixa_recebimento_formas(forma_pagamento, valor)')
+    .eq('caixa_lancamento_id', lancamentoId)
+    .eq('cancelado', false)
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).flatMap((r: any) => r.caixa_recebimento_formas ?? []).map((f: any) => ({
+    formaPagamento: f.forma_pagamento as FormaPagamento,
+    valor: Number(f.valor),
+  }))
 }

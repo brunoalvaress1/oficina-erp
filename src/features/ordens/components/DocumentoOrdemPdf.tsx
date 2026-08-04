@@ -2,6 +2,8 @@ import { Document, Page, Text, View, Image, StyleSheet, pdf } from '@react-pdf/r
 import type { OrdemServico, OrdemServicoItem } from '../types/ordemServico'
 import { ROTULO_STATUS_ORDEM } from '../types/ordemServico'
 import { formatDate } from '@/utils/format'
+import { ROTULO_FORMA_PAGAMENTO, type FormaPagamento } from '@/features/caixa/types/caixa'
+import { buscarFormasPagamentoDaOrdem } from '@/features/caixa/services/caixaService'
 
 export type ModoDocumentoOrdem = 'os' | 'defeitos' | 'aprovacao' | 'orcamento'
 
@@ -19,27 +21,27 @@ const TITULO_POR_MODO: Record<ModoDocumentoOrdem, string> = {
 }
 
 const estilos = StyleSheet.create({
-  pagina: { padding: 32, fontSize: 10, fontFamily: 'Helvetica' },
-  titulo: { fontSize: 16, fontWeight: 700, marginBottom: 4 },
-  subtitulo: { fontSize: 10, color: '#555', marginBottom: 16 },
+  pagina: { padding: 32, fontSize: 11, fontFamily: 'Helvetica' },
+  titulo: { fontSize: 18, fontWeight: 700, marginBottom: 4 },
+  subtitulo: { fontSize: 11, color: '#555', marginBottom: 16 },
   secao: { marginBottom: 14 },
-  secaoTitulo: { fontSize: 11, fontWeight: 700, marginBottom: 6, borderBottom: '1 solid #ccc', paddingBottom: 2 },
-  linha: { flexDirection: 'row', marginBottom: 3 },
-  rotulo: { width: 120, color: '#555' },
+  secaoTitulo: { fontSize: 12, fontWeight: 700, marginBottom: 6, borderBottom: '1 solid #ccc', paddingBottom: 2 },
+  linha: { flexDirection: 'row', marginBottom: 4 },
+  rotulo: { width: 130, color: '#555' },
   valor: { flex: 1 },
   tabelaHeader: { flexDirection: 'row', borderBottom: '1 solid #333', paddingBottom: 4, marginBottom: 4 },
-  tabelaLinha: { flexDirection: 'row', paddingVertical: 3, borderBottom: '0.5 solid #eee' },
+  tabelaLinha: { flexDirection: 'row', paddingVertical: 4, borderBottom: '0.5 solid #eee' },
   colDescricao: { flex: 3 },
   colQtd: { flex: 1, textAlign: 'right' },
   colValor: { flex: 1, textAlign: 'right' },
   colTotal: { flex: 1, textAlign: 'right' },
   totais: { marginTop: 12, alignItems: 'flex-end' },
-  totalGeral: { fontSize: 12, fontWeight: 700, marginTop: 4 },
+  totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  logoOficina: { width: 40, height: 40, objectFit: 'contain' },
-  nomeOficina: { fontSize: 12, fontWeight: 700 },
-  rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 8, color: '#777', textAlign: 'center' },
+  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  logoOficina: { width: 70, height: 70, objectFit: 'contain' },
+  nomeOficina: { fontSize: 20, fontWeight: 700 },
+  rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })
 
 function formatarMoeda(valor: number): string {
@@ -51,9 +53,10 @@ interface DocumentoOrdemPdfProps {
   itens: OrdemServicoItem[]
   modo: ModoDocumentoOrdem
   cabecalho?: CabecalhoOficinaPdf
+  formasPagamento?: Array<{ formaPagamento: FormaPagamento; valor: number }>
 }
 
-export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho }: DocumentoOrdemPdfProps) {
+export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamento }: DocumentoOrdemPdfProps) {
   const itensRelevantes = modo === 'aprovacao' ? itens.filter((item) => item.statusAprovacao === 'aguardando') : itens
 
   return (
@@ -130,6 +133,18 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho }: DocumentoOr
           </View>
         )}
 
+        {modo === 'os' && formasPagamento && formasPagamento.length > 0 && (
+          <View style={estilos.secao}>
+            <Text style={estilos.secaoTitulo}>Forma de Pagamento</Text>
+            {formasPagamento.map((forma, indice) => (
+              <View key={indice} style={estilos.linha}>
+                <Text style={estilos.rotulo}>{ROTULO_FORMA_PAGAMENTO[forma.formaPagamento]}</Text>
+                <Text style={estilos.valor}>{formatarMoeda(forma.valor)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {modo === 'aprovacao' && (
           <View style={estilos.assinatura}>
             <Text>Assinatura do Cliente</Text>
@@ -153,7 +168,11 @@ export async function gerarEAbrirPdfOrdem(
   modo: ModoDocumentoOrdem,
   cabecalho?: CabecalhoOficinaPdf,
 ) {
-  const blob = await pdf(<DocumentoOrdemPdf ordem={ordem} itens={itens} modo={modo} cabecalho={cabecalho} />).toBlob()
+  const formasPagamento =
+    modo === 'os' && ordem.status === 'paga' ? await buscarFormasPagamentoDaOrdem(ordem.id).catch(() => []) : []
+  const blob = await pdf(
+    <DocumentoOrdemPdf ordem={ordem} itens={itens} modo={modo} cabecalho={cabecalho} formasPagamento={formasPagamento} />,
+  ).toBlob()
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener,noreferrer')
   // Só libera a URL depois de um tempo — se revogar na hora, a aba pode abrir em branco.
