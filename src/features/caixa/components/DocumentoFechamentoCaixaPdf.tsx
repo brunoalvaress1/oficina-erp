@@ -2,7 +2,7 @@ import { Document, Page, Text, View, Image, StyleSheet, pdf } from '@react-pdf/r
 import type { ResumoSessaoCaixa } from '../types/caixaSessao'
 
 export interface CabecalhoOficinaPdf {
-  nome?: string | null
+  endereco?: string | null
   logoUrl?: string | null
   rodape?: string | null
 }
@@ -23,8 +23,8 @@ const estilos = StyleSheet.create({
   colData: { flex: 1, textAlign: 'right' },
   totalGeral: { fontSize: 12, fontWeight: 700, marginTop: 8 },
   cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 18 },
-  logoOficina: { width: 170, height: 170, objectFit: 'contain' },
-  nomeOficina: { fontSize: 32, fontWeight: 700 },
+  logoOficina: { width: 210, height: 210, objectFit: 'contain' },
+  enderecoOficina: { fontSize: 10, color: '#555' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 8, color: '#777', textAlign: 'center' },
 })
 
@@ -47,10 +47,10 @@ export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFech
   return (
     <Document>
       <Page size="A4" style={estilos.pagina}>
-        {(cabecalho?.nome || cabecalho?.logoUrl) && (
+        {(cabecalho?.logoUrl || cabecalho?.endereco) && (
           <View style={estilos.cabecalhoOficina}>
             {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
-            {cabecalho.nome && <Text style={estilos.nomeOficina}>{cabecalho.nome}</Text>}
+            {cabecalho.endereco && <Text style={estilos.enderecoOficina}>{cabecalho.endereco}</Text>}
           </View>
         )}
         <Text style={estilos.titulo}>Fechamento de Caixa</Text>

@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { abrirWhatsApp, montarMensagemOrdemPronta } from '@/utils/whatsapp'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
+import { formatarEnderecoOficina } from '@/features/configuracoes/types/oficina'
 import { useCaixaLancamentoIdPorOrdem } from '@/features/caixa/hooks/useCaixaLancamentoDetalhe'
 import { EmitirNotaFiscalModal } from '@/features/notasFiscaisSaida/components/EmitirNotaFiscalModal'
 import { useNotasFiscaisPorLancamento } from '@/features/notasFiscaisSaida/hooks/useNotasFiscaisSaida'
@@ -56,7 +57,7 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
         import('./DocumentoOrdemPdf'),
       ])
       await gerarEAbrirPdfOrdem(detalhe.ordem, detalhe.itens, modo, {
-        nome: oficina?.nomeImpressao || oficina?.nomeFantasia,
+        endereco: formatarEnderecoOficina(oficina),
         logoUrl: oficina?.logoUrl,
         rodape: oficina?.rodapeImpressao,
       })

@@ -8,6 +8,7 @@ import { useVeiculoDetalhe } from '@/features/veiculos/hooks/useVeiculoDetalhe'
 import { buscarVeiculoPorPlaca, criarVeiculo } from '@/features/veiculos/services/veiculoService'
 import { abrirWhatsApp, montarMensagemOrdemPronta } from '@/utils/whatsapp'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
+import { formatarEnderecoOficina } from '@/features/configuracoes/types/oficina'
 import { atualizarCliente, buscarClientePorId, criarCliente } from '@/features/clientes/services/clienteService'
 import { useClienteDetalhe } from '@/features/clientes/hooks/useClienteDetalhe'
 
@@ -358,7 +359,7 @@ export function OrdemForm() {
     if (!ordem) return
     const { gerarEAbrirPdfOrdem } = await import('../components/DocumentoOrdemPdf')
     await gerarEAbrirPdfOrdem(ordem, itensServidor, modo, {
-      nome: oficina?.nomeImpressao || oficina?.nomeFantasia,
+      endereco: formatarEnderecoOficina(oficina),
       logoUrl: oficina?.logoUrl,
       rodape: oficina?.rodapeImpressao,
     })

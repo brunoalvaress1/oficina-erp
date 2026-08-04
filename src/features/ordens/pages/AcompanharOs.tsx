@@ -67,9 +67,8 @@ export function AcompanharOs() {
     <div className="min-h-screen bg-muted/30 py-8 px-4">
       <div className="max-w-md mx-auto bg-background rounded-lg border shadow-sm overflow-hidden">
         <div className="p-5 border-b flex items-center gap-3">
-          {dados.oficina.logoUrl && <img src={dados.oficina.logoUrl} alt="" className="h-10 w-10 rounded-md object-contain border" />}
+          {dados.oficina.logoUrl && <img src={dados.oficina.logoUrl} alt="" className="h-14 w-14 rounded-md object-contain border" />}
           <div>
-            <h1 className="font-semibold text-base">{dados.oficina.nome}</h1>
             {dados.oficina.endereco && <p className="text-xs text-muted-foreground">{dados.oficina.endereco}</p>}
             {dados.oficina.telefone && <p className="text-xs text-muted-foreground">{dados.oficina.telefone}</p>}
           </div>

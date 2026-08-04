@@ -8,7 +8,7 @@ import { buscarFormasPagamentoDaOrdem } from '@/features/caixa/services/caixaSer
 export type ModoDocumentoOrdem = 'os' | 'defeitos' | 'aprovacao' | 'orcamento'
 
 export interface CabecalhoOficinaPdf {
-  nome?: string | null
+  endereco?: string | null
   logoUrl?: string | null
   rodape?: string | null
 }
@@ -17,7 +17,7 @@ const TITULO_POR_MODO: Record<ModoDocumentoOrdem, string> = {
   os: 'Ordem de Serviço',
   defeitos: 'Defeitos Encontrados',
   aprovacao: 'Aprovação de Serviços/Peças',
-  orcamento: 'Orçamento',
+  orcamento: 'Ordem de Serviço',
 }
 
 const estilos = StyleSheet.create({
@@ -39,8 +39,8 @@ const estilos = StyleSheet.create({
   totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
   cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 20 },
-  logoOficina: { width: 170, height: 170, objectFit: 'contain' },
-  nomeOficina: { fontSize: 32, fontWeight: 700 },
+  logoOficina: { width: 210, height: 210, objectFit: 'contain' },
+  enderecoOficina: { fontSize: 11, color: '#555' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })
 
@@ -62,10 +62,10 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamen
   return (
     <Document>
       <Page size="A4" style={estilos.pagina}>
-        {(cabecalho?.nome || cabecalho?.logoUrl) && (
+        {(cabecalho?.logoUrl || cabecalho?.endereco) && (
           <View style={estilos.cabecalhoOficina}>
             {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
-            {cabecalho.nome && <Text style={estilos.nomeOficina}>{cabecalho.nome}</Text>}
+            {cabecalho.endereco && <Text style={estilos.enderecoOficina}>{cabecalho.endereco}</Text>}
           </View>
         )}
         <Text style={estilos.titulo}>{TITULO_POR_MODO[modo]}</Text>
@@ -107,7 +107,7 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamen
         {modo !== 'defeitos' && (
           <View style={estilos.secao}>
             <Text style={estilos.secaoTitulo}>
-              {modo === 'orcamento' ? 'Itens do Orçamento' : modo === 'aprovacao' ? 'Itens Aguardando Aprovação' : 'Produtos e Serviços'}
+              {modo === 'aprovacao' ? 'Itens Aguardando Aprovação' : 'Produtos e Serviços'}
             </Text>
             <View style={estilos.tabelaHeader}>
               <Text style={estilos.colDescricao}>Descrição</Text>
