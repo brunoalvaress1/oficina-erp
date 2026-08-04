@@ -1,5 +1,6 @@
 import type { Produto } from '@/features/produtos/types/produto'
 import type { FornecedorSelect } from '@/features/fornecedores/types/fornecedor'
+import { capitalizarPalavras } from '@/utils/format'
 import type { Servico } from './servico'
 import type { ItemOrdemInput, StatusAprovacaoItem, TipoItemOrdem } from './ordemServico'
 
@@ -85,7 +86,7 @@ export function itemFormParaInput(item: ItemOrdemForm): ItemOrdemInput {
     servicoId: item.servico?.id,
     fornecedorId: item.fornecedor?.id,
     numeroNota: item.numeroNota || undefined,
-    descricao: item.descricao,
+    descricao: capitalizarPalavras(item.descricao),
     quantidade: Number(item.quantidade),
     valorUnitario: Number(item.valorUnitario),
     valorCusto: item.valorCusto ? Number(item.valorCusto) : undefined,
@@ -98,7 +99,7 @@ export function itemFormParaExibicao(item: ItemOrdemForm): ItemExibicao {
   return {
     chave: item.chave,
     tipo: item.tipo,
-    descricao: item.descricao,
+    descricao: capitalizarPalavras(item.descricao),
     quantidade: Number(item.quantidade) || 0,
     valorUnitario: Number(item.valorUnitario) || 0,
     valorDesconto: Number(item.valorDesconto) || 0,

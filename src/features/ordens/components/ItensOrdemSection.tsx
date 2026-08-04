@@ -4,7 +4,7 @@ import { ItemOrdemRowNovo } from './ItemOrdemRow'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { Combobox } from '@/components/ui/Combobox'
 import { useFornecedoresSelect } from '@/features/fornecedores/hooks/useFornecedoresSelect'
-import { formatCurrency } from '@/utils/format'
+import { capitalizarPalavras, formatCurrency } from '@/utils/format'
 import type { StatusAprovacaoItem, TipoItemOrdem } from '../types/ordemServico'
 import type { ItemOrdemForm, ItemExibicao } from '../types/itemOrdemForm'
 import type { FornecedorSelect } from '@/features/fornecedores/types/fornecedor'
@@ -100,7 +100,7 @@ export function ItensOrdemSection({
   function salvarEdicao() {
     if (!edicao) return
     onEditar(edicao.chave, {
-      descricao: edicao.descricao,
+      descricao: capitalizarPalavras(edicao.descricao),
       quantidade: Number(edicao.quantidade) || 0,
       valorUnitario: Number(edicao.valorUnitario) || 0,
       valorDesconto: Number(edicao.valorDesconto) || 0,

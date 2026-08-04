@@ -55,6 +55,17 @@ export function parseMoedaBr(valor: string): number {
   return Number.isFinite(numero) ? numero : 0
 }
 
+// Padroniza descrições de itens (peça, produto, serviço) que hoje aparecem
+// misturadas — TUDO MAIÚSCULO, tudo minúsculo, Misto — deixando a primeira
+// letra de cada palavra maiúscula e o resto minúsculo.
+export function capitalizarPalavras(texto: string): string {
+  return texto
+    .toLowerCase()
+    .split(' ')
+    .map((palavra) => (palavra ? palavra.charAt(0).toUpperCase() + palavra.slice(1) : palavra))
+    .join(' ')
+}
+
 export function formatPlaca(value: string): string {
   const clean = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
   // formato antigo com hífen visual (ABC-1234); Mercosul não recebe hífen
