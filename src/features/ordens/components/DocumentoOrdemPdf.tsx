@@ -38,9 +38,9 @@ const estilos = StyleSheet.create({
   totais: { marginTop: 12, alignItems: 'flex-end' },
   totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  logoOficina: { width: 70, height: 70, objectFit: 'contain' },
-  nomeOficina: { fontSize: 20, fontWeight: 700 },
+  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 18 },
+  logoOficina: { width: 120, height: 120, objectFit: 'contain' },
+  nomeOficina: { fontSize: 26, fontWeight: 700 },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })
 

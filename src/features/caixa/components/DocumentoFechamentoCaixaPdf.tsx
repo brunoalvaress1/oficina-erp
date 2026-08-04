@@ -22,9 +22,9 @@ const estilos = StyleSheet.create({
   colValor: { flex: 1, textAlign: 'right' },
   colData: { flex: 1, textAlign: 'right' },
   totalGeral: { fontSize: 12, fontWeight: 700, marginTop: 8 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  logoOficina: { width: 40, height: 40, objectFit: 'contain' },
-  nomeOficina: { fontSize: 12, fontWeight: 700 },
+  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
+  logoOficina: { width: 120, height: 120, objectFit: 'contain' },
+  nomeOficina: { fontSize: 26, fontWeight: 700 },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 8, color: '#777', textAlign: 'center' },
 })
 
