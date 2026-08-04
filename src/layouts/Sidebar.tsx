@@ -133,15 +133,24 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   )?.to
   const [grupoAberto, setGrupoAberto] = useState<string | null>(grupoAtivoInicial ?? null)
 
+  // Quando está fechada (preferência salva), passar o mouse por cima expande
+  // temporariamente sem mexer na preferência — some de novo ao tirar o mouse.
+  // Só clicando no botão é que fixa aberta de verdade.
+  const [emHover, setEmHover] = useState(false)
+  const expandida = !collapsed || emHover
+
   return (
     <aside
+      onMouseEnter={() => collapsed && setEmHover(true)}
+      onMouseLeave={() => setEmHover(false)}
       className={cn(
         'h-screen border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-200',
-        collapsed ? 'w-16' : 'w-64'
+        expandida ? 'w-64' : 'w-16',
+        collapsed && emHover && 'shadow-xl',
       )}
     >
       <div className="flex items-center justify-between h-14 px-3 border-b border-sidebar-border">
-        {!collapsed && (
+        {expandida && (
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex items-center justify-center size-7 rounded-md bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
               <Wrench size={15} />
@@ -153,7 +162,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           onClick={onToggle}
           className="p-1.5 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors ml-auto"
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {expandida ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
         </button>
       </div>
 
@@ -175,7 +184,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 }
               >
                 <item.icon size={18} className="shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                {expandida && <span className="truncate">{item.label}</span>}
               </NavLink>
             )
           }
@@ -198,7 +207,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 )}
               >
                 <item.icon size={18} className="shrink-0" />
-                {!collapsed && (
+                {expandida && (
                   <>
                     <span className="truncate flex-1 text-left">{item.label}</span>
                     <ChevronDown
@@ -209,7 +218,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 )}
               </button>
 
-              {!collapsed && grupoEstaAberto && (
+              {expandida && grupoEstaAberto && (
                 <div className="ml-6 mt-0.5 space-y-0.5 border-l border-sidebar-border pl-2">
                   {item.children.map((filho) => (
                     <NavLink
