@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -135,17 +136,22 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'h-screen border-r bg-background flex flex-col transition-all duration-200',
+        'h-screen border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-200',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
-      <div className="flex items-center justify-between h-14 px-3 border-b">
+      <div className="flex items-center justify-between h-14 px-3 border-b border-sidebar-border">
         {!collapsed && (
-          <span className="font-semibold text-sm truncate">Oficina ERP</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-center size-7 rounded-md bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
+              <Wrench size={15} />
+            </div>
+            <span className="font-semibold text-sm truncate">Oficina ERP</span>
+          </div>
         )}
         <button
           onClick={onToggle}
-          className="p-1.5 rounded hover:bg-muted transition-colors ml-auto"
+          className="p-1.5 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors ml-auto"
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
@@ -160,11 +166,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                    'hover:bg-muted',
+                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors border-l-2',
+                    'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                     isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground'
+                      ? 'border-sidebar-primary bg-sidebar-primary/10 text-sidebar-primary font-medium'
+                      : 'border-transparent text-sidebar-foreground/70'
                   )
                 }
               >
@@ -185,8 +191,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 type="button"
                 onClick={() => setGrupoAberto(grupoEstaAberto ? null : item.to)}
                 className={cn(
-                  'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
-                  algumFilhoAtivo ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground',
+                  'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors border-l-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  algumFilhoAtivo
+                    ? 'border-sidebar-primary bg-sidebar-primary/10 text-sidebar-primary font-medium'
+                    : 'border-transparent text-sidebar-foreground/70',
                 )}
               >
                 <item.icon size={18} className="shrink-0" />
@@ -202,7 +210,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </button>
 
               {!collapsed && grupoEstaAberto && (
-                <div className="ml-6 mt-0.5 space-y-0.5">
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-sidebar-border pl-2">
                   {item.children.map((filho) => (
                     <NavLink
                       key={filho.to}
@@ -210,8 +218,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       end={filho.to === '/ordens' || filho.to === '/caixa' || filho.to === '/financeiro' || filho.to === '/relatorios' || filho.to === '/configuracoes'}
                       className={({ isActive }) =>
                         cn(
-                          'block rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-muted',
-                          isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground',
+                          'block rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                          isActive ? 'bg-sidebar-primary/10 text-sidebar-primary font-medium' : 'text-sidebar-foreground/70',
                         )
                       }
                     >

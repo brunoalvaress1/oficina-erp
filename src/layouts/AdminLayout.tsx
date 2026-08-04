@@ -17,9 +17,11 @@ export function AdminLayout() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="h-14 border-b flex items-center justify-between px-6 shrink-0">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={18} className="text-primary" />
+      <header className="h-14 border-b bg-primary/5 flex items-center justify-between px-6 shrink-0 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center size-7 rounded-md bg-primary text-primary-foreground">
+            <ShieldCheck size={15} />
+          </div>
           <span className="font-semibold text-sm">Painel Administrativo</span>
         </div>
         <div className="flex items-center gap-3">
@@ -27,7 +29,7 @@ export function AdminLayout() {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center gap-1 h-8 px-3 rounded-md border text-xs font-medium"
+            className="flex items-center gap-1 h-8 px-3 rounded-md border bg-background text-xs font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
           >
             <LogOut size={13} /> Sair
           </button>

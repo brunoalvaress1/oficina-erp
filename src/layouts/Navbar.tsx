@@ -14,7 +14,7 @@ export function Navbar() {
   }
 
   return (
-    <header className="h-14 border-b flex items-center justify-between px-4 gap-4">
+    <header className="h-14 border-b bg-background flex items-center justify-between px-4 gap-4 shadow-sm z-10">
       <div className="flex items-center flex-1 max-w-md">
         <div className="relative w-full">
           <Search
@@ -24,7 +24,7 @@ export function Navbar() {
           <input
             type="text"
             placeholder="Pesquisar clientes, veículos, OS..."
-            className="w-full h-9 pl-8 pr-3 rounded-md border bg-muted/40 text-sm outline-none focus:ring-1 focus:ring-primary"
+            className="w-full h-9 pl-8 pr-3 rounded-md border bg-muted/40 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
           />
         </div>
       </div>
@@ -32,7 +32,7 @@ export function Navbar() {
       <div className="flex items-center gap-1">
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-md hover:bg-muted transition-colors"
+          className="p-2 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           aria-label="Alternar tema"
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -40,7 +40,7 @@ export function Navbar() {
 
         <button
           onClick={handleLogout}
-          className="p-2 rounded-md hover:bg-muted transition-colors"
+          className="p-2 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
           aria-label="Sair"
         >
           <LogOut size={18} />
