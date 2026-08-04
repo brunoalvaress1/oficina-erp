@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, Image, StyleSheet, pdf } from '@react-pdf/renderer'
 import type { OrdemServico, OrdemServicoItem } from '../types/ordemServico'
 import { ROTULO_STATUS_ORDEM } from '../types/ordemServico'
+import { formatDate } from '@/utils/format'
 
 export type ModoDocumentoOrdem = 'os' | 'defeitos' | 'aprovacao' | 'orcamento'
 
@@ -45,10 +46,6 @@ function formatarMoeda(valor: number): string {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function formatarData(data: string): string {
-  return new Date(data).toLocaleDateString('pt-BR')
-}
-
 interface DocumentoOrdemPdfProps {
   ordem: OrdemServico
   itens: OrdemServicoItem[]
@@ -70,7 +67,7 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho }: DocumentoOr
         )}
         <Text style={estilos.titulo}>{TITULO_POR_MODO[modo]}</Text>
         <Text style={estilos.subtitulo}>
-          OS nº {ordem.numero} {ordem.numeroPrisma ? `· Prisma ${ordem.numeroPrisma}` : ''} · {formatarData(ordem.dataAbertura)}
+          OS nº {ordem.numero} {ordem.numeroPrisma ? `· Prisma ${ordem.numeroPrisma}` : ''} · {formatDate(ordem.dataAbertura)}
         </Text>
 
         <View style={estilos.secao}>

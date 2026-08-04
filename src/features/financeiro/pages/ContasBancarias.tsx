@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Pencil, ArrowRightLeft } from 'lucide-react'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, formatDate } from '@/utils/format'
 import { ROTULO_TIPO_CONTA_BANCARIA, type ContaBancaria } from '@/features/caixa/types/contaBancaria'
 import { PermissionGate } from '../components/PermissionGate'
 import { ContaBancariaModal } from '../components/ContaBancariaModal'
@@ -106,7 +106,7 @@ export function ContasBancarias() {
                   <td className="px-3 py-2">{t.contaOrigemNome}</td>
                   <td className="px-3 py-2">{t.contaDestinoNome}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(t.valor)}</td>
-                  <td className="px-3 py-2">{new Date(t.dataTransferencia).toLocaleDateString('pt-BR')}</td>
+                  <td className="px-3 py-2">{formatDate(t.dataTransferencia)}</td>
                 </tr>
               ))}
             </tbody>

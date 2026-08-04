@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { formatDate } from '@/utils/format'
 import { useChangelog, useCriarEntradaChangelog } from '../hooks/useChangelog'
 
 export function Atualizacoes() {
@@ -68,7 +69,7 @@ export function Atualizacoes() {
           <div key={entrada.id} className="rounded-lg border p-4">
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm">v{entrada.versao}</span>
-              <span className="text-xs text-muted-foreground">{new Date(entrada.data).toLocaleDateString('pt-BR')}</span>
+              <span className="text-xs text-muted-foreground">{formatDate(entrada.data)}</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{entrada.descricao}</p>
           </div>

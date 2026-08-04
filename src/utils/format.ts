@@ -29,6 +29,16 @@ export function formatCep(value: string): string {
 }
 
 export function formatDate(dateString: string): string {
+  // Datas "puras" (coluna `date` do Postgres, ex: "2026-08-04", sem hora)
+  // são interpretadas pelo Date() como meia-noite UTC — no fuso do Brasil
+  // (negativo) isso "recua" um dia ao formatar no fuso local (uma OS paga
+  // hoje aparecia com a data de ontem). Constrói a data direto a partir dos
+  // componentes ano/mês/dia, já no fuso local, pra evitar isso. Timestamps
+  // completos (com hora) continuam com a conversão de fuso normal.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [ano, mes, dia] = dateString.split('-').map(Number)
+    return new Date(ano, mes - 1, dia).toLocaleDateString('pt-BR')
+  }
   return new Date(dateString).toLocaleDateString('pt-BR')
 }
 
