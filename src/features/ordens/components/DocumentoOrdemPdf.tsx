@@ -38,9 +38,9 @@ const estilos = StyleSheet.create({
   totais: { marginTop: 12, alignItems: 'flex-end' },
   totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 18 },
-  logoOficina: { width: 120, height: 120, objectFit: 'contain' },
-  nomeOficina: { fontSize: 26, fontWeight: 700 },
+  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 20 },
+  logoOficina: { width: 170, height: 170, objectFit: 'contain' },
+  nomeOficina: { fontSize: 32, fontWeight: 700 },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })
 
@@ -168,8 +168,19 @@ export async function gerarEAbrirPdfOrdem(
   modo: ModoDocumentoOrdem,
   cabecalho?: CabecalhoOficinaPdf,
 ) {
+  // Não trava na condição "ordem.status === 'paga'" do objeto recebido — em
+  // telas que reaproveitam uma OS já carregada antes do pagamento, esse
+  // status pode estar desatualizado no cache mesmo com o pagamento já
+  // registrado no banco. A busca abaixo vai direto no caixa_lancamento e
+  // simplesmente retorna vazio se realmente não tiver pagamento — mais
+  // confiável do que confiar no status local.
   const formasPagamento =
-    modo === 'os' && ordem.status === 'paga' ? await buscarFormasPagamentoDaOrdem(ordem.id).catch(() => []) : []
+    modo === 'os'
+      ? await buscarFormasPagamentoDaOrdem(ordem.id).catch((error) => {
+          console.error('Não foi possível carregar a forma de pagamento para o PDF da OS:', error)
+          return []
+        })
+      : []
   const blob = await pdf(
     <DocumentoOrdemPdf ordem={ordem} itens={itens} modo={modo} cabecalho={cabecalho} formasPagamento={formasPagamento} />,
   ).toBlob()

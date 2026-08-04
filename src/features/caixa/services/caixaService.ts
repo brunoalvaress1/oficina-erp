@@ -345,16 +345,17 @@ export async function buscarCaixaLancamentoIdPorOrdem(ordemServicoId: string): P
 
 // Usado na impressão da OS pra mostrar como o cliente pagou (só existe
 // depois que a OS foi recebida no caixa — antes disso volta lista vazia).
+// Busca via ordem_servico_id direto (join aninhado) em vez de resolver o
+// caixa_lancamento_id primeiro com .maybeSingle() — se a OS já foi reaberta
+// e finalizada mais de uma vez existe mais de um caixa_lancamento pra ela, e
+// .maybeSingle() quebraria com erro nesse caso.
 export async function buscarFormasPagamentoDaOrdem(
   ordemServicoId: string,
 ): Promise<Array<{ formaPagamento: FormaPagamento; valor: number }>> {
-  const lancamentoId = await buscarCaixaLancamentoIdPorOrdem(ordemServicoId)
-  if (!lancamentoId) return []
-
   const { data, error } = await supabase
     .from('caixa_recebimentos')
-    .select('caixa_recebimento_formas(forma_pagamento, valor)')
-    .eq('caixa_lancamento_id', lancamentoId)
+    .select('cancelado, caixa_recebimento_formas(forma_pagamento, valor), caixa_lancamentos!inner(ordem_servico_id)')
+    .eq('caixa_lancamentos.ordem_servico_id', ordemServicoId)
     .eq('cancelado', false)
   if (error) throw new Error(error.message)
 
