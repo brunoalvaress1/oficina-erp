@@ -138,6 +138,7 @@ export function OrdemForm() {
         valorDesconto: item.valorDesconto,
         valorTotal: item.valorTotal,
         valorCusto: item.valorCusto,
+        fornecedorId: item.fornecedorId,
         fornecedorNome: item.fornecedorNome,
         numeroNota: item.numeroNota,
         statusAprovacao: item.statusAprovacao,
@@ -193,15 +194,30 @@ export function OrdemForm() {
           i.chave === chave
             ? {
                 ...i,
+                descricao: alteracoes.descricao ?? i.descricao,
                 quantidade: String(alteracoes.quantidade),
                 valorUnitario: String(alteracoes.valorUnitario),
                 valorDesconto: String(alteracoes.valorDesconto),
+                valorCusto: alteracoes.valorCusto != null ? String(alteracoes.valorCusto) : i.valorCusto,
+                numeroNota: alteracoes.numeroNota ?? i.numeroNota,
+                fornecedor: alteracoes.fornecedor !== undefined ? alteracoes.fornecedor : i.fornecedor,
               }
             : i,
         ),
       )
     } else {
-      atualizarItemMutation.mutate({ itemId: chave, alteracoes })
+      atualizarItemMutation.mutate({
+        itemId: chave,
+        alteracoes: {
+          descricao: alteracoes.descricao,
+          quantidade: alteracoes.quantidade,
+          valorUnitario: alteracoes.valorUnitario,
+          valorDesconto: alteracoes.valorDesconto,
+          valorCusto: alteracoes.valorCusto,
+          numeroNota: alteracoes.numeroNota,
+          fornecedorId: alteracoes.fornecedor?.id,
+        },
+      })
     }
   }
 
@@ -529,29 +545,25 @@ export function OrdemForm() {
         disabled={!modoCriacao || somenteLeitura}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <ItensOrdemSection
-            itens={itensExibicao}
-            podeVerLucro={podeVerLucro}
-            somenteLeitura={somenteLeitura}
-            onAdicionar={handleAdicionarItemLocal}
-            onEditar={handleEditarItem}
-            onRemover={handleRemoverItem}
-            adicionando={adicionarItemMutation.isPending}
-            editando={atualizarItemMutation.isPending}
-          />
-        </div>
-        <div>
-          <ResumoFinanceiro
-            valorProdutos={valorProdutos}
-            valorServicos={valorServicos}
-            valorDesconto={valorDesconto}
-            valorTotal={valorTotal}
-            lucroEstimado={lucroEstimado}
-            podeVerLucro={podeVerLucro}
-          />
-        </div>
+      <div className="space-y-4">
+        <ItensOrdemSection
+          itens={itensExibicao}
+          podeVerLucro={podeVerLucro}
+          somenteLeitura={somenteLeitura}
+          onAdicionar={handleAdicionarItemLocal}
+          onEditar={handleEditarItem}
+          onRemover={handleRemoverItem}
+          adicionando={adicionarItemMutation.isPending}
+          editando={atualizarItemMutation.isPending}
+        />
+        <ResumoFinanceiro
+          valorProdutos={valorProdutos}
+          valorServicos={valorServicos}
+          valorDesconto={valorDesconto}
+          valorTotal={valorTotal}
+          lucroEstimado={lucroEstimado}
+          podeVerLucro={podeVerLucro}
+        />
       </div>
 
       {!modoCriacao && (

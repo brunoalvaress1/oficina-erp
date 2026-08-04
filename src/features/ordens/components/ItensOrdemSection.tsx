@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { Trash2, Pencil, Check, X } from 'lucide-react'
 import { ItemOrdemRowNovo } from './ItemOrdemRow'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
+import { Combobox } from '@/components/ui/Combobox'
+import { useFornecedoresSelect } from '@/features/fornecedores/hooks/useFornecedoresSelect'
 import { formatCurrency } from '@/utils/format'
 import type { StatusAprovacaoItem, TipoItemOrdem } from '../types/ordemServico'
 import type { ItemOrdemForm, ItemExibicao } from '../types/itemOrdemForm'
+import type { FornecedorSelect } from '@/features/fornecedores/types/fornecedor'
 
 export type { ItemExibicao }
 
@@ -27,16 +30,25 @@ const ROTULO_APROVACAO: Record<StatusAprovacaoItem, string> = {
 }
 
 export interface AlteracoesItem {
+  descricao: string
   quantidade: number
   valorUnitario: number
   valorDesconto: number
+  valorCusto?: number
+  numeroNota?: string
+  fornecedor?: FornecedorSelect | null
 }
 
 interface EdicaoEmAndamento {
   chave: string
+  tipo: TipoItemOrdem
+  descricao: string
   quantidade: string
   valorUnitario: string
   valorDesconto: string
+  valorCusto: string
+  numeroNota: string
+  fornecedor: FornecedorSelect | null
 }
 
 interface ItensOrdemSectionProps {
@@ -61,6 +73,10 @@ export function ItensOrdemSection({
   editando,
 }: ItensOrdemSectionProps) {
   const [edicao, setEdicao] = useState<EdicaoEmAndamento | null>(null)
+  const [termoBuscaFornecedor, setTermoBuscaFornecedor] = useState('')
+  const { data: fornecedoresEncontrados = [], isLoading: buscandoFornecedores } = useFornecedoresSelect(
+    edicao?.tipo === 'produto_terceirizado' ? termoBuscaFornecedor : '',
+  )
 
   function calcularMargem(item: ItemExibicao): number | null {
     if (!item.valorCusto) return null
@@ -70,18 +86,27 @@ export function ItensOrdemSection({
   function iniciarEdicao(item: ItemExibicao) {
     setEdicao({
       chave: item.chave,
+      tipo: item.tipo,
+      descricao: item.descricao,
       quantidade: String(item.quantidade),
       valorUnitario: String(item.valorUnitario),
       valorDesconto: String(item.valorDesconto),
+      valorCusto: item.valorCusto != null ? String(item.valorCusto) : '',
+      numeroNota: item.numeroNota ?? '',
+      fornecedor: item.fornecedorId ? { id: item.fornecedorId, nome: item.fornecedorNome ?? '', cnpjCpf: null } : null,
     })
   }
 
   function salvarEdicao() {
     if (!edicao) return
     onEditar(edicao.chave, {
+      descricao: edicao.descricao,
       quantidade: Number(edicao.quantidade) || 0,
       valorUnitario: Number(edicao.valorUnitario) || 0,
       valorDesconto: Number(edicao.valorDesconto) || 0,
+      ...(edicao.tipo === 'produto_terceirizado'
+        ? { valorCusto: Number(edicao.valorCusto) || 0, numeroNota: edicao.numeroNota, fornecedor: edicao.fornecedor }
+        : {}),
     })
     setEdicao(null)
   }
@@ -123,7 +148,17 @@ export function ItensOrdemSection({
 
               return (
                 <tr key={item.chave} className="border-t">
-                  <td className="px-3 py-2">{item.descricao}</td>
+                  <td className="px-3 py-2">
+                    {emEdicao ? (
+                      <input
+                        value={edicao.descricao}
+                        onChange={(e) => setEdicao({ ...edicao, descricao: e.target.value })}
+                        className="w-full min-w-[10rem] h-8 rounded-md border bg-transparent px-2 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                      />
+                    ) : (
+                      item.descricao
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-muted-foreground">{ROTULO_TIPO[item.tipo]}</td>
 
                   {emEdicao ? (
@@ -166,10 +201,49 @@ export function ItensOrdemSection({
                     </>
                   )}
 
-                  <td className="px-3 py-2">{item.fornecedorNome ?? '-'}</td>
-                  <td className="px-3 py-2">{item.numeroNota ?? '-'}</td>
+                  <td className="px-3 py-2">
+                    {emEdicao && edicao.tipo === 'produto_terceirizado' ? (
+                      <div className="w-40">
+                        <Combobox<FornecedorSelect>
+                          value={edicao.fornecedor}
+                          onSelect={(fornecedor) => setEdicao({ ...edicao, fornecedor })}
+                          onSearch={setTermoBuscaFornecedor}
+                          items={fornecedoresEncontrados}
+                          isLoading={buscandoFornecedores}
+                          getKey={(f) => f.id}
+                          getLabel={(f) => f.nome}
+                          placeholder="Buscar fornecedor..."
+                        />
+                      </div>
+                    ) : (
+                      item.fornecedorNome ?? '-'
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {emEdicao && edicao.tipo === 'produto_terceirizado' ? (
+                      <input
+                        value={edicao.numeroNota}
+                        onChange={(e) => setEdicao({ ...edicao, numeroNota: e.target.value })}
+                        className="w-24 h-8 rounded-md border bg-transparent px-2 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                      />
+                    ) : (
+                      item.numeroNota ?? '-'
+                    )}
+                  </td>
                   {podeVerLucro && (
-                    <td className="px-3 py-2 text-right">{margem != null ? `${margem.toFixed(0)}%` : '-'}</td>
+                    <td className="px-3 py-2 text-right">
+                      {emEdicao && edicao.tipo === 'produto_terceirizado' ? (
+                        <CampoMoeda
+                          value={edicao.valorCusto}
+                          onChange={(v) => setEdicao({ ...edicao, valorCusto: v })}
+                          className="w-20 h-8 rounded-md border bg-transparent px-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary/30"
+                        />
+                      ) : margem != null ? (
+                        `${margem.toFixed(0)}%`
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                   )}
                   <td className="px-3 py-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${BADGE_APROVACAO[item.statusAprovacao]}`}>

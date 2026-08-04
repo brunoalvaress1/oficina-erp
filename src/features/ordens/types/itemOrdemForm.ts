@@ -12,6 +12,7 @@ export interface ItemExibicao {
   valorDesconto: number
   valorTotal: number
   valorCusto: number | null
+  fornecedorId?: string | null
   fornecedorNome?: string | null
   numeroNota?: string | null
   statusAprovacao: StatusAprovacaoItem
@@ -103,6 +104,7 @@ export function itemFormParaExibicao(item: ItemOrdemForm): ItemExibicao {
     valorDesconto: Number(item.valorDesconto) || 0,
     valorTotal: calcularTotalItem(item),
     valorCusto: item.valorCusto ? Number(item.valorCusto) : null,
+    fornecedorId: item.fornecedor?.id,
     fornecedorNome: item.fornecedor?.nome,
     numeroNota: item.numeroNota || null,
     statusAprovacao: item.statusAprovacao,
