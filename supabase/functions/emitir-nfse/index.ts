@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
     const referencia = `caixa-${caixaLancamentoId}-nfse-${Date.now()}`
     const codigoMunicipio = Number(oficina.codigo_municipio)
     const descricaoServico = `Mão de obra referente à OS nº ${ordem.numero}: ${itensServico.map((i) => i.descricao).join(', ')}`.slice(0, 2000)
+    const cepTomador = cepTomadorValido(cliente.cep)
 
     const dataEmissao = dataEmissaoBrasilia()
     const payload = {
@@ -148,14 +149,17 @@ Deno.serve(async (req) => {
       cpf_tomador: !ehPessoaJuridica ? cpfCnpjCliente : undefined,
       razao_social_tomador: cliente.nome,
       codigo_municipio_tomador: Number(cliente.codigo_cidade),
-      // CEP é opcional na DPS, mas quando informado a Sefaz cruza com o
-      // município — um CEP com menos de 8 dígitos (erro de digitação no
-      // cadastro) sempre é rejeitado ("CEP não existe ou não pertence ao
-      // município"). Melhor omitir um CEP malformado do que travar a emissão.
-      cep_tomador: cepTomadorValido(cliente.cep),
-      logradouro_tomador: cliente.endereco || undefined,
-      numero_tomador: cliente.numero || undefined,
-      bairro_tomador: cliente.bairro || undefined,
+      // O grupo de endereço nacional do tomador (endNac) exige CEP sempre
+      // que logradouro/numero/bairro forem informados — rejeição real da
+      // Sefaz: "Element 'endNac': Missing child element(s). Expected is
+      // CEP". Endereço do tomador é opcional (só codigo_municipio_tomador é
+      // obrigatório), então quando o CEP não é válido (vazio ou com menos de
+      // 8 dígitos) omitimos o bloco de endereço INTEIRO — nunca mandar
+      // logradouro/numero/bairro sem CEP junto.
+      cep_tomador: cepTomador,
+      logradouro_tomador: cepTomador ? cliente.endereco || undefined : undefined,
+      numero_tomador: cepTomador ? cliente.numero || undefined : undefined,
+      bairro_tomador: cepTomador ? cliente.bairro || undefined : undefined,
       codigo_municipio_prestacao: codigoMunicipio,
       codigo_tributacao_nacional_iss: codigoTributacaoIss,
       // Obrigatório porque a nota informa dados de IBS/CBS ("É obrigatório
@@ -165,32 +169,27 @@ Deno.serve(async (req) => {
       descricao_servico: descricaoServico,
       valor_servico: Number(valorServico.toFixed(2)),
       tributacao_iss: 1, // 1 = tributável integralmente (caso normal)
-      // Sem retenção na fonte (caso normal pra cliente pessoa física/oficina
-      // comum) e sem informar valor total de tributos aproximado (Lei da
-      // Transparência) — mas os campos precisam existir pra fechar os grupos
-      // "tribMun" e "trib" do XML nacional (a Sefaz rejeitou a nota sem eles:
-      // "Missing child element" em tribMun/trib).
       tipo_retencao_iss: 1, // 1 = não retido
-      // O grupo "trib" do XML exige OU totTrib (indicador_total_tributacao)
-      // OU tribFed (campos de retenção federal) — nunca os dois, e a Sefaz
-      // rejeita totTrib pra optante do Simples Nacional ME/EPP ("não pode ser
-      // informado"). Por isso ramifica: não-Simples usa totTrib=0 (não
-      // informado), Simples Nacional usa tribFed zerado (sem retenção
-      // federal, o caso normal — ME/EPP recolhe tudo pelo DAS).
-      indicador_total_tributacao: codigoOpcaoSimplesNacional === 1 ? 0 : undefined,
-      // Dentro de tribFed, o XML exige a CST do PIS/COFINS ANTES da base de
-      // cálculo — "00" = Nenhum, o caso de quem não apura PIS/COFINS por
-      // fora do DAS (ME/EPP do Simples Nacional).
-      situacao_tributaria_pis_cofins: codigoOpcaoSimplesNacional !== 1 ? '00' : undefined,
-      base_calculo_pis_cofins: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      aliquota_pis: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      aliquota_cofins: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      valor_pis: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      valor_cofins: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      tipo_retencao_pis_cofins: codigoOpcaoSimplesNacional !== 1 ? 1 : undefined, // 1 = não retido
-      valor_cp: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      valor_irrf: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
-      valor_csll: codigoOpcaoSimplesNacional !== 1 ? 0 : undefined,
+      // O grupo "trib" do XML nacional exige a sequência tribMun, tribFed e
+      // totTrib SEMPRE presentes — mesmo sem nenhuma retenção federal e sem
+      // informar valor aproximado de tributos, os três blocos precisam
+      // existir no XML (rejeição real da Sefaz confirmando os dois: antes
+      // "Missing child element" em tribMun/trib, agora em trib/totTrib). Por
+      // isso esses campos NÃO dependem mais do regime tributário da oficina
+      // — vão sempre zerados/"não retido"/"não informado", que é o caso
+      // normal (sem retenção na fonte) tanto pra Simples Nacional quanto
+      // pros demais regimes.
+      indicador_total_tributacao: 0, // 0 = não informado valor aproximado de tributos
+      situacao_tributaria_pis_cofins: '00', // 00 = nenhuma retenção de PIS/COFINS
+      base_calculo_pis_cofins: 0,
+      aliquota_pis: 0,
+      aliquota_cofins: 0,
+      valor_pis: 0,
+      valor_cofins: 0,
+      tipo_retencao_pis_cofins: 1, // 1 = não retido
+      valor_cp: 0,
+      valor_irrf: 0,
+      valor_csll: 0,
       // Campos da Reforma Tributária, obrigatórios no layout nacional de DPS.
       // codigo_indicador_operacao (cIndOp) é exigido pela Sefaz antes de
       // indicador_destinatario (indDest) na sequência do XML — valor vem da
