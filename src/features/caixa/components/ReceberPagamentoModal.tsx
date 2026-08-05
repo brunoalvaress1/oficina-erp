@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { buscarOrdemDetalhe } from '@/features/ordens/services/ordemServicoService'
 import { useConfiguracaoParcelamento } from '@/features/configuracoes/hooks/usePagamentosConfig'
@@ -23,14 +24,24 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
   const [formas, setFormas] = useState<FormaPagamentoForm[]>(() => [criarFormaPagamentoVazia()])
   const [observacoesPendente, setObservacoesPendente] = useState('')
   const [mostrarSucesso, setMostrarSucesso] = useState(false)
+  const [descontoTipo, setDescontoTipo] = useState<'percentual' | 'valor'>('percentual')
+  const [descontoInput, setDescontoInput] = useState('')
 
   const receberMutation = useReceberPagamento()
   const marcarPendenteMutation = useMarcarPendente()
   const { data: parcelamento } = useConfiguracaoParcelamento()
   const { data: oficina } = useDadosOficina()
 
+  const descontoValor =
+    descontoTipo === 'percentual'
+      ? Math.round(((lancamento.valorTotal * (Number(descontoInput) || 0)) / 100) * 100) / 100
+      : Math.round((Number(descontoInput) || 0) * 100) / 100
+  // Nunca deixa o desconto zerar ou passar do total — evita "pagar" um valor
+  // negativo se alguém digitar um desconto maior que a própria OS.
+  const valorAPagar = Math.max(0, Math.round((lancamento.valorTotal - descontoValor) * 100) / 100)
+
   const somaFormas = formas.reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
-  const diferenca = Math.round((lancamento.valorTotal - somaFormas) * 100) / 100
+  const diferenca = Math.round((valorAPagar - somaFormas) * 100) / 100
 
   function handleAtualizarForma(chave: string, novaForma: FormaPagamentoForm) {
     setFormas((prev) => prev.map((f) => (f.chave === chave ? novaForma : f)))
@@ -39,7 +50,7 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
   function handleAdicionarForma() {
     setFormas((prev) => {
       const somaAtual = prev.reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
-      const restante = Math.round((lancamento.valorTotal - somaAtual) * 100) / 100
+      const restante = Math.round((valorAPagar - somaAtual) * 100) / 100
       const novaForma = criarFormaPagamentoVazia()
       // Já entra preenchida com o que ainda falta pra fechar o total — evita
       // ter que fazer conta de cabeça quando divide o pagamento em mais de
@@ -60,7 +71,7 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
       formaPagamentoParaInput(forma, parcelamento?.parcelasSemJuros ?? 6, parcelamento?.jurosPercentual ?? 8),
     )
     receberMutation.mutate(
-      { caixaLancamentoId: lancamento.id, formas: formasInput },
+      { caixaLancamentoId: lancamento.id, formas: formasInput, desconto: descontoValor },
       { onSuccess: () => setMostrarSucesso(true) },
     )
   }
@@ -102,7 +113,7 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
         {mostrarSucesso ? (
           <ReciboSucesso
             numeroOrdem={lancamento.ordemNumero}
-            valorTotal={lancamento.valorTotal}
+            valorTotal={valorAPagar}
             onImprimir={handleImprimir}
             onFechar={handleFecharTudo}
           />
@@ -119,8 +130,60 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
                 <Campo label="Placa" valor={lancamento.veiculoPlaca} />
                 <Campo label="Responsável" valor={lancamento.responsavelNome} />
                 <Campo label="Data" valor={formatDate(lancamento.dataAbertura)} />
-                <Campo label="Desconto" valor={formatCurrency(lancamento.valorDesconto)} />
+                <Campo label="Desconto (itens)" valor={formatCurrency(lancamento.valorDesconto)} />
                 <Campo label="Valor Total" valor={formatCurrency(lancamento.valorTotal)} destaque />
+              </div>
+
+              <div className="rounded-lg border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Desconto no pagamento</span>
+                  <div className="flex rounded-md border overflow-hidden text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setDescontoTipo('percentual')}
+                      className={`px-3 h-7 font-medium transition-colors ${
+                        descontoTipo === 'percentual' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      %
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDescontoTipo('valor')}
+                      className={`px-3 h-7 font-medium border-l transition-colors ${
+                        descontoTipo === 'valor' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      R$
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {descontoTipo === 'percentual' ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={descontoInput}
+                      onChange={(e) => setDescontoInput(e.target.value)}
+                      placeholder="0"
+                      className="w-28 h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                  ) : (
+                    <CampoMoeda
+                      value={descontoInput}
+                      onChange={setDescontoInput}
+                      className="w-32 h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                  )}
+                  {descontoValor > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      -{formatCurrency(descontoValor)} · Valor a pagar:{' '}
+                      <span className="font-semibold text-foreground">{formatCurrency(valorAPagar)}</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -147,7 +210,9 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
               </div>
 
               <div className="rounded-lg border p-3 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total informado</span>
+                <span className="text-sm text-muted-foreground">
+                  Total informado {descontoValor > 0 ? `(de ${formatCurrency(valorAPagar)} a pagar)` : ''}
+                </span>
                 <span className="text-base font-semibold">{formatCurrency(somaFormas)}</span>
               </div>
 

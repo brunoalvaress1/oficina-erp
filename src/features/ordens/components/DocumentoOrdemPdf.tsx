@@ -66,9 +66,10 @@ interface DocumentoOrdemPdfProps {
   modo: ModoDocumentoOrdem
   cabecalho?: CabecalhoOficinaPdf
   formasPagamento?: Array<{ formaPagamento: FormaPagamento; valor: number }>
+  descontoPagamento?: number
 }
 
-export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamento }: DocumentoOrdemPdfProps) {
+export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamento, descontoPagamento }: DocumentoOrdemPdfProps) {
   const itensRelevantes = modo === 'aprovacao' ? itens.filter((item) => item.statusAprovacao === 'aguardando') : itens
   const linhasOficina = linhasInfoOficina(cabecalho)
 
@@ -162,6 +163,12 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamen
                   <Text style={estilos.valor}>{formatarMoeda(forma.valor)}</Text>
                 </View>
               ))}
+              {Boolean(descontoPagamento) && (
+                <View style={estilos.linha}>
+                  <Text style={estilos.rotulo}>Desconto no pagamento</Text>
+                  <Text style={estilos.valor}>-{formatarMoeda(descontoPagamento!)}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -193,15 +200,22 @@ export async function gerarEAbrirPdfOrdem(
   // registrado no banco. A busca abaixo vai direto no caixa_lancamento e
   // simplesmente retorna vazio se realmente não tiver pagamento — mais
   // confiável do que confiar no status local.
-  const formasPagamento =
+  const pagamento =
     modo === 'os'
       ? await buscarFormasPagamentoDaOrdem(ordem.id).catch((error) => {
           console.error('Não foi possível carregar a forma de pagamento para o PDF da OS:', error)
-          return []
+          return { formas: [], desconto: 0 }
         })
-      : []
+      : { formas: [], desconto: 0 }
   const blob = await pdf(
-    <DocumentoOrdemPdf ordem={ordem} itens={itens} modo={modo} cabecalho={cabecalho} formasPagamento={formasPagamento} />,
+    <DocumentoOrdemPdf
+      ordem={ordem}
+      itens={itens}
+      modo={modo}
+      cabecalho={cabecalho}
+      formasPagamento={pagamento.formas}
+      descontoPagamento={pagamento.desconto}
+    />,
   ).toBlob()
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener,noreferrer')

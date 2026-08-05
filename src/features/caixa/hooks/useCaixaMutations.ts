@@ -10,8 +10,15 @@ export function useReceberPagamento() {
   const { funcionario } = usePermissions()
 
   return useMutation({
-    mutationFn: ({ caixaLancamentoId, formas }: { caixaLancamentoId: string; formas: FormaPagamentoInput[] }) =>
-      receberPagamento(caixaLancamentoId, funcionario!.id, formas),
+    mutationFn: ({
+      caixaLancamentoId,
+      formas,
+      desconto,
+    }: {
+      caixaLancamentoId: string
+      formas: FormaPagamentoInput[]
+      desconto?: number
+    }) => receberPagamento(caixaLancamentoId, funcionario!.id, formas, desconto),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['caixa-lancamentos'] })
       queryClient.invalidateQueries({ queryKey: ['caixa-dashboard'] })

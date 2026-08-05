@@ -189,6 +189,7 @@ export async function receberPagamento(
   caixaLancamentoId: string,
   funcionarioId: string,
   formas: FormaPagamentoInput[],
+  desconto = 0,
 ): Promise<string> {
   const ip = await capturarIpPublico()
   const { data, error } = await supabase.rpc('caixa_receber', {
@@ -196,6 +197,7 @@ export async function receberPagamento(
     p_funcionario_id: funcionarioId,
     p_ip: ip,
     p_formas: formas,
+    p_desconto: desconto,
   })
   if (error) throw new Error(traduzirErro(error.message))
   return data as string
@@ -349,18 +351,25 @@ export async function buscarCaixaLancamentoIdPorOrdem(ordemServicoId: string): P
 // caixa_lancamento_id primeiro com .maybeSingle() — se a OS já foi reaberta
 // e finalizada mais de uma vez existe mais de um caixa_lancamento pra ela, e
 // .maybeSingle() quebraria com erro nesse caso.
-export async function buscarFormasPagamentoDaOrdem(
-  ordemServicoId: string,
-): Promise<Array<{ formaPagamento: FormaPagamento; valor: number }>> {
+export interface FormasPagamentoDaOrdem {
+  formas: Array<{ formaPagamento: FormaPagamento; valor: number }>
+  desconto: number
+}
+
+export async function buscarFormasPagamentoDaOrdem(ordemServicoId: string): Promise<FormasPagamentoDaOrdem> {
   const { data, error } = await supabase
     .from('caixa_recebimentos')
-    .select('cancelado, caixa_recebimento_formas(forma_pagamento, valor), caixa_lancamentos!inner(ordem_servico_id)')
+    .select('cancelado, desconto, caixa_recebimento_formas(forma_pagamento, valor), caixa_lancamentos!inner(ordem_servico_id)')
     .eq('caixa_lancamentos.ordem_servico_id', ordemServicoId)
     .eq('cancelado', false)
   if (error) throw new Error(error.message)
 
-  return (data ?? []).flatMap((r: any) => r.caixa_recebimento_formas ?? []).map((f: any) => ({
-    formaPagamento: f.forma_pagamento as FormaPagamento,
-    valor: Number(f.valor),
-  }))
+  const registros = data ?? []
+  return {
+    formas: registros.flatMap((r: any) => r.caixa_recebimento_formas ?? []).map((f: any) => ({
+      formaPagamento: f.forma_pagamento as FormaPagamento,
+      valor: Number(f.valor),
+    })),
+    desconto: registros.reduce((soma: number, r: any) => soma + Number(r.desconto ?? 0), 0),
+  }
 }
