@@ -58,6 +58,8 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
       ])
       await gerarEAbrirPdfOrdem(detalhe.ordem, detalhe.itens, modo, {
         endereco: formatarEnderecoOficina(oficina),
+        telefone: oficina?.telefone,
+        email: oficina?.email,
         logoUrl: oficina?.logoUrl,
         rodape: oficina?.rodapeImpressao,
       })

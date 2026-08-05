@@ -9,6 +9,8 @@ export type ModoDocumentoOrdem = 'os' | 'defeitos' | 'aprovacao' | 'orcamento'
 
 export interface CabecalhoOficinaPdf {
   endereco?: string | null
+  telefone?: string | null
+  email?: string | null
   logoUrl?: string | null
   rodape?: string | null
 }
@@ -21,7 +23,8 @@ const TITULO_POR_MODO: Record<ModoDocumentoOrdem, string> = {
 }
 
 const estilos = StyleSheet.create({
-  pagina: { padding: 32, fontSize: 11, fontFamily: 'Helvetica' },
+  pagina: { padding: 24, fontSize: 11, fontFamily: 'Helvetica' },
+  moldura: { border: '1.5 solid #333', borderRadius: 4, padding: 22, flexGrow: 1 },
   titulo: { fontSize: 18, fontWeight: 700, marginBottom: 4 },
   subtitulo: { fontSize: 11, color: '#555', marginBottom: 16 },
   secao: { marginBottom: 14 },
@@ -38,9 +41,10 @@ const estilos = StyleSheet.create({
   totais: { marginTop: 12, alignItems: 'flex-end' },
   totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 20 },
+  cabecalhoOficina: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, marginBottom: 20 },
   logoOficina: { width: 210, height: 210, objectFit: 'contain' },
-  enderecoOficina: { fontSize: 11, color: '#555' },
+  infoOficina: { flexDirection: 'column', gap: 6, paddingTop: 4 },
+  infoOficinaLinha: { fontSize: 12, color: '#444' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })
 
@@ -62,98 +66,102 @@ export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamen
   return (
     <Document>
       <Page size="A4" style={estilos.pagina}>
-        {(cabecalho?.logoUrl || cabecalho?.endereco) && (
-          <View style={estilos.cabecalhoOficina}>
-            {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
-            {cabecalho.endereco && <Text style={estilos.enderecoOficina}>{cabecalho.endereco}</Text>}
-          </View>
-        )}
-        <Text style={estilos.titulo}>{TITULO_POR_MODO[modo]}</Text>
-        <Text style={estilos.subtitulo}>
-          OS nº {ordem.numero} {ordem.numeroPrisma ? `· Prisma ${ordem.numeroPrisma}` : ''} · {formatDate(ordem.dataAbertura)}
-        </Text>
-
-        <View style={estilos.secao}>
-          <Text style={estilos.secaoTitulo}>Cliente e Veículo</Text>
-          <View style={estilos.linha}>
-            <Text style={estilos.rotulo}>Cliente</Text>
-            <Text style={estilos.valor}>{ordem.clienteNome ?? '-'}</Text>
-          </View>
-          <View style={estilos.linha}>
-            <Text style={estilos.rotulo}>Veículo</Text>
-            <Text style={estilos.valor}>
-              {ordem.veiculoId ? `${ordem.veiculoModelo ?? '-'} · Placa ${ordem.veiculoPlaca ?? '-'}` : 'Nenhum veículo cadastrado'}
-            </Text>
-          </View>
-          {ordem.veiculoId && (
-            <View style={estilos.linha}>
-              <Text style={estilos.rotulo}>Quilometragem</Text>
-              <Text style={estilos.valor}>{ordem.kmAtual} km</Text>
+        <View style={estilos.moldura}>
+          {(cabecalho?.logoUrl || cabecalho?.endereco || cabecalho?.telefone || cabecalho?.email) && (
+            <View style={estilos.cabecalhoOficina}>
+              {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
+              <View style={estilos.infoOficina}>
+                {cabecalho.endereco && <Text style={estilos.infoOficinaLinha}>{cabecalho.endereco}</Text>}
+                {cabecalho.telefone && <Text style={estilos.infoOficinaLinha}>Telefone: {cabecalho.telefone}</Text>}
+                {cabecalho.email && <Text style={estilos.infoOficinaLinha}>{cabecalho.email}</Text>}
+              </View>
             </View>
           )}
-          <View style={estilos.linha}>
-            <Text style={estilos.rotulo}>Status</Text>
-            <Text style={estilos.valor}>{ROTULO_STATUS_ORDEM[ordem.status]}</Text>
-          </View>
-        </View>
+          <Text style={estilos.titulo}>{TITULO_POR_MODO[modo]}</Text>
+          <Text style={estilos.subtitulo}>
+            OS nº {ordem.numero} {ordem.numeroPrisma ? `· Prisma ${ordem.numeroPrisma}` : ''} · {formatDate(ordem.dataAbertura)}
+          </Text>
 
-        {modo === 'defeitos' && (
           <View style={estilos.secao}>
-            <Text style={estilos.secaoTitulo}>Defeitos Relatados</Text>
-            <Text>{ordem.defeitosRelatados?.trim() || 'Nenhum defeito relatado.'}</Text>
-          </View>
-        )}
-
-        {modo !== 'defeitos' && (
-          <View style={estilos.secao}>
-            <Text style={estilos.secaoTitulo}>
-              {modo === 'aprovacao' ? 'Itens Aguardando Aprovação' : 'Produtos e Serviços'}
-            </Text>
-            <View style={estilos.tabelaHeader}>
-              <Text style={estilos.colDescricao}>Descrição</Text>
-              <Text style={estilos.colQtd}>Qtd.</Text>
-              <Text style={estilos.colValor}>Valor Unit.</Text>
-              <Text style={estilos.colTotal}>Total</Text>
+            <Text style={estilos.secaoTitulo}>Cliente e Veículo</Text>
+            <View style={estilos.linha}>
+              <Text style={estilos.rotulo}>Cliente</Text>
+              <Text style={estilos.valor}>{ordem.clienteNome ?? '-'}</Text>
             </View>
-            {itensRelevantes.length === 0 && <Text>Nenhum item.</Text>}
-            {itensRelevantes.map((item) => (
-              <View key={item.id} style={estilos.tabelaLinha}>
-                <Text style={estilos.colDescricao}>{item.descricao}</Text>
-                <Text style={estilos.colQtd}>{item.quantidade}</Text>
-                <Text style={estilos.colValor}>{formatarMoeda(item.valorUnitario)}</Text>
-                <Text style={estilos.colTotal}>{formatarMoeda(item.valorTotal)}</Text>
-              </View>
-            ))}
-
-            {modo !== 'aprovacao' && (
-              <View style={estilos.totais}>
-                <Text style={estilos.totalGeral}>Total: {formatarMoeda(ordem.valorTotal)}</Text>
+            <View style={estilos.linha}>
+              <Text style={estilos.rotulo}>Veículo</Text>
+              <Text style={estilos.valor}>
+                {ordem.veiculoId ? `${ordem.veiculoModelo ?? '-'} · Placa ${ordem.veiculoPlaca ?? '-'}` : 'Nenhum veículo cadastrado'}
+              </Text>
+            </View>
+            {ordem.veiculoId && (
+              <View style={estilos.linha}>
+                <Text style={estilos.rotulo}>Quilometragem</Text>
+                <Text style={estilos.valor}>{ordem.kmAtual} km</Text>
               </View>
             )}
+            <View style={estilos.linha}>
+              <Text style={estilos.rotulo}>Status</Text>
+              <Text style={estilos.valor}>{ROTULO_STATUS_ORDEM[ordem.status]}</Text>
+            </View>
           </View>
-        )}
 
-        {modo === 'os' && formasPagamento && formasPagamento.length > 0 && (
-          <View style={estilos.secao}>
-            <Text style={estilos.secaoTitulo}>Forma de Pagamento</Text>
-            {formasPagamento.map((forma, indice) => (
-              <View key={indice} style={estilos.linha}>
-                <Text style={estilos.rotulo}>{ROTULO_FORMA_PAGAMENTO[forma.formaPagamento]}</Text>
-                <Text style={estilos.valor}>{formatarMoeda(forma.valor)}</Text>
+          {modo === 'defeitos' && (
+            <View style={estilos.secao}>
+              <Text style={estilos.secaoTitulo}>Defeitos Relatados</Text>
+              <Text>{ordem.defeitosRelatados?.trim() || 'Nenhum defeito relatado.'}</Text>
+            </View>
+          )}
+
+          {modo !== 'defeitos' && (
+            <View style={estilos.secao}>
+              <Text style={estilos.secaoTitulo}>
+                {modo === 'aprovacao' ? 'Itens Aguardando Aprovação' : 'Produtos e Serviços'}
+              </Text>
+              <View style={estilos.tabelaHeader}>
+                <Text style={estilos.colDescricao}>Descrição</Text>
+                <Text style={estilos.colQtd}>Qtd.</Text>
+                <Text style={estilos.colValor}>Valor Unit.</Text>
+                <Text style={estilos.colTotal}>Total</Text>
               </View>
-            ))}
-          </View>
-        )}
+              {itensRelevantes.length === 0 && <Text>Nenhum item.</Text>}
+              {itensRelevantes.map((item) => (
+                <View key={item.id} style={estilos.tabelaLinha}>
+                  <Text style={estilos.colDescricao}>{item.descricao}</Text>
+                  <Text style={estilos.colQtd}>{item.quantidade}</Text>
+                  <Text style={estilos.colValor}>{formatarMoeda(item.valorUnitario)}</Text>
+                  <Text style={estilos.colTotal}>{formatarMoeda(item.valorTotal)}</Text>
+                </View>
+              ))}
 
-        {modo === 'aprovacao' && (
-          <View style={estilos.assinatura}>
-            <Text>Assinatura do Cliente</Text>
-          </View>
-        )}
+              {modo !== 'aprovacao' && (
+                <View style={estilos.totais}>
+                  <Text style={estilos.totalGeral}>Total: {formatarMoeda(ordem.valorTotal)}</Text>
+                </View>
+              )}
+            </View>
+          )}
 
-        {cabecalho?.rodape && (
-          <Text style={estilos.rodape}>{cabecalho.rodape}</Text>
-        )}
+          {modo === 'os' && formasPagamento && formasPagamento.length > 0 && (
+            <View style={estilos.secao}>
+              <Text style={estilos.secaoTitulo}>Forma de Pagamento</Text>
+              {formasPagamento.map((forma, indice) => (
+                <View key={indice} style={estilos.linha}>
+                  <Text style={estilos.rotulo}>{ROTULO_FORMA_PAGAMENTO[forma.formaPagamento]}</Text>
+                  <Text style={estilos.valor}>{formatarMoeda(forma.valor)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {modo === 'aprovacao' && (
+            <View style={estilos.assinatura}>
+              <Text>Assinatura do Cliente</Text>
+            </View>
+          )}
+        </View>
+
+        {cabecalho?.rodape && <Text style={estilos.rodape}>{cabecalho.rodape}</Text>}
       </Page>
     </Document>
   )

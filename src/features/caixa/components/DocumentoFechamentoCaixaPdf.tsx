@@ -3,12 +3,15 @@ import type { ResumoSessaoCaixa } from '../types/caixaSessao'
 
 export interface CabecalhoOficinaPdf {
   endereco?: string | null
+  telefone?: string | null
+  email?: string | null
   logoUrl?: string | null
   rodape?: string | null
 }
 
 const estilos = StyleSheet.create({
-  pagina: { padding: 32, fontSize: 10, fontFamily: 'Helvetica' },
+  pagina: { padding: 24, fontSize: 10, fontFamily: 'Helvetica' },
+  moldura: { border: '1.5 solid #333', borderRadius: 4, padding: 22, flexGrow: 1 },
   titulo: { fontSize: 16, fontWeight: 700, marginBottom: 4 },
   subtitulo: { fontSize: 10, color: '#555', marginBottom: 16 },
   secao: { marginBottom: 14 },
@@ -22,9 +25,10 @@ const estilos = StyleSheet.create({
   colValor: { flex: 1, textAlign: 'right' },
   colData: { flex: 1, textAlign: 'right' },
   totalGeral: { fontSize: 12, fontWeight: 700, marginTop: 8 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 18 },
+  cabecalhoOficina: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, marginBottom: 18 },
   logoOficina: { width: 210, height: 210, objectFit: 'contain' },
-  enderecoOficina: { fontSize: 10, color: '#555' },
+  infoOficina: { flexDirection: 'column', gap: 6, paddingTop: 4 },
+  infoOficinaLinha: { fontSize: 11, color: '#444' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 8, color: '#777', textAlign: 'center' },
 })
 
@@ -47,10 +51,15 @@ export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFech
   return (
     <Document>
       <Page size="A4" style={estilos.pagina}>
-        {(cabecalho?.logoUrl || cabecalho?.endereco) && (
+        <View style={estilos.moldura}>
+        {(cabecalho?.logoUrl || cabecalho?.endereco || cabecalho?.telefone || cabecalho?.email) && (
           <View style={estilos.cabecalhoOficina}>
             {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
-            {cabecalho.endereco && <Text style={estilos.enderecoOficina}>{cabecalho.endereco}</Text>}
+            <View style={estilos.infoOficina}>
+              {cabecalho.endereco && <Text style={estilos.infoOficinaLinha}>{cabecalho.endereco}</Text>}
+              {cabecalho.telefone && <Text style={estilos.infoOficinaLinha}>Telefone: {cabecalho.telefone}</Text>}
+              {cabecalho.email && <Text style={estilos.infoOficinaLinha}>{cabecalho.email}</Text>}
+            </View>
           </View>
         )}
         <Text style={estilos.titulo}>Fechamento de Caixa</Text>
@@ -138,9 +147,9 @@ export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFech
           ))}
         </View>
 
-        {cabecalho?.rodape && (
-          <Text style={estilos.rodape}>{cabecalho.rodape}</Text>
-        )}
+        </View>
+
+        {cabecalho?.rodape && <Text style={estilos.rodape}>{cabecalho.rodape}</Text>}
       </Page>
     </Document>
   )

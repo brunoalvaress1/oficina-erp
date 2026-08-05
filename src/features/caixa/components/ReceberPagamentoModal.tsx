@@ -80,6 +80,8 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
       ])
       await gerarEAbrirPdfOrdem(detalhe.ordem, detalhe.itens, 'os', {
         endereco: formatarEnderecoOficina(oficina),
+        telefone: oficina?.telefone,
+        email: oficina?.email,
         logoUrl: oficina?.logoUrl,
         rodape: oficina?.rodapeImpressao,
       })

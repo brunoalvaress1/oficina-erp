@@ -67,6 +67,8 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
       ])
       await gerarEAbrirPdfOrdem(ordemDetalhe.ordem, ordemDetalhe.itens, 'os', {
         endereco: formatarEnderecoOficina(oficina),
+        telefone: oficina?.telefone,
+        email: oficina?.email,
         logoUrl: oficina?.logoUrl,
         rodape: oficina?.rodapeImpressao,
       })

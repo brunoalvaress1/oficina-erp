@@ -360,6 +360,8 @@ export function OrdemForm() {
     const { gerarEAbrirPdfOrdem } = await import('../components/DocumentoOrdemPdf')
     await gerarEAbrirPdfOrdem(ordem, itensServidor, modo, {
       endereco: formatarEnderecoOficina(oficina),
+      telefone: oficina?.telefone,
+      email: oficina?.email,
       logoUrl: oficina?.logoUrl,
       rodape: oficina?.rodapeImpressao,
     })
