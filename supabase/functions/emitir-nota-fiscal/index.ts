@@ -112,8 +112,27 @@ Deno.serve(async (req) => {
       .eq('id', ordem.cliente_id)
       .single()
     if (erroCliente || !cliente) throw new Error('CLIENTE_NAO_ENCONTRADO')
-    if (!cliente.cpf_cnpj || !cliente.endereco || !cliente.codigo_cidade) {
-      throw new Error('CLIENTE_SEM_CADASTRO_COMPLETO: falta CPF/CNPJ, endereço ou código do município do cliente para emitir a nota.')
+    // Checados um a um (em vez de uma mensagem genérica) porque a rejeição
+    // da Sefaz por schema XML incompleto (ex: "Bairro destinatario não pode
+    // ser vazio") é bem menos clara do que travar aqui, antes de sequer
+    // tentar emitir, com o campo exato que falta.
+    const camposFaltando: string[] = []
+    if (!cliente.cpf_cnpj) camposFaltando.push('CPF/CNPJ')
+    if (!cliente.endereco) camposFaltando.push('endereço (rua)')
+    if (!cliente.bairro) camposFaltando.push('bairro')
+    if (!cliente.codigo_cidade) camposFaltando.push('código do município')
+    if (camposFaltando.length > 0) {
+      throw new Error(
+        `CLIENTE_SEM_CADASTRO_COMPLETO: falta ${camposFaltando.join(', ')} do cliente para emitir a nota — complete o cadastro em Clientes.`,
+      )
+    }
+    // A Sefaz rejeita logradouro_destinatario com mais de 60 caracteres —
+    // comum em cadastros importados onde o bairro ficou colado no endereço
+    // (ex: "Rua X, Bairro Y") em vez de separado no campo próprio.
+    if (cliente.endereco.length > 60) {
+      throw new Error(
+        `CLIENTE_ENDERECO_MUITO_LONGO: o endereço do cliente tem ${cliente.endereco.length} caracteres (máximo aceito pela Sefaz: 60) — encurte o campo "Rua" no cadastro do cliente, movendo o que sobrar pra "Bairro" ou "Complemento".`,
+      )
     }
 
     const { data: oficina, error: erroOficina } = await admin

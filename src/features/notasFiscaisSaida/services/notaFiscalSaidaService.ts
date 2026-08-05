@@ -154,7 +154,8 @@ function traduzirErroFunction(mensagem: string): string {
   if (mensagem.includes('SEM_ITENS_DE_PECA')) return 'Essa OS não tem nenhum item de peça — não há o que emitir.'
   if (mensagem.includes('SEM_ITENS_DE_SERVICO')) return 'Essa OS não tem nenhum item de serviço (mão de obra) — não há o que emitir em NFS-e.'
   if (mensagem.includes('ITENS_SEM_IMPOSTO_CONFIGURADO')) return mensagem.replace('ITENS_SEM_IMPOSTO_CONFIGURADO: ', 'Produtos sem imposto configurado: ')
-  if (mensagem.includes('CLIENTE_SEM_CADASTRO_COMPLETO')) return 'O cliente precisa ter CPF/CNPJ, endereço e cidade completos no cadastro antes de emitir a nota.'
+  if (mensagem.includes('CLIENTE_SEM_CADASTRO_COMPLETO')) return mensagem.replace('CLIENTE_SEM_CADASTRO_COMPLETO: ', '')
+  if (mensagem.includes('CLIENTE_ENDERECO_MUITO_LONGO')) return mensagem.replace('CLIENTE_ENDERECO_MUITO_LONGO: ', '')
   if (mensagem.includes('OFICINA_SEM_CNPJ_CONFIGURADO')) return 'Configure o CNPJ da oficina em Configurações > Dados da Oficina antes de emitir.'
   if (mensagem.includes('OFICINA_SEM_CODIGO_MUNICIPIO')) return 'Configure o Código do Município (IBGE) em Configurações > Dados da Oficina antes de emitir NFS-e.'
   if (mensagem.includes('NFE_NAO_CONFIGURADA')) return 'Ative a integração de Nota Fiscal em Configurações > Nota Fiscal antes de emitir.'
