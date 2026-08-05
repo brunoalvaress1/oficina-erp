@@ -2,8 +2,9 @@ import { useRef, useState } from 'react'
 import { Loader2, User } from 'lucide-react'
 import { buscarClientePorCpfCnpj } from '@/features/clientes/services/clienteService'
 import { useConsultaCpf } from '@/features/clientes/hooks/useConsultaCpf'
+import { useConsultaCnpj } from '@/features/clientes/hooks/useConsultaCnpj'
 import { buscarEnderecoPorCep } from '@/utils/cep'
-import { formatCpfCnpj, formatPhone, formatCep } from '@/utils/format'
+import { formatCpfCnpj, formatPhone, formatCep, capitalizarPalavras } from '@/utils/format'
 import { clienteBlockValueDoExistente, clienteBlockValueVazio, type ClienteBlockValue } from '../types/veiculoClienteForm'
 
 interface ClienteBlockProps {
@@ -17,6 +18,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
   const [buscandoCep, setBuscandoCep] = useState(false)
   const consultaCpf = useConsultaCpf()
+  const consultaCnpj = useConsultaCnpj()
   const documentoConsultado = useRef<string | null>(null)
   const cepConsultado = useRef<string | null>(null)
 
@@ -44,18 +46,43 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
         return
       }
 
-      // CNPJ (pessoa jurídica) não tem consulta de nome/nascimento — só CPF.
-      if (digitos.length !== 11) return
+      if (digitos.length === 11) {
+        consultaCpf.mutate(formatado, {
+          onSuccess: (dados) => {
+            if (!dados) return
+            onChange({
+              ...clienteBlockValueVazio(),
+              cpfCnpj: formatado,
+              nome: dados.nome || '',
+              dataNascimento: dados.dataNascimento || '',
+              sexo: dados.sexo || '',
+            })
+          },
+        })
+        return
+      }
 
-      consultaCpf.mutate(formatado, {
-        onSuccess: (dados) => {
+      consultaCnpj.mutate(formatado, {
+        onSuccess: async (dados) => {
           if (!dados) return
+          // Busca o código IBGE da cidade pelo CEP antes de aplicar tudo de
+          // uma vez — atualizar isso depois, separado, correria o risco de
+          // usar um "value" desatualizado (antes do onChange abaixo re-
+          // renderizar) e sobrescrever os outros campos recém-preenchidos.
+          const enderecoPorCep = dados.cep ? await buscarEnderecoPorCep(dados.cep) : null
           onChange({
             ...clienteBlockValueVazio(),
             cpfCnpj: formatado,
-            nome: dados.nome || '',
-            dataNascimento: dados.dataNascimento || '',
-            sexo: dados.sexo || '',
+            nome: dados.nome ? capitalizarPalavras(dados.nome) : '',
+            telefone: dados.telefone ? formatPhone(dados.telefone) : '',
+            email: dados.email || '',
+            cep: dados.cep ? formatCep(dados.cep) : '',
+            endereco: dados.endereco ? capitalizarPalavras(dados.endereco) : '',
+            numero: dados.numero || '',
+            bairro: dados.bairro ? capitalizarPalavras(dados.bairro) : '',
+            cidade: dados.cidade ? capitalizarPalavras(dados.cidade) : '',
+            estado: dados.estado || '',
+            codigoCidade: enderecoPorCep?.codigoCidade || '',
           })
         },
       })
@@ -127,7 +154,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
                 tentouSalvar && !value.cpfCnpj.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
               }`}
             />
-            {(buscandoNoBanco || consultaCpf.isPending) && (
+            {(buscandoNoBanco || consultaCpf.isPending || consultaCnpj.isPending) && (
               <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             )}
           </div>
