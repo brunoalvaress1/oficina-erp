@@ -5,6 +5,7 @@ import { useConsultaCpf } from '@/features/clientes/hooks/useConsultaCpf'
 import { useConsultaCnpj } from '@/features/clientes/hooks/useConsultaCnpj'
 import { buscarEnderecoPorCep } from '@/utils/cep'
 import { formatCpfCnpj, formatPhone, formatCep, capitalizarPalavras } from '@/utils/format'
+import { cpfCnpjValidoOuVazio } from '@/utils/cpfCnpj'
 import { clienteBlockValueDoExistente, clienteBlockValueVazio, type ClienteBlockValue } from '../types/veiculoClienteForm'
 
 interface ClienteBlockProps {
@@ -131,6 +132,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
   const somenteLeituraEndereco = disabled
   const digitosDocumento = value.cpfCnpj.replace(/\D/g, '')
   const ehPessoaJuridica = digitosDocumento.length === 14
+  const documentoInvalido = Boolean(digitosDocumento) && !cpfCnpjValidoOuVazio(value.cpfCnpj)
 
   return (
     <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
@@ -151,14 +153,18 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
               onFocus={handleTrocarDocumentoManualmente}
               disabled={disabled}
               className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
-                tentouSalvar && !value.cpfCnpj.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
+                (tentouSalvar && !value.cpfCnpj.trim()) || documentoInvalido
+                  ? 'border-destructive focus:ring-destructive/40'
+                  : 'focus:ring-primary/30'
               }`}
             />
             {(buscandoNoBanco || consultaCpf.isPending || consultaCnpj.isPending) && (
               <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             )}
           </div>
-          {value.clienteExistente ? (
+          {documentoInvalido ? (
+            <p className="text-xs text-destructive">CPF/CNPJ inválido — confira os números digitados</p>
+          ) : value.clienteExistente ? (
             <p className="text-xs text-green-600">
               Cliente já cadastrado — dados preenchidos automaticamente (telefone, e-mail e endereço podem ser corrigidos aqui)
             </p>

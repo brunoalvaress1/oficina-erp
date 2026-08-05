@@ -74,6 +74,7 @@ export function ClienteForm({ clienteExistente, onSubmit, isSubmitting }: Client
             onChange={(e) => setValue('cpfCnpj', formatCpfCnpj(e.target.value))}
             className="w-full h-9 px-3 rounded-md border bg-transparent text-sm outline-none focus:ring-1 focus:ring-primary"
           />
+          {errors.cpfCnpj && <p className="text-xs text-destructive">{errors.cpfCnpj.message}</p>}
         </div>
 
         <div className="space-y-1">

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { cpfCnpjValidoOuVazio } from '@/utils/cpfCnpj'
 
 export const clienteSchema = z
   .object({
@@ -19,6 +20,14 @@ export const clienteSchema = z
   })
   // Pessoa Jurídica (CNPJ, 14 dígitos): telefone e CEP passam a ser obrigatórios.
   .superRefine((valores, contexto) => {
+    if (!cpfCnpjValidoOuVazio(valores.cpfCnpj ?? '')) {
+      contexto.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cpfCnpj'],
+        message: 'CPF/CNPJ inválido — confira os números digitados',
+      })
+    }
+
     const digitos = (valores.cpfCnpj ?? '').replace(/\D/g, '')
     if (digitos.length !== 14) return
 

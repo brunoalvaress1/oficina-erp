@@ -133,6 +133,10 @@ export function clienteBlockValueDoExistente(cliente: Cliente): ClienteBlockValu
   }
 }
 
+// CPF/CNPJ inválido não bloqueia salvar a OS aqui (só mostra aviso no campo)
+// — é comum precisar abrir a ordem mesmo sem ter o documento certo do
+// cliente em mãos ainda. O bloqueio de verdade fica no cadastro de Clientes
+// (ClienteForm), que é onde um CPF errado deveria ser pego antes de tudo.
 export function clienteBlockValueValido(valor: ClienteBlockValue): boolean {
   return Boolean(valor.nome.trim() && valor.codigoCidade.trim())
 }
