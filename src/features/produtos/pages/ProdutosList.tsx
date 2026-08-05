@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, Copy } from 'lucide-react'
 import { useProdutos } from '../hooks/useProdutos'
 import { useDeleteProduto } from '../hooks/useProdutoMutations'
 import { ProdutoModal } from '../components/ProdutoModal'
@@ -40,6 +40,7 @@ export function ProdutosList() {
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [produtoEditando, setProdutoEditando] = useState<Produto | undefined>()
+  const [produtoParaClonar, setProdutoParaClonar] = useState<Produto | undefined>()
   const [colunasOpen, setColunasOpen] = useState(false)
   const [colunasVisiveis, setColunasVisiveis] = useState({
     categoria: true,
@@ -82,11 +83,23 @@ export function ProdutosList() {
 
   function handleNovo() {
     setProdutoEditando(undefined)
+    setProdutoParaClonar(undefined)
     setModalOpen(true)
   }
 
   function handleEditar(produto: Produto) {
     setProdutoEditando(produto)
+    setProdutoParaClonar(undefined)
+    setModalOpen(true)
+  }
+
+  // "Clonar" abre o mesmo formulário já preenchido com os dados desse
+  // produto, mas salvar cria um produto NOVO (não mexe no original) — útil
+  // pra variações de um mesmo item (ex: pneus de marcas/medidas diferentes)
+  // sem ter que preencher tudo de novo do zero.
+  function handleClonar(produto: Produto) {
+    setProdutoEditando(undefined)
+    setProdutoParaClonar(produto)
     setModalOpen(true)
   }
 
@@ -318,6 +331,15 @@ export function ProdutosList() {
                         <Pencil size={15} />
                       </button>
                     </PermissionGate>
+                    <PermissionGate codigo="produtos.editar">
+                      <button
+                        onClick={() => handleClonar(produto)}
+                        title="Clonar produto"
+                        className="p-1.5 rounded hover:bg-muted"
+                      >
+                        <Copy size={15} />
+                      </button>
+                    </PermissionGate>
                     <PermissionGate codigo="produtos.excluir">
                       <button
                         onClick={() => handleExcluir(produto)}
@@ -347,7 +369,12 @@ export function ProdutosList() {
         }}
       />
 
-      <ProdutoModal open={modalOpen} onOpenChange={setModalOpen} produtoExistente={produtoEditando} />
+      <ProdutoModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        produtoExistente={produtoEditando}
+        produtoParaClonar={produtoParaClonar}
+      />
 
       <ImportarProdutosModal open={importModalOpen} onOpenChange={setImportModalOpen} />
     </div>
