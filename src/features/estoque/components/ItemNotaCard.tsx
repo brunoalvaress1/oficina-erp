@@ -32,7 +32,7 @@ export function ItemNotaCard({ item, indice, tentouSalvar, podeVerLucro, onChang
 
   function selecionarProduto(produto: Produto) {
     const base = criarItemVazio(produto)
-    onChange({ ...base, chave: item.chave, mostrarFiscais: item.mostrarFiscais })
+    onChange({ ...base, chave: item.chave, expandido: item.expandido })
   }
 
   const erroDestaque = 'border-destructive focus:ring-destructive/40'
@@ -75,102 +75,102 @@ export function ItemNotaCard({ item, indice, tentouSalvar, podeVerLucro, onChang
           </button>
           <button
             type="button"
-            onClick={() => atualizar('mostrarFiscais', !item.mostrarFiscais)}
+            onClick={() => atualizar('expandido', !item.expandido)}
             title="Expandir/recolher"
             className="p-1.5 rounded hover:bg-white/10"
           >
-            {item.mostrarFiscais ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            {item.expandido ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
           </button>
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Produto (nome, código ou código de barras) *</label>
-          <Combobox<Produto>
-            value={item.produto}
-            onSelect={selecionarProduto}
-            onSearch={setTermoBusca}
-            items={produtosEncontrados}
-            isLoading={buscandoProdutos}
-            getKey={(p) => p.id}
-            getLabel={(p) => p.nome}
-            getDescription={(p) =>
-              [p.codigoInterno || p.codigoFabricante, `estoque atual: ${p.estoqueFisico}`].filter(Boolean).join(' · ')
-            }
-            placeholder="Digite para buscar um produto..."
-            emptyMessage="Nenhum produto encontrado"
-          />
-          {tentouSalvar && !item.produto && <p className="text-xs text-destructive">Selecione um produto</p>}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {item.expandido && (
+        <div className="p-4 space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium">Quantidade *</label>
-            <input
-              type="number"
-              min={1}
-              value={item.quantidade}
-              onChange={(e) => atualizar('quantidade', e.target.value)}
-              className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
-                tentouSalvar && !(quantidade > 0) ? erroDestaque : okClasse
-              }`}
+            <label className="text-sm font-medium">Produto (nome, código ou código de barras) *</label>
+            <Combobox<Produto>
+              value={item.produto}
+              onSelect={selecionarProduto}
+              onSearch={setTermoBusca}
+              items={produtosEncontrados}
+              isLoading={buscandoProdutos}
+              getKey={(p) => p.id}
+              getLabel={(p) => p.nome}
+              getDescription={(p) =>
+                [p.codigoInterno || p.codigoFabricante, `estoque atual: ${p.estoqueFisico}`].filter(Boolean).join(' · ')
+              }
+              placeholder="Digite para buscar um produto..."
+              emptyMessage="Nenhum produto encontrado"
             />
+            {tentouSalvar && !item.produto && <p className="text-xs text-destructive">Selecione um produto</p>}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Valor Custo Atual *</label>
-            <input
-              type="number"
-              step="0.01"
-              value={item.valorCustoAtual}
-              onChange={(e) => atualizar('valorCustoAtual', e.target.value)}
-              className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
-                tentouSalvar && !(Number(item.valorCustoAtual) > 0) ? erroDestaque : okClasse
-              }`}
-            />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Quantidade *</label>
+              <input
+                type="number"
+                min={1}
+                value={item.quantidade}
+                onChange={(e) => atualizar('quantidade', e.target.value)}
+                className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
+                  tentouSalvar && !(quantidade > 0) ? erroDestaque : okClasse
+                }`}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Valor Custo Atual *</label>
+              <input
+                type="number"
+                step="0.01"
+                value={item.valorCustoAtual}
+                onChange={(e) => atualizar('valorCustoAtual', e.target.value)}
+                className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
+                  tentouSalvar && !(Number(item.valorCustoAtual) > 0) ? erroDestaque : okClasse
+                }`}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Valor Venda (O.S.) *</label>
+              <input
+                type="number"
+                step="0.01"
+                value={item.valorVendaOs}
+                onChange={(e) => atualizar('valorVendaOs', e.target.value)}
+                className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
+                  tentouSalvar && !(Number(item.valorVendaOs) > 0) ? erroDestaque : okClasse
+                }`}
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Valor Venda (O.S.) *</label>
-            <input
-              type="number"
-              step="0.01"
-              value={item.valorVendaOs}
-              onChange={(e) => atualizar('valorVendaOs', e.target.value)}
-              className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
-                tentouSalvar && !(Number(item.valorVendaOs) > 0) ? erroDestaque : okClasse
-              }`}
-            />
-          </div>
-        </div>
-
-        {item.produto && (
-          <div className="rounded-md bg-muted/40 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div>
-              <p className="text-muted-foreground text-xs">Custo anterior</p>
-              <p className="font-medium">{formatCurrency(item.produto.custoMedio || item.produto.valorCusto)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Custo médio (após lançar)</p>
-              <p className="font-medium">{custoMedioResultante !== null ? formatCurrency(custoMedioResultante) : '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Estoque atual → resultante</p>
-              <p className="font-medium">
-                {item.produto.estoqueFisico} → {item.produto.estoqueFisico + quantidade}
-              </p>
-            </div>
-            {podeVerLucro && (
+          {item.produto && (
+            <div className="rounded-md bg-muted/40 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div>
-                <p className="text-muted-foreground text-xs">Margem de lucro (O.S.)</p>
-                <p className="font-medium">{margemOs !== null ? `${margemOs.toFixed(0)}%` : '-'}</p>
+                <p className="text-muted-foreground text-xs">Custo anterior</p>
+                <p className="font-medium">{formatCurrency(item.produto.custoMedio || item.produto.valorCusto)}</p>
               </div>
-            )}
-          </div>
-        )}
+              <div>
+                <p className="text-muted-foreground text-xs">Custo médio (após lançar)</p>
+                <p className="font-medium">{custoMedioResultante !== null ? formatCurrency(custoMedioResultante) : '-'}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Estoque atual → resultante</p>
+                <p className="font-medium">
+                  {item.produto.estoqueFisico} → {item.produto.estoqueFisico + quantidade}
+                </p>
+              </div>
+              {podeVerLucro && (
+                <div>
+                  <p className="text-muted-foreground text-xs">Margem de lucro (O.S.)</p>
+                  <p className="font-medium">{margemOs !== null ? `${margemOs.toFixed(0)}%` : '-'}</p>
+                </div>
+              )}
+            </div>
+          )}
 
-        {item.mostrarFiscais && (
           <div className="border-t pt-4 space-y-3">
             <p className="text-sm font-medium text-muted-foreground">Informações fiscais (opcional)</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -193,8 +193,8 @@ export function ItemNotaCard({ item, indice, tentouSalvar, podeVerLucro, onChang
               />
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -15,7 +15,10 @@ export interface ItemEstoqueForm {
   cstPisCofins: string
   cstIpi: string
   observacoes: string
-  mostrarFiscais: boolean
+  // Controla o card inteiro (produto, preço, fiscais) — só o cabeçalho
+  // resumido fica visível quando fechado. Novo item nasce aberto, porque
+  // senão o combobox de produto nem apareceria pra selecionar algo.
+  expandido: boolean
 }
 
 export function criarItemVazio(produto?: Produto): ItemEstoqueForm {
@@ -34,7 +37,7 @@ export function criarItemVazio(produto?: Produto): ItemEstoqueForm {
     cstPisCofins: '',
     cstIpi: '',
     observacoes: '',
-    mostrarFiscais: false,
+    expandido: true,
   }
 }
 
