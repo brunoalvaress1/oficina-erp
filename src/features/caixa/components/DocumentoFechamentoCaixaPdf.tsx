@@ -2,11 +2,19 @@ import { Document, Page, Text, View, Image, StyleSheet, pdf } from '@react-pdf/r
 import type { ResumoSessaoCaixa } from '../types/caixaSessao'
 
 export interface CabecalhoOficinaPdf {
-  endereco?: string | null
+  enderecoLinhas?: string[]
   telefone?: string | null
   email?: string | null
   logoUrl?: string | null
   rodape?: string | null
+}
+
+function linhasInfoOficina(cabecalho: CabecalhoOficinaPdf | undefined): string[] {
+  if (!cabecalho) return []
+  const linhas = [...(cabecalho.enderecoLinhas ?? [])]
+  if (cabecalho.telefone) linhas.push(`Telefone: ${cabecalho.telefone}`)
+  if (cabecalho.email) linhas.push(cabecalho.email)
+  return linhas
 }
 
 const estilos = StyleSheet.create({
@@ -25,10 +33,10 @@ const estilos = StyleSheet.create({
   colValor: { flex: 1, textAlign: 'right' },
   colData: { flex: 1, textAlign: 'right' },
   totalGeral: { fontSize: 12, fontWeight: 700, marginTop: 8 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, marginBottom: 18 },
-  logoOficina: { width: 210, height: 210, objectFit: 'contain' },
-  infoOficina: { flexDirection: 'column', gap: 6, paddingTop: 4 },
-  infoOficinaLinha: { fontSize: 11, color: '#444' },
+  cabecalhoOficina: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  logoOficina: { width: 250, height: 250, objectFit: 'contain' },
+  infoOficina: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, paddingTop: 4, maxWidth: 240 },
+  infoOficinaLinha: { fontSize: 11, color: '#444', textAlign: 'right' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 8, color: '#777', textAlign: 'center' },
 })
 
@@ -47,18 +55,21 @@ interface DocumentoFechamentoCaixaPdfProps {
 
 export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFechamentoCaixaPdfProps) {
   const { sessao } = resumo
+  const linhasOficina = linhasInfoOficina(cabecalho)
 
   return (
     <Document>
       <Page size="A4" style={estilos.pagina}>
         <View style={estilos.moldura}>
-        {(cabecalho?.logoUrl || cabecalho?.endereco || cabecalho?.telefone || cabecalho?.email) && (
+        {(cabecalho?.logoUrl || linhasOficina.length > 0) && (
           <View style={estilos.cabecalhoOficina}>
-            {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
+            {cabecalho?.logoUrl ? <Image src={cabecalho.logoUrl} style={estilos.logoOficina} /> : <View />}
             <View style={estilos.infoOficina}>
-              {cabecalho.endereco && <Text style={estilos.infoOficinaLinha}>{cabecalho.endereco}</Text>}
-              {cabecalho.telefone && <Text style={estilos.infoOficinaLinha}>Telefone: {cabecalho.telefone}</Text>}
-              {cabecalho.email && <Text style={estilos.infoOficinaLinha}>{cabecalho.email}</Text>}
+              {linhasOficina.map((linha, indice) => (
+                <Text key={indice} style={estilos.infoOficinaLinha}>
+                  {linha}
+                </Text>
+              ))}
             </View>
           </View>
         )}

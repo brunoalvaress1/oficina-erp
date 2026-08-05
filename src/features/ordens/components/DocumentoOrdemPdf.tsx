@@ -8,11 +8,19 @@ import { buscarFormasPagamentoDaOrdem } from '@/features/caixa/services/caixaSer
 export type ModoDocumentoOrdem = 'os' | 'defeitos' | 'aprovacao' | 'orcamento'
 
 export interface CabecalhoOficinaPdf {
-  endereco?: string | null
+  enderecoLinhas?: string[]
   telefone?: string | null
   email?: string | null
   logoUrl?: string | null
   rodape?: string | null
+}
+
+function linhasInfoOficina(cabecalho: CabecalhoOficinaPdf | undefined): string[] {
+  if (!cabecalho) return []
+  const linhas = [...(cabecalho.enderecoLinhas ?? [])]
+  if (cabecalho.telefone) linhas.push(`Telefone: ${cabecalho.telefone}`)
+  if (cabecalho.email) linhas.push(cabecalho.email)
+  return linhas
 }
 
 const TITULO_POR_MODO: Record<ModoDocumentoOrdem, string> = {
@@ -41,10 +49,10 @@ const estilos = StyleSheet.create({
   totais: { marginTop: 12, alignItems: 'flex-end' },
   totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
-  cabecalhoOficina: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, marginBottom: 20 },
-  logoOficina: { width: 210, height: 210, objectFit: 'contain' },
-  infoOficina: { flexDirection: 'column', gap: 6, paddingTop: 4 },
-  infoOficinaLinha: { fontSize: 12, color: '#444' },
+  cabecalhoOficina: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  logoOficina: { width: 250, height: 250, objectFit: 'contain' },
+  infoOficina: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, paddingTop: 4, maxWidth: 240 },
+  infoOficinaLinha: { fontSize: 12, color: '#444', textAlign: 'right' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })
 
@@ -62,18 +70,21 @@ interface DocumentoOrdemPdfProps {
 
 export function DocumentoOrdemPdf({ ordem, itens, modo, cabecalho, formasPagamento }: DocumentoOrdemPdfProps) {
   const itensRelevantes = modo === 'aprovacao' ? itens.filter((item) => item.statusAprovacao === 'aguardando') : itens
+  const linhasOficina = linhasInfoOficina(cabecalho)
 
   return (
     <Document>
       <Page size="A4" style={estilos.pagina}>
         <View style={estilos.moldura}>
-          {(cabecalho?.logoUrl || cabecalho?.endereco || cabecalho?.telefone || cabecalho?.email) && (
+          {(cabecalho?.logoUrl || linhasOficina.length > 0) && (
             <View style={estilos.cabecalhoOficina}>
-              {cabecalho.logoUrl && <Image src={cabecalho.logoUrl} style={estilos.logoOficina} />}
+              {cabecalho?.logoUrl ? <Image src={cabecalho.logoUrl} style={estilos.logoOficina} /> : <View />}
               <View style={estilos.infoOficina}>
-                {cabecalho.endereco && <Text style={estilos.infoOficinaLinha}>{cabecalho.endereco}</Text>}
-                {cabecalho.telefone && <Text style={estilos.infoOficinaLinha}>Telefone: {cabecalho.telefone}</Text>}
-                {cabecalho.email && <Text style={estilos.infoOficinaLinha}>{cabecalho.email}</Text>}
+                {linhasOficina.map((linha, indice) => (
+                  <Text key={indice} style={estilos.infoOficinaLinha}>
+                    {linha}
+                  </Text>
+                ))}
               </View>
             </View>
           )}

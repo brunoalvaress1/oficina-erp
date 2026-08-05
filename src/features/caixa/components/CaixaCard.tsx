@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { abrirWhatsApp, montarMensagemOrdemPronta } from '@/utils/whatsapp'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
-import { formatarEnderecoOficina } from '@/features/configuracoes/types/oficina'
+import { linhasEnderecoOficina } from '@/features/configuracoes/types/oficina'
 import { buscarClientePorId } from '@/features/clientes/services/clienteService'
 import { buscarOrdemDetalhe } from '@/features/ordens/services/ordemServicoService'
 import { EmitirNotaFiscalModal } from '@/features/notasFiscaisSaida/components/EmitirNotaFiscalModal'
@@ -66,7 +66,7 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
         import('@/features/ordens/components/DocumentoOrdemPdf'),
       ])
       await gerarEAbrirPdfOrdem(ordemDetalhe.ordem, ordemDetalhe.itens, 'os', {
-        endereco: formatarEnderecoOficina(oficina),
+        enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,
         logoUrl: oficina?.logoUrl,

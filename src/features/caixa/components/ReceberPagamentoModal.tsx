@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from '@/utils/format'
 import { buscarOrdemDetalhe } from '@/features/ordens/services/ordemServicoService'
 import { useConfiguracaoParcelamento } from '@/features/configuracoes/hooks/usePagamentosConfig'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
-import { formatarEnderecoOficina } from '@/features/configuracoes/types/oficina'
+import { linhasEnderecoOficina } from '@/features/configuracoes/types/oficina'
 import { useReceberPagamento, useMarcarPendente } from '../hooks/useCaixaMutations'
 import { FormaPagamentoRow } from './FormaPagamentoRow'
 import { ReciboSucesso } from './ReciboSucesso'
@@ -79,7 +79,7 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
         import('@/features/ordens/components/DocumentoOrdemPdf'),
       ])
       await gerarEAbrirPdfOrdem(detalhe.ordem, detalhe.itens, 'os', {
-        endereco: formatarEnderecoOficina(oficina),
+        enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,
         logoUrl: oficina?.logoUrl,

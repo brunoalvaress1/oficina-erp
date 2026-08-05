@@ -38,15 +38,16 @@ export interface DadosOficina {
 
 export type DadosOficinaInput = Omit<DadosOficina, 'id'>
 
-// Endereço formatado em uma linha só, pro cabeçalho dos PDFs impressos
-// (OS, fechamento de caixa) — usado no lugar do nome da oficina, que já
-// aparece pela logo.
-export function formatarEnderecoOficina(
+// Endereço quebrado em linhas curtas pro cabeçalho dos PDFs impressos (OS,
+// fechamento de caixa) — usado no lugar do nome da oficina, que já aparece
+// pela logo. Uma linha só ficava comprida demais e saía da margem da folha;
+// em linhas separadas (rua/número, bairro, cidade/UF + CEP) cada uma cabe.
+export function linhasEnderecoOficina(
   oficina: Pick<DadosOficina, 'endereco' | 'numero' | 'bairro' | 'cidade' | 'estado' | 'cep'> | null | undefined,
-): string | null {
-  if (!oficina) return null
+): string[] {
+  if (!oficina) return []
   const rua = [oficina.endereco, oficina.numero].filter(Boolean).join(', ')
   const cidadeUf = [oficina.cidade, oficina.estado].filter(Boolean).join('/')
-  const partes = [rua, oficina.bairro, cidadeUf, oficina.cep ? `CEP ${oficina.cep}` : null].filter(Boolean)
-  return partes.length > 0 ? partes.join(' - ') : null
+  const cidadeCep = [cidadeUf, oficina.cep ? `CEP ${oficina.cep}` : null].filter(Boolean).join(' - ')
+  return [rua, oficina.bairro, cidadeCep].filter((linha): linha is string => Boolean(linha))
 }

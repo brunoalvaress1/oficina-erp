@@ -4,7 +4,7 @@ import { Download, Printer } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency } from '@/utils/format'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
-import { formatarEnderecoOficina } from '@/features/configuracoes/types/oficina'
+import { linhasEnderecoOficina } from '@/features/configuracoes/types/oficina'
 import { useResumoSessaoCaixa, useFecharCaixa } from '../hooks/useCaixaSessao'
 
 interface FecharCaixaModalProps {
@@ -26,7 +26,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
     try {
       const { gerarEBaixarPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
       await gerarEBaixarPdfFechamento(resumo, {
-        endereco: formatarEnderecoOficina(oficina),
+        enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,
         logoUrl: oficina?.logoUrl,
@@ -45,7 +45,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
     try {
       const { gerarEAbrirPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
       await gerarEAbrirPdfFechamento(resumo, {
-        endereco: formatarEnderecoOficina(oficina),
+        enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,
         logoUrl: oficina?.logoUrl,
