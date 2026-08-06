@@ -1,12 +1,15 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, User } from 'lucide-react'
-import { buscarClientePorCpfCnpj } from '@/features/clientes/services/clienteService'
+import { useDebouncedCallback } from 'use-debounce'
+import { buscarClientePorCpfCnpj, buscarClientePorId } from '@/features/clientes/services/clienteService'
 import { useConsultaCpf } from '@/features/clientes/hooks/useConsultaCpf'
 import { useConsultaCnpj } from '@/features/clientes/hooks/useConsultaCnpj'
+import { useClienteSearch } from '@/features/clientes/hooks/useClienteSearch'
 import { buscarEnderecoPorCep } from '@/utils/cep'
 import { formatCpfCnpj, formatPhone, formatCep, capitalizarPalavras } from '@/utils/format'
 import { cpfCnpjValidoOuVazio } from '@/utils/cpfCnpj'
 import { clienteBlockValueDoExistente, clienteBlockValueVazio, type ClienteBlockValue } from '../types/veiculoClienteForm'
+import type { Cliente } from '@/features/clientes/types/cliente'
 
 interface ClienteBlockProps {
   value: ClienteBlockValue
@@ -18,13 +21,62 @@ interface ClienteBlockProps {
 export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: ClienteBlockProps) {
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
   const [buscandoCep, setBuscandoCep] = useState(false)
+  const [buscaNomeAberta, setBuscaNomeAberta] = useState(false)
+  const [termoBuscaNome, setTermoBuscaNome] = useState('')
   const consultaCpf = useConsultaCpf()
   const consultaCnpj = useConsultaCnpj()
   const documentoConsultado = useRef<string | null>(null)
   const cepConsultado = useRef<string | null>(null)
+  const nomeContainerRef = useRef<HTMLDivElement>(null)
+  const atualizarTermoBuscaNome = useDebouncedCallback((termo: string) => setTermoBuscaNome(termo), 300)
+  const { data: clientesEncontradosPorNome, isLoading: buscandoPorNome } = useClienteSearch({
+    search: value.clienteExistente ? '' : termoBuscaNome,
+  })
+
+  useEffect(() => {
+    function handleClickFora(event: MouseEvent) {
+      if (nomeContainerRef.current && !nomeContainerRef.current.contains(event.target as Node)) {
+        setBuscaNomeAberta(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+  }, [])
 
   function atualizar(alteracoes: Partial<ClienteBlockValue>) {
     onChange({ ...value, ...alteracoes })
+  }
+
+  // Carrega os dados de um cliente já cadastrado (via CPF/CNPJ ou via busca
+  // por nome) e, se o endereço ficou incompleto (comum em cadastros antigos
+  // importados), completa automaticamente pelo CEP que já está salvo — assim
+  // só falta digitar o número. Só preenche o que está vazio, nunca sobrescreve
+  // um valor que já existe (mesmo que pareça estranho, pode ter sido corrigido
+  // manualmente antes).
+  async function aplicarClienteExistente(cliente: Cliente) {
+    const valor = clienteBlockValueDoExistente(cliente)
+    onChange(valor)
+
+    const enderecoIncompleto = !valor.endereco.trim() || !valor.bairro.trim() || !valor.codigoCidade.trim()
+    const cepLimpo = valor.cep.replace(/\D/g, '')
+    if (!enderecoIncompleto || cepLimpo.length !== 8) return
+
+    const endereco = await buscarEnderecoPorCep(cepLimpo)
+    if (!endereco) return
+    onChange({
+      ...valor,
+      endereco: valor.endereco.trim() || endereco.endereco,
+      bairro: valor.bairro.trim() || endereco.bairro,
+      cidade: valor.cidade.trim() || endereco.cidade,
+      estado: valor.estado.trim() || endereco.estado,
+      codigoCidade: valor.codigoCidade.trim() || endereco.codigoCidade,
+    })
+  }
+
+  async function handleSelecionarClientePorNome(id: string) {
+    setBuscaNomeAberta(false)
+    const cliente = await buscarClientePorId(id)
+    await aplicarClienteExistente(cliente)
   }
 
   async function handleCpfCnpjChange(digitado: string) {
@@ -43,7 +95,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
     try {
       const clienteDoBanco = await buscarClientePorCpfCnpj(formatado)
       if (clienteDoBanco) {
-        onChange(clienteBlockValueDoExistente(clienteDoBanco))
+        await aplicarClienteExistente(clienteDoBanco)
         return
       }
 
@@ -173,16 +225,55 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
           )}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1 relative" ref={nomeContainerRef}>
           <label className="text-sm font-medium">Nome Completo *</label>
-          <input
-            value={value.nome}
-            onChange={(e) => atualizar({ nome: e.target.value })}
-            disabled={somenteLeituraCampos}
-            className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
-              tentouSalvar && !value.nome.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
-            }`}
-          />
+          <div className="relative">
+            <input
+              value={value.nome}
+              onChange={(e) => {
+                atualizar({ nome: e.target.value })
+                atualizarTermoBuscaNome(e.target.value)
+                setBuscaNomeAberta(true)
+              }}
+              onFocus={() => setBuscaNomeAberta(true)}
+              disabled={somenteLeituraCampos}
+              className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
+                tentouSalvar && !value.nome.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
+              }`}
+            />
+            {buscandoPorNome && buscaNomeAberta && (
+              <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            )}
+          </div>
+
+          {buscaNomeAberta && !somenteLeituraCampos && termoBuscaNome.trim().length >= 2 && (
+            <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-md border bg-background shadow-md">
+              {buscandoPorNome && (
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                  <Loader2 size={14} className="animate-spin" /> Buscando...
+                </div>
+              )}
+              {!buscandoPorNome && (clientesEncontradosPorNome ?? []).length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum cliente encontrado com esse nome</div>
+              )}
+              {!buscandoPorNome &&
+                (clientesEncontradosPorNome ?? []).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleSelecionarClientePorNome(c.id)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                  >
+                    <div className="font-medium">{c.nome}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[c.cpf_cnpj ? formatCpfCnpj(c.cpf_cnpj) : null, c.telefone ? formatPhone(c.telefone) : null]
+                        .filter(Boolean)
+                        .join(' · ') || 'Sem CPF/telefone cadastrado'}
+                    </div>
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-1">
