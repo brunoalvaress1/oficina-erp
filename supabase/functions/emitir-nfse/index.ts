@@ -203,7 +203,11 @@ Deno.serve(async (req) => {
       aliquota_cofins: 0,
       valor_pis: 0,
       valor_cofins: 0,
-      tipo_retencao_pis_cofins: 1, // 1 = não retido
+      // Rejeição real da Sefaz: usar 1 aqui (que não existe na tabela) exige
+      // vRetCSLL. 0 = "PIS/COFINS/CSLL Não Retidos" é o valor certo pro caso
+      // sem nenhuma retenção — os outros valores (1, 2) implicam retenção
+      // parcial e cobram campos adicionais que não se aplicam aqui.
+      tipo_retencao_pis_cofins: 0,
       valor_cp: 0,
       valor_irrf: 0,
       valor_csll: 0,
