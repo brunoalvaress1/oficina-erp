@@ -49,6 +49,8 @@ export interface ListarNotasFiscaisParams {
   page?: number
   pageSize?: number
   status?: StatusNotaFiscal
+  dataInicio?: string
+  dataFim?: string
 }
 
 export interface ListarNotasFiscaisResult {
@@ -58,10 +60,16 @@ export interface ListarNotasFiscaisResult {
   pageSize: number
 }
 
+export interface ResumoNotasFiscaisPeriodo {
+  quantidade: number
+  valorTotal: number
+}
+
 export interface OrdemPagaParaEmitir {
   ordemServicoId: string
   ordemNumero: number
   clienteNome: string | null
   valorTotal: number
   caixaLancamentoId: string
+  dataPagamento: string | null
 }

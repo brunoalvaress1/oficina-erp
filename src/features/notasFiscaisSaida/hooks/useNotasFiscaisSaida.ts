@@ -10,6 +10,7 @@ import {
   listarNotasFiscais,
   listarNotasFiscaisPorLancamento,
   listarOrdensPagasParaEmitir,
+  resumoNotasFiscais,
 } from '../services/notaFiscalSaidaService'
 import type { ListarNotasFiscaisParams } from '../types/notaFiscalSaida'
 
@@ -19,6 +20,15 @@ export function useNotasFiscaisSaida(params: ListarNotasFiscaisParams = {}) {
     queryFn: () => listarNotasFiscais(params),
   })
   useRealtimeInvalidacao('notas_fiscais_saida', [['notas-fiscais-saida'], ['notas-fiscais-por-lancamento']])
+  return query
+}
+
+export function useResumoNotasFiscais(params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'> = {}) {
+  const query = useQuery({
+    queryKey: ['notas-fiscais-saida-resumo', params],
+    queryFn: () => resumoNotasFiscais(params),
+  })
+  useRealtimeInvalidacao('notas_fiscais_saida', [['notas-fiscais-saida-resumo']])
   return query
 }
 

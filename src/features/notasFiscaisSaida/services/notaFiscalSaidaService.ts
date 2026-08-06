@@ -5,6 +5,7 @@ import type {
   ListarNotasFiscaisResult,
   NotaFiscalSaida,
   OrdemPagaParaEmitir,
+  ResumoNotasFiscaisPeriodo,
 } from '../types/notaFiscalSaida'
 
 function mapRow(row: any): NotaFiscalSaida {
@@ -34,22 +35,45 @@ function mapRow(row: any): NotaFiscalSaida {
   }
 }
 
+function aplicarFiltrosNotasFiscais(query: any, params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'>) {
+  let q = query
+  if (params.status) q = q.eq('status', params.status)
+  if (params.dataInicio) q = q.gte('created_at', `${params.dataInicio}T00:00:00`)
+  if (params.dataFim) q = q.lte('created_at', `${params.dataFim}T23:59:59`)
+  return q
+}
+
 export async function listarNotasFiscais(params: ListarNotasFiscaisParams = {}): Promise<ListarNotasFiscaisResult> {
   const page = params.page ?? 1
   const pageSize = params.pageSize ?? 20
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  let query = supabase
-    .from('notas_fiscais_saida')
-    .select('*, ordens_servico(numero), funcionarios(nome)', { count: 'exact' })
-
-  if (params.status) query = query.eq('status', params.status)
+  const query = aplicarFiltrosNotasFiscais(
+    supabase.from('notas_fiscais_saida').select('*, ordens_servico(numero), funcionarios(nome)', { count: 'exact' }),
+    params,
+  )
 
   const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to)
   if (error) throw new Error(error.message)
 
   return { data: (data ?? []).map(mapRow), total: count ?? 0, page, pageSize }
+}
+
+// Total de notas + valor somado do período filtrado — calculado à parte da
+// listagem paginada (que só traz uma página por vez) pra o card de resumo
+// nunca ficar errado quando o período tiver mais notas do que a página atual.
+export async function resumoNotasFiscais(
+  params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'> = {},
+): Promise<ResumoNotasFiscaisPeriodo> {
+  const query = aplicarFiltrosNotasFiscais(
+    supabase.from('notas_fiscais_saida').select('valor_total', { count: 'exact' }),
+    params,
+  )
+  const { data, count, error } = await query
+  if (error) throw new Error(error.message)
+  const valorTotal = (data ?? []).reduce((soma: number, row: any) => soma + Number(row.valor_total ?? 0), 0)
+  return { quantidade: count ?? 0, valorTotal }
 }
 
 // Peça (NFC-e/NF-e) e serviço (NFS-e) são documentos independentes — um
@@ -70,26 +94,29 @@ export async function listarNotasFiscaisPorLancamento(caixaLancamentoId: string)
 // pra não depender só do menu de cada OS/lançamento individualmente.
 //
 // Importante: `caixa_lancamentos.ordem_servico_id` não tem constraint unique,
-// então o PostgREST sempre embute `caixa_lancamentos(id)` como ARRAY aqui
-// (mesmo só existindo 1 lançamento por OS na prática) — pegamos o primeiro.
-function extrairIdLancamento(caixaLancamentos: unknown): string | null {
-  if (Array.isArray(caixaLancamentos)) return caixaLancamentos[0]?.id ?? null
-  return (caixaLancamentos as any)?.id ?? null
+// então o PostgREST sempre embute `caixa_lancamentos(id, updated_at)` como
+// ARRAY aqui (mesmo só existindo 1 lançamento por OS na prática) — pegamos o
+// primeiro.
+function extrairDadosLancamento(caixaLancamentos: unknown): { id: string | null; dataPagamento: string | null } {
+  const item = Array.isArray(caixaLancamentos) ? caixaLancamentos[0] : caixaLancamentos
+  return { id: (item as any)?.id ?? null, dataPagamento: (item as any)?.updated_at ?? null }
 }
 
 export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir[]> {
   const { data: ordens, error: erroOrdens } = await supabase
     .from('ordens_servico')
-    .select('id, numero, valor_total, clientes(nome), caixa_lancamentos(id), ordem_servico_itens(tipo)')
+    .select('id, numero, valor_total, clientes(nome), caixa_lancamentos(id, updated_at), ordem_servico_itens(tipo)')
     .eq('status', 'paga')
     .order('numero', { ascending: false })
   if (erroOrdens) throw new Error(erroOrdens.message)
 
   const ordensComLancamento = (ordens ?? []).map((o: any) => {
     const itens: { tipo: string }[] = o.ordem_servico_itens ?? []
+    const lancamento = extrairDadosLancamento(o.caixa_lancamentos)
     return {
       ...o,
-      caixaLancamentoId: extrairIdLancamento(o.caixa_lancamentos),
+      caixaLancamentoId: lancamento.id,
+      dataPagamento: lancamento.dataPagamento,
       temPeca: itens.some((i) => i.tipo === 'produto_estoque' || i.tipo === 'produto_terceirizado'),
       temServico: itens.some((i) => i.tipo === 'servico'),
     }
@@ -128,6 +155,7 @@ export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir
       clienteNome: o.clientes?.nome ?? null,
       valorTotal: Number(o.valor_total ?? 0),
       caixaLancamentoId: o.caixaLancamentoId!,
+      dataPagamento: o.dataPagamento,
     }))
 }
 
@@ -182,7 +210,7 @@ async function extrairMensagemErro(error: unknown): Promise<string> {
   return error instanceof Error ? error.message : String(error)
 }
 
-export async function emitirNotaFiscal(caixaLancamentoId: string, tipo: 'nfce' | 'nfe' = 'nfce'): Promise<NotaFiscalSaida> {
+export async function emitirNotaFiscal(caixaLancamentoId: string, tipo: 'nfce' | 'nfe' = 'nfe'): Promise<NotaFiscalSaida> {
   const { data, error } = await supabase.functions.invoke('emitir-nota-fiscal', { body: { caixaLancamentoId, tipo } })
   if (error) throw new Error(traduzirErroFunction(await extrairMensagemErro(error)))
   return mapRow(data.nota)

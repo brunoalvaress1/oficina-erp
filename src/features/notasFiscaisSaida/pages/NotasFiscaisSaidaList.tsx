@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { ExternalLink, FileText, QrCode, Receipt, RefreshCw, XCircle } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ExternalLink, FileCheck2, FileText, Hourglass, QrCode, Receipt, RefreshCw, Wallet, XCircle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency } from '@/utils/format'
+import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
+import { calcularIntervaloPeriodo, ROTULO_PERIODO_FINANCEIRO, type PeriodoFinanceiro } from '@/features/financeiro/types/filtroFinanceiro'
 import { PermissionGate } from '../components/PermissionGate'
 import { EmitirNotaFiscalModal } from '../components/EmitirNotaFiscalModal'
 import {
@@ -9,6 +11,7 @@ import {
   useConsultarStatusNotaFiscal,
   useNotasFiscaisSaida,
   useOrdensPagasParaEmitir,
+  useResumoNotasFiscais,
 } from '../hooks/useNotasFiscaisSaida'
 import { ROTULO_STATUS_NOTA_FISCAL, type NotaFiscalSaida, type OrdemPagaParaEmitir, type StatusNotaFiscal, type TipoNotaFiscal } from '../types/notaFiscalSaida'
 
@@ -27,54 +30,148 @@ const COR_STATUS: Record<StatusNotaFiscal, string> = {
   erro: 'bg-red-100 text-red-700',
 }
 
+// "Todas" não existe nos períodos do Financeiro (lá sempre tem um período
+// ativo) — aqui faz diferença: filtrar por período por padrão esconderia
+// silenciosamente OS pagas antigas ainda pendentes de emitir, então o filtro
+// de data começa desligado nas duas abas e é opt-in.
+type PeriodoNotas = 'todas' | PeriodoFinanceiro
+
+const PERIODOS_NOTAS: PeriodoNotas[] = ['todas', 'hoje', 'ultimos_7_dias', 'ultimos_30_dias', 'este_mes', 'mes_anterior', 'este_ano', 'personalizado']
+
+interface FiltroPeriodoState {
+  periodo: PeriodoNotas
+  dataInicio: string
+  dataFim: string
+}
+
+function filtroPeriodoPadrao(): FiltroPeriodoState {
+  return { periodo: 'todas', dataInicio: '', dataFim: '' }
+}
+
+function FiltroPeriodoNotas({ valor, onChange }: { valor: FiltroPeriodoState; onChange: (valor: FiltroPeriodoState) => void }) {
+  function handlePeriodo(periodo: PeriodoNotas) {
+    if (periodo === 'todas' || periodo === 'personalizado') {
+      onChange({ periodo, dataInicio: periodo === 'todas' ? '' : valor.dataInicio, dataFim: periodo === 'todas' ? '' : valor.dataFim })
+      return
+    }
+    onChange({ periodo, ...calcularIntervaloPeriodo(periodo) })
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {PERIODOS_NOTAS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => handlePeriodo(p)}
+            className={`h-8 px-3 rounded-full text-xs font-medium border ${valor.periodo === p ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+          >
+            {p === 'todas' ? 'Todas' : ROTULO_PERIODO_FINANCEIRO[p]}
+          </button>
+        ))}
+      </div>
+      {valor.periodo === 'personalizado' && (
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={valor.dataInicio}
+            onChange={(e) => onChange({ ...valor, dataInicio: e.target.value })}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          />
+          <span className="text-sm text-muted-foreground">até</span>
+          <input
+            type="date"
+            value={valor.dataFim}
+            onChange={(e) => onChange({ ...valor, dataFim: e.target.value })}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function dataDentroDoIntervalo(data: string | null, dataInicio: string, dataFim: string): boolean {
+  if (!data) return false
+  const instante = new Date(data).getTime()
+  if (dataInicio && instante < new Date(`${dataInicio}T00:00:00`).getTime()) return false
+  if (dataFim && instante > new Date(`${dataFim}T23:59:59`).getTime()) return false
+  return true
+}
+
 function AbaOsPagas() {
   const { data: ordens, isLoading } = useOrdensPagasParaEmitir()
   const [ordemParaEmitir, setOrdemParaEmitir] = useState<OrdemPagaParaEmitir | null>(null)
+  const [filtro, setFiltro] = useState<FiltroPeriodoState>(filtroPeriodoPadrao())
+
+  const ordensFiltradas = useMemo(() => {
+    const lista = ordens ?? []
+    if (filtro.periodo === 'todas') return lista
+    return lista.filter((ordem) => dataDentroDoIntervalo(ordem.dataPagamento, filtro.dataInicio, filtro.dataFim))
+  }, [ordens, filtro])
+
+  const valorTotal = ordensFiltradas.reduce((soma, ordem) => soma + ordem.valorTotal, 0)
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-muted-foreground">
-          <tr>
-            <th className="text-left font-medium px-3 py-2">OS</th>
-            <th className="text-left font-medium px-3 py-2">Cliente</th>
-            <th className="text-left font-medium px-3 py-2">Valor</th>
-            <th className="text-right font-medium px-3 py-2">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading && (
+    <div className="space-y-3">
+      <FiltroPeriodoNotas valor={filtro} onChange={setFiltro} />
+
+      <div className="grid grid-cols-2 gap-3 max-w-md">
+        <CardIndicador titulo="OS aguardando emissão" valor={String(ordensFiltradas.length)} icone={<Hourglass size={15} />} />
+        <CardIndicador titulo="Valor total" valor={formatCurrency(valorTotal)} icone={<Wallet size={15} />} />
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-muted-foreground">
             <tr>
-              <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Carregando...</td>
+              <th className="text-left font-medium px-3 py-2">OS</th>
+              <th className="text-left font-medium px-3 py-2">Cliente</th>
+              <th className="text-left font-medium px-3 py-2">Pago em</th>
+              <th className="text-left font-medium px-3 py-2">Valor</th>
+              <th className="text-right font-medium px-3 py-2">Ações</th>
             </tr>
-          )}
-          {!isLoading && (ordens ?? []).length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Nenhuma OS paga aguardando emissão</td>
-            </tr>
-          )}
-          {(ordens ?? []).map((ordem) => (
-            <tr key={ordem.ordemServicoId} className="border-t">
-              <td className="px-3 py-2 font-medium">OS {ordem.ordemNumero}</td>
-              <td className="px-3 py-2">{ordem.clienteNome ?? '-'}</td>
-              <td className="px-3 py-2">{formatCurrency(ordem.valorTotal)}</td>
-              <td className="px-3 py-2">
-                <div className="flex justify-end">
-                  <PermissionGate codigo="notas_fiscais.emitir">
-                    <button
-                      type="button"
-                      onClick={() => setOrdemParaEmitir(ordem)}
-                      className="flex items-center gap-1 h-8 px-3 rounded-md border text-xs font-medium"
-                    >
-                      <Receipt size={13} /> Emitir Nota Fiscal
-                    </button>
-                  </PermissionGate>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {isLoading && (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Carregando...</td>
+              </tr>
+            )}
+            {!isLoading && ordensFiltradas.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                  {filtro.periodo === 'todas' ? 'Nenhuma OS paga aguardando emissão' : 'Nenhuma OS paga nesse período'}
+                </td>
+              </tr>
+            )}
+            {ordensFiltradas.map((ordem) => (
+              <tr key={ordem.ordemServicoId} className="border-t hover:bg-muted/20">
+                <td className="px-3 py-2 font-medium">OS {ordem.ordemNumero}</td>
+                <td className="px-3 py-2">{ordem.clienteNome ?? '-'}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  {ordem.dataPagamento ? new Date(ordem.dataPagamento).toLocaleDateString('pt-BR') : '-'}
+                </td>
+                <td className="px-3 py-2">{formatCurrency(ordem.valorTotal)}</td>
+                <td className="px-3 py-2">
+                  <div className="flex justify-end">
+                    <PermissionGate codigo="notas_fiscais.emitir">
+                      <button
+                        type="button"
+                        onClick={() => setOrdemParaEmitir(ordem)}
+                        className="flex items-center gap-1 h-8 px-3 rounded-md border text-xs font-medium"
+                      >
+                        <Receipt size={13} /> Emitir Nota Fiscal
+                      </button>
+                    </PermissionGate>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {ordemParaEmitir && (
         <EmitirNotaFiscalModal
@@ -91,7 +188,15 @@ function AbaOsPagas() {
 
 function AbaEmitidas() {
   const [filtroStatus, setFiltroStatus] = useState<StatusNotaFiscal | ''>('')
-  const { data, isLoading } = useNotasFiscaisSaida({ status: filtroStatus || undefined, pageSize: 50 })
+  const [filtro, setFiltro] = useState<FiltroPeriodoState>(filtroPeriodoPadrao())
+
+  const params = {
+    status: filtroStatus || undefined,
+    dataInicio: filtro.periodo === 'todas' ? undefined : filtro.dataInicio || undefined,
+    dataFim: filtro.periodo === 'todas' ? undefined : filtro.dataFim || undefined,
+  }
+  const { data, isLoading } = useNotasFiscaisSaida({ ...params, pageSize: 50 })
+  const { data: resumo } = useResumoNotasFiscais(params)
   const consultarStatus = useConsultarStatusNotaFiscal()
   const cancelar = useCancelarNotaFiscal()
 
@@ -108,7 +213,9 @@ function AbaEmitidas() {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <FiltroPeriodoNotas valor={filtro} onChange={setFiltro} />
+
+      <div className="flex flex-wrap gap-2">
         {(['', 'processando', 'autorizada', 'rejeitada', 'cancelada', 'erro'] as const).map((status) => (
           <button
             key={status || 'todas'}
@@ -116,9 +223,14 @@ function AbaEmitidas() {
             onClick={() => setFiltroStatus(status)}
             className={`h-8 px-3 rounded-md text-sm font-medium border ${filtroStatus === status ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
           >
-            {status ? ROTULO_STATUS_NOTA_FISCAL[status] : 'Todas'}
+            {status ? ROTULO_STATUS_NOTA_FISCAL[status] : 'Todos os status'}
           </button>
         ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 max-w-md">
+        <CardIndicador titulo="Notas no filtro" valor={String(resumo?.quantidade ?? 0)} icone={<FileCheck2 size={15} />} />
+        <CardIndicador titulo="Valor total" valor={formatCurrency(resumo?.valorTotal ?? 0)} icone={<Wallet size={15} />} />
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -142,11 +254,11 @@ function AbaEmitidas() {
             )}
             {!isLoading && (data?.data ?? []).length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhuma nota emitida ainda</td>
+                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhuma nota emitida nesse filtro</td>
               </tr>
             )}
             {(data?.data ?? []).map((nota) => (
-              <tr key={nota.id} className="border-t">
+              <tr key={nota.id} className="border-t hover:bg-muted/20">
                 <td className="px-3 py-2 text-muted-foreground">{new Date(nota.createdAt).toLocaleString('pt-BR')}</td>
                 <td className="px-3 py-2">{nota.ordemNumero ?? '-'}</td>
                 <td className="px-3 py-2">{ROTULO_TIPO_NOTA[nota.tipo]}</td>
@@ -248,26 +360,37 @@ export function NotasFiscaisSaidaList() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Notas Fiscais</h1>
-        <p className="text-sm text-muted-foreground">
-          NFC-e/NF-e de peças e NFS-e de serviço (mão de obra), emitidas a partir das vendas recebidas no Caixa.
-        </p>
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center size-9 rounded-md bg-primary/10 text-primary">
+          <Receipt size={18} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold">Notas Fiscais</h1>
+          <p className="text-sm text-muted-foreground">
+            NF-e de peças e NFS-e de serviço (mão de obra), emitidas a partir das vendas recebidas no Caixa.
+          </p>
+        </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 border-b">
         <button
           type="button"
           onClick={() => setAba('pagas')}
-          className={`h-9 px-4 rounded-md text-sm font-medium border ${aba === 'pagas' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+          className={`flex items-center gap-1.5 h-10 px-4 text-sm font-medium border-b-2 -mb-px ${
+            aba === 'pagas' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+          }`}
         >
+          <Hourglass size={14} />
           OS Pagas p/ Emitir {ordensPagas && ordensPagas.length > 0 ? `(${ordensPagas.length})` : ''}
         </button>
         <button
           type="button"
           onClick={() => setAba('emitidas')}
-          className={`h-9 px-4 rounded-md text-sm font-medium border ${aba === 'emitidas' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+          className={`flex items-center gap-1.5 h-10 px-4 text-sm font-medium border-b-2 -mb-px ${
+            aba === 'emitidas' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+          }`}
         >
+          <FileCheck2 size={14} />
           Notas Emitidas
         </button>
       </div>

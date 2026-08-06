@@ -18,7 +18,6 @@ export function EmitirNotaFiscalModal({ caixaLancamentoId, ordemServicoId, ordem
   const [itensPeca, setItensPeca] = useState<OrdemServicoItem[] | null>(null)
   const [itensServico, setItensServico] = useState<OrdemServicoItem[] | null>(null)
   const [carregando, setCarregando] = useState(false)
-  const [tipo, setTipo] = useState<'nfce' | 'nfe'>('nfce')
   const { data: notasExistentes } = useNotasFiscaisPorLancamento(open ? caixaLancamentoId : undefined)
   const emitir = useEmitirNotaFiscal()
   const emitirServico = useEmitirNfse()
@@ -27,7 +26,6 @@ export function EmitirNotaFiscalModal({ caixaLancamentoId, ordemServicoId, ordem
     if (!open) {
       setItensPeca(null)
       setItensServico(null)
-      setTipo('nfce')
       return
     }
     setCarregando(true)
@@ -40,7 +38,7 @@ export function EmitirNotaFiscalModal({ caixaLancamentoId, ordemServicoId, ordem
   }, [open, ordemServicoId])
 
   function handleEmitirPecas() {
-    emitir.mutate({ caixaLancamentoId, tipo })
+    emitir.mutate({ caixaLancamentoId, tipo: 'nfe' })
   }
 
   function handleEmitirServico() {
@@ -64,7 +62,7 @@ export function EmitirNotaFiscalModal({ caixaLancamentoId, ordemServicoId, ordem
 
           {!carregando && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Peças (NFC-e/NF-e)</h3>
+              <h3 className="text-sm font-semibold">Peças (NF-e)</h3>
 
               {itensPeca && itensPeca.length === 0 && (
                 <p className="text-sm text-muted-foreground">Essa OS não tem nenhum item de peça.</p>
@@ -79,31 +77,6 @@ export function EmitirNotaFiscalModal({ caixaLancamentoId, ordemServicoId, ordem
 
               {itensPeca && itensPeca.length > 0 && !notaPecaExistente && (
                 <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Tipo de nota</label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTipo('nfce')}
-                        className={`h-9 px-4 rounded-md text-sm font-medium border ${tipo === 'nfce' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
-                      >
-                        NFC-e (consumidor)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTipo('nfe')}
-                        className={`h-9 px-4 rounded-md text-sm font-medium border ${tipo === 'nfe' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
-                      >
-                        NF-e (modelo 55)
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {tipo === 'nfce'
-                        ? 'Nota de consumidor final, mais simples e rápida — autorização sai na hora.'
-                        : 'Nota fiscal eletrônica comum — pode levar alguns instantes pra autorizar; use "Verificar status" depois.'}
-                    </p>
-                  </div>
-
                   <div className="border rounded-lg divide-y">
                     {itensPeca.map((item) => (
                       <div key={item.id} className="flex items-center justify-between px-3 py-2 text-sm">
