@@ -3,8 +3,10 @@ import type {
   HistoricoNotaFiscalEntry,
   ListarNotasFiscaisParams,
   ListarNotasFiscaisResult,
+  ModeloNotaFiscal,
   NotaFiscalSaida,
   OrdemPagaParaEmitir,
+  ResultadoEmissaoEmLote,
   ResumoNotasFiscaisPeriodo,
 } from '../types/notaFiscalSaida'
 
@@ -105,20 +107,24 @@ function extrairDadosLancamento(caixaLancamentos: unknown): { id: string | null;
 export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir[]> {
   const { data: ordens, error: erroOrdens } = await supabase
     .from('ordens_servico')
-    .select('id, numero, valor_total, clientes(nome), caixa_lancamentos(id, updated_at), ordem_servico_itens(tipo)')
+    .select('id, numero, valor_total, clientes(nome), caixa_lancamentos(id, updated_at), ordem_servico_itens(tipo, valor_total)')
     .eq('status', 'paga')
     .order('numero', { ascending: false })
   if (erroOrdens) throw new Error(erroOrdens.message)
 
   const ordensComLancamento = (ordens ?? []).map((o: any) => {
-    const itens: { tipo: string }[] = o.ordem_servico_itens ?? []
+    const itens: { tipo: string; valor_total: number }[] = o.ordem_servico_itens ?? []
     const lancamento = extrairDadosLancamento(o.caixa_lancamentos)
+    const itensPeca = itens.filter((i) => i.tipo === 'produto_estoque' || i.tipo === 'produto_terceirizado')
+    const itensServico = itens.filter((i) => i.tipo === 'servico')
     return {
       ...o,
       caixaLancamentoId: lancamento.id,
       dataPagamento: lancamento.dataPagamento,
-      temPeca: itens.some((i) => i.tipo === 'produto_estoque' || i.tipo === 'produto_terceirizado'),
-      temServico: itens.some((i) => i.tipo === 'servico'),
+      temPeca: itensPeca.length > 0,
+      temServico: itensServico.length > 0,
+      valorPecas: itensPeca.reduce((soma, i) => soma + Number(i.valor_total ?? 0), 0),
+      valorServicos: itensServico.reduce((soma, i) => soma + Number(i.valor_total ?? 0), 0),
     }
   })
 
@@ -143,12 +149,12 @@ export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir
   )
 
   return ordensComLancamento
-    .filter((o) => {
-      if (!o.caixaLancamentoId) return false
-      const pecaPendente = o.temPeca && !pecaEmitidaPorLancamento.has(o.caixaLancamentoId)
-      const servicoPendente = o.temServico && !servicoEmitidoPorLancamento.has(o.caixaLancamentoId)
-      return pecaPendente || servicoPendente
-    })
+    .map((o) => ({
+      ...o,
+      pecaPendente: o.temPeca && !pecaEmitidaPorLancamento.has(o.caixaLancamentoId),
+      servicoPendente: o.temServico && !servicoEmitidoPorLancamento.has(o.caixaLancamentoId),
+    }))
+    .filter((o) => o.caixaLancamentoId && (o.pecaPendente || o.servicoPendente))
     .map((o) => ({
       ordemServicoId: o.id,
       ordemNumero: o.numero,
@@ -156,7 +162,36 @@ export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir
       valorTotal: Number(o.valor_total ?? 0),
       caixaLancamentoId: o.caixaLancamentoId!,
       dataPagamento: o.dataPagamento,
+      pecaPendente: o.pecaPendente,
+      servicoPendente: o.servicoPendente,
+      valorPecas: o.valorPecas,
+      valorServicos: o.valorServicos,
     }))
+}
+
+// Emite uma por uma (sequencial, não em paralelo) pra não estourar limite de
+// taxa da Focus NFe — e pra um erro numa OS (ex.: cadastro de cliente
+// incompleto) não derrubar as chamadas das outras que já estavam em voo.
+// Segue mesmo quando uma falha, e devolve o resultado individual de cada uma
+// pro chamador montar um resumo (sucesso/erro) em vez de um toast por nota.
+export async function emitirNotasEmLote(
+  itens: Array<{ caixaLancamentoId: string; ordemNumero: number }>,
+  modelo: ModeloNotaFiscal,
+): Promise<ResultadoEmissaoEmLote[]> {
+  const resultados: ResultadoEmissaoEmLote[] = []
+  for (const item of itens) {
+    try {
+      if (modelo === 'peca') {
+        await emitirNotaFiscal(item.caixaLancamentoId, 'nfe')
+      } else {
+        await emitirNfse(item.caixaLancamentoId)
+      }
+      resultados.push({ ordemNumero: item.ordemNumero, sucesso: true })
+    } catch (error) {
+      resultados.push({ ordemNumero: item.ordemNumero, sucesso: false, erro: error instanceof Error ? error.message : String(error) })
+    }
+  }
+  return resultados
 }
 
 export async function listarHistoricoNotaFiscal(notaFiscalId: string): Promise<HistoricoNotaFiscalEntry[]> {

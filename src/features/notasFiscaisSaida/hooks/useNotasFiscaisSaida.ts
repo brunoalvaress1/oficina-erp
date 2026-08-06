@@ -6,13 +6,14 @@ import {
   consultarStatusNotaFiscal,
   emitirNfse,
   emitirNotaFiscal,
+  emitirNotasEmLote,
   listarHistoricoNotaFiscal,
   listarNotasFiscais,
   listarNotasFiscaisPorLancamento,
   listarOrdensPagasParaEmitir,
   resumoNotasFiscais,
 } from '../services/notaFiscalSaidaService'
-import type { ListarNotasFiscaisParams } from '../types/notaFiscalSaida'
+import type { ListarNotasFiscaisParams, ModeloNotaFiscal } from '../types/notaFiscalSaida'
 
 export function useNotasFiscaisSaida(params: ListarNotasFiscaisParams = {}) {
   const query = useQuery({
@@ -85,6 +86,31 @@ export function useEmitirNfse() {
       toast.success('NFS-e enviada — aguardando autorização')
     },
     onError: (error: Error) => toast.error('Erro ao emitir NFS-e', { description: error.message }),
+  })
+}
+
+export function useEmitirNotasEmLote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itens, modelo }: { itens: Array<{ caixaLancamentoId: string; ordemNumero: number }>; modelo: ModeloNotaFiscal }) =>
+      emitirNotasEmLote(itens, modelo),
+    onSuccess: (resultados) => {
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida-resumo'] })
+      queryClient.invalidateQueries({ queryKey: ['ordens-pagas-para-emitir'] })
+      queryClient.invalidateQueries({ queryKey: ['nota-fiscal-por-lancamento'] })
+
+      const sucesso = resultados.filter((r) => r.sucesso)
+      const falhas = resultados.filter((r) => !r.sucesso)
+      if (falhas.length === 0) {
+        toast.success(`${sucesso.length} nota${sucesso.length === 1 ? '' : 's'} enviada${sucesso.length === 1 ? '' : 's'} com sucesso`)
+      } else {
+        toast.warning(`${sucesso.length} enviada(s), ${falhas.length} com erro`, {
+          description: falhas.map((f) => `OS ${f.ordemNumero}: ${f.erro}`).join(' · '),
+        })
+      }
+    },
+    onError: (error: Error) => toast.error('Erro ao emitir notas em lote', { description: error.message }),
   })
 }
 

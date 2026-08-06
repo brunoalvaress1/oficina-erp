@@ -72,4 +72,16 @@ export interface OrdemPagaParaEmitir {
   valorTotal: number
   caixaLancamentoId: string
   dataPagamento: string | null
+  pecaPendente: boolean
+  servicoPendente: boolean
+  valorPecas: number
+  valorServicos: number
+}
+
+export type ModeloNotaFiscal = 'peca' | 'servico'
+
+export interface ResultadoEmissaoEmLote {
+  ordemNumero: number
+  sucesso: boolean
+  erro?: string
 }

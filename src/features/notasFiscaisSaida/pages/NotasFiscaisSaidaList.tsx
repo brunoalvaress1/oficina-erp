@@ -9,11 +9,19 @@ import { EmitirNotaFiscalModal } from '../components/EmitirNotaFiscalModal'
 import {
   useCancelarNotaFiscal,
   useConsultarStatusNotaFiscal,
+  useEmitirNotasEmLote,
   useNotasFiscaisSaida,
   useOrdensPagasParaEmitir,
   useResumoNotasFiscais,
 } from '../hooks/useNotasFiscaisSaida'
-import { ROTULO_STATUS_NOTA_FISCAL, type NotaFiscalSaida, type OrdemPagaParaEmitir, type StatusNotaFiscal, type TipoNotaFiscal } from '../types/notaFiscalSaida'
+import {
+  ROTULO_STATUS_NOTA_FISCAL,
+  type ModeloNotaFiscal,
+  type NotaFiscalSaida,
+  type OrdemPagaParaEmitir,
+  type StatusNotaFiscal,
+  type TipoNotaFiscal,
+} from '../types/notaFiscalSaida'
 
 const ROTULO_TIPO_NOTA: Record<TipoNotaFiscal, string> = {
   nfce: 'NFC-e',
@@ -100,10 +108,18 @@ function dataDentroDoIntervalo(data: string | null, dataInicio: string, dataFim:
   return true
 }
 
+const ROTULO_MODELO: Record<ModeloNotaFiscal, string> = {
+  peca: 'Peças (NF-e)',
+  servico: 'Serviço (NFS-e)',
+}
+
 function AbaOsPagas() {
   const { data: ordens, isLoading } = useOrdensPagasParaEmitir()
   const [ordemParaEmitir, setOrdemParaEmitir] = useState<OrdemPagaParaEmitir | null>(null)
   const [filtro, setFiltro] = useState<FiltroPeriodoState>(filtroPeriodoPadrao())
+  const [modeloSelecao, setModeloSelecao] = useState<ModeloNotaFiscal>('peca')
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+  const emitirEmLote = useEmitirNotasEmLote()
 
   const ordensFiltradas = useMemo(() => {
     const lista = ordens ?? []
@@ -112,6 +128,51 @@ function AbaOsPagas() {
   }, [ordens, filtro])
 
   const valorTotal = ordensFiltradas.reduce((soma, ordem) => soma + ordem.valorTotal, 0)
+
+  // Só entram na seleção em lote as OS que realmente têm aquele modelo
+  // pendente — uma OS só de serviço não aparece com checkbox no modo "Peças".
+  const ordensSelecionaveis = useMemo(
+    () => ordensFiltradas.filter((ordem) => (modeloSelecao === 'peca' ? ordem.pecaPendente : ordem.servicoPendente)),
+    [ordensFiltradas, modeloSelecao],
+  )
+  const idsSelecionaveis = useMemo(() => new Set(ordensSelecionaveis.map((o) => o.ordemServicoId)), [ordensSelecionaveis])
+
+  function alternarModelo(modelo: ModeloNotaFiscal) {
+    setModeloSelecao(modelo)
+    setSelecionadas(new Set())
+  }
+
+  function alternarSelecao(ordemServicoId: string) {
+    setSelecionadas((atual) => {
+      const novo = new Set(atual)
+      if (novo.has(ordemServicoId)) novo.delete(ordemServicoId)
+      else novo.add(ordemServicoId)
+      return novo
+    })
+  }
+
+  function alternarSelecionarTodas() {
+    setSelecionadas((atual) => {
+      const todasSelecionadas = ordensSelecionaveis.length > 0 && ordensSelecionaveis.every((o) => atual.has(o.ordemServicoId))
+      return todasSelecionadas ? new Set() : new Set(idsSelecionaveis)
+    })
+  }
+
+  const ordensParaEmitirLote = ordensSelecionaveis.filter((o) => selecionadas.has(o.ordemServicoId))
+  const valorSelecionado = ordensParaEmitirLote.reduce(
+    (soma, o) => soma + (modeloSelecao === 'peca' ? o.valorPecas : o.valorServicos),
+    0,
+  )
+
+  function handleEmitirLote() {
+    emitirEmLote.mutate(
+      {
+        itens: ordensParaEmitirLote.map((o) => ({ caixaLancamentoId: o.caixaLancamentoId, ordemNumero: o.ordemNumero })),
+        modelo: modeloSelecao,
+      },
+      { onSuccess: () => setSelecionadas(new Set()) },
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -122,10 +183,54 @@ function AbaOsPagas() {
         <CardIndicador titulo="Valor total" valor={formatCurrency(valorTotal)} icone={<Wallet size={15} />} />
       </div>
 
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Selecionar modelo para emitir em lote:</span>
+        {(['peca', 'servico'] as const).map((modelo) => (
+          <button
+            key={modelo}
+            type="button"
+            onClick={() => alternarModelo(modelo)}
+            className={`h-8 px-3 rounded-md text-xs font-medium border ${modeloSelecao === modelo ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+          >
+            {ROTULO_MODELO[modelo]}
+          </button>
+        ))}
+      </div>
+
+      {selecionadas.size > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border bg-primary/5 px-4 py-3">
+          <div className="text-sm">
+            <span className="font-semibold">{selecionadas.size}</span> nota{selecionadas.size === 1 ? '' : 's'} de{' '}
+            <strong>{ROTULO_MODELO[modeloSelecao]}</strong> selecionada{selecionadas.size === 1 ? '' : 's'} · Valor total:{' '}
+            <span className="font-semibold">{formatCurrency(valorSelecionado)}</span>
+          </div>
+          <PermissionGate codigo="notas_fiscais.emitir">
+            <button
+              type="button"
+              onClick={handleEmitirLote}
+              disabled={emitirEmLote.isPending}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+            >
+              <Receipt size={14} />
+              {emitirEmLote.isPending ? 'Emitindo...' : `Emitir ${selecionadas.size} selecionada${selecionadas.size === 1 ? '' : 's'}`}
+            </button>
+          </PermissionGate>
+        </div>
+      )}
+
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
+              <th className="px-3 py-2 w-8">
+                <input
+                  type="checkbox"
+                  checked={ordensSelecionaveis.length > 0 && ordensSelecionaveis.every((o) => selecionadas.has(o.ordemServicoId))}
+                  onChange={alternarSelecionarTodas}
+                  disabled={ordensSelecionaveis.length === 0}
+                  className="size-4"
+                />
+              </th>
               <th className="text-left font-medium px-3 py-2">OS</th>
               <th className="text-left font-medium px-3 py-2">Cliente</th>
               <th className="text-left font-medium px-3 py-2">Pago em</th>
@@ -136,18 +241,28 @@ function AbaOsPagas() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Carregando...</td>
+                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">Carregando...</td>
               </tr>
             )}
             {!isLoading && ordensFiltradas.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                   {filtro.periodo === 'todas' ? 'Nenhuma OS paga aguardando emissão' : 'Nenhuma OS paga nesse período'}
                 </td>
               </tr>
             )}
             {ordensFiltradas.map((ordem) => (
               <tr key={ordem.ordemServicoId} className="border-t hover:bg-muted/20">
+                <td className="px-3 py-2">
+                  {idsSelecionaveis.has(ordem.ordemServicoId) && (
+                    <input
+                      type="checkbox"
+                      checked={selecionadas.has(ordem.ordemServicoId)}
+                      onChange={() => alternarSelecao(ordem.ordemServicoId)}
+                      className="size-4"
+                    />
+                  )}
+                </td>
                 <td className="px-3 py-2 font-medium">OS {ordem.ordemNumero}</td>
                 <td className="px-3 py-2">{ordem.clienteNome ?? '-'}</td>
                 <td className="px-3 py-2 text-muted-foreground">
