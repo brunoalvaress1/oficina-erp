@@ -254,8 +254,9 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
           <label className="text-sm font-medium">Bairro</label>
           <input
             value={value.bairro}
-            disabled
-            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none opacity-50"
+            onChange={(e) => atualizar({ bairro: e.target.value })}
+            disabled={somenteLeituraEndereco}
+            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
           />
         </div>
 
