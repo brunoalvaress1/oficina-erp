@@ -96,8 +96,19 @@ Deno.serve(async (req) => {
       .eq('id', ordem.cliente_id)
       .single()
     if (erroCliente || !cliente) throw new Error('CLIENTE_NAO_ENCONTRADO')
-    if (!cliente.cpf_cnpj) throw new Error('CLIENTE_SEM_CADASTRO_COMPLETO: falta CPF/CNPJ do cliente para emitir a nota.')
-    if (!cliente.codigo_cidade) throw new Error('CLIENTE_SEM_CADASTRO_COMPLETO: falta o código do município do cliente para emitir a nota.')
+    // O grupo de endereço do tomador (end/endNac) é obrigatório no XML
+    // nacional de NFS-e — rejeições reais da Sefaz confirmaram que tanto
+    // xLgr (logradouro) quanto CEP faltando derrubam a nota, então validamos
+    // tudo ANTES de tentar emitir, em vez de deixar a Sefaz rejeitar depois.
+    const camposFaltando: string[] = []
+    if (!cliente.cpf_cnpj) camposFaltando.push('CPF/CNPJ')
+    if (!cliente.codigo_cidade) camposFaltando.push('código do município')
+    if (!cliente.endereco) camposFaltando.push('endereço (rua)')
+    if (!cliente.bairro) camposFaltando.push('bairro')
+    if (!cepTomadorValido(cliente.cep)) camposFaltando.push('CEP')
+    if (camposFaltando.length > 0) {
+      throw new Error(`CLIENTE_SEM_CADASTRO_COMPLETO: falta ${camposFaltando.join(', ')} do cliente para emitir a nota de serviço — complete o cadastro em Clientes.`)
+    }
 
     const { data: oficina, error: erroOficina } = await admin
       .from('oficinas')
@@ -149,17 +160,15 @@ Deno.serve(async (req) => {
       cpf_tomador: !ehPessoaJuridica ? cpfCnpjCliente : undefined,
       razao_social_tomador: cliente.nome,
       codigo_municipio_tomador: Number(cliente.codigo_cidade),
-      // O grupo de endereço nacional do tomador (endNac) exige CEP sempre
-      // que logradouro/numero/bairro forem informados — rejeição real da
-      // Sefaz: "Element 'endNac': Missing child element(s). Expected is
-      // CEP". Endereço do tomador é opcional (só codigo_municipio_tomador é
-      // obrigatório), então quando o CEP não é válido (vazio ou com menos de
-      // 8 dígitos) omitimos o bloco de endereço INTEIRO — nunca mandar
-      // logradouro/numero/bairro sem CEP junto.
+      // O grupo de endereço do tomador (end/endNac) é obrigatório no XML
+      // nacional — logradouro, bairro e CEP já foram validados como
+      // presentes acima (CLIENTE_SEM_CADASTRO_COMPLETO), então sempre vão
+      // preenchidos aqui. Número não é validado como obrigatório (imóveis
+      // sem numeração existem), usa "S/N" como convenção quando ausente.
       cep_tomador: cepTomador,
-      logradouro_tomador: cepTomador ? cliente.endereco || undefined : undefined,
-      numero_tomador: cepTomador ? cliente.numero || undefined : undefined,
-      bairro_tomador: cepTomador ? cliente.bairro || undefined : undefined,
+      logradouro_tomador: cliente.endereco,
+      numero_tomador: cliente.numero || 'S/N',
+      bairro_tomador: cliente.bairro,
       codigo_municipio_prestacao: codigoMunicipio,
       codigo_tributacao_nacional_iss: codigoTributacaoIss,
       // Obrigatório porque a nota informa dados de IBS/CBS ("É obrigatório
