@@ -179,16 +179,24 @@ Deno.serve(async (req) => {
       valor_servico: Number(valorServico.toFixed(2)),
       tributacao_iss: 1, // 1 = tributável integralmente (caso normal)
       tipo_retencao_iss: 1, // 1 = não retido
-      // O grupo "trib" do XML nacional exige a sequência tribMun, tribFed e
-      // totTrib SEMPRE presentes — mesmo sem nenhuma retenção federal e sem
-      // informar valor aproximado de tributos, os três blocos precisam
-      // existir no XML (rejeição real da Sefaz confirmando os dois: antes
-      // "Missing child element" em tribMun/trib, agora em trib/totTrib). Por
-      // isso esses campos NÃO dependem mais do regime tributário da oficina
-      // — vão sempre zerados/"não retido"/"não informado", que é o caso
-      // normal (sem retenção na fonte) tanto pra Simples Nacional quanto
-      // pros demais regimes.
-      indicador_total_tributacao: 0, // 0 = não informado valor aproximado de tributos
+      // O grupo "trib" do XML nacional exige tribMun + tribFed + totTrib
+      // sempre presentes, mas o totTrib é um "choice" — só UMA das opções
+      // pode ser enviada, e qual delas é permitida depende do regime:
+      // - indicador_total_tributacao (indTotTrib) só é aceito pra MEI;
+      //   rejeição real da Sefaz (E0712): "Para ME/EPP o indicador de
+      //   informação de valor total de tributos não pode ser informado".
+      // - ME/EPP do Simples Nacional (codigoOpcaoSimplesNacional === 3) usa
+      //   percentual_total_tributos_simples_nacional (pTotTribSN).
+      // - Demais regimes (não optante) usam o trio percentual federal/
+      //   estadual/municipal — a Sefaz também rejeita indTotTrib E pTotTribSN
+      //   pra não optante (E0713).
+      ...(codigoOpcaoSimplesNacional === 3
+        ? { percentual_total_tributos_simples_nacional: 0 }
+        : {
+            percentual_total_tributos_federais: 0,
+            percentual_total_tributos_estaduais: 0,
+            percentual_total_tributos_municipais: 0,
+          }),
       situacao_tributaria_pis_cofins: '00', // 00 = nenhuma retenção de PIS/COFINS
       base_calculo_pis_cofins: 0,
       aliquota_pis: 0,
