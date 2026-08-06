@@ -183,7 +183,18 @@ Deno.serve(async (req) => {
       // produto_id — não estão cadastrados no catálogo de Produtos.
       const produto = item.produto_id ? produtoPorId.get(item.produto_id) : undefined
       const imposto = produto?.impostos ?? impostoPadrao
-      const valorBruto = Number(item.valor_total).toFixed(2)
+      const quantidadeComercial = Number(item.quantidade).toFixed(4)
+      const valorUnitarioComercial = Number(item.valor_unitario).toFixed(2)
+      // vProd (valor_bruto) precisa bater EXATAMENTE com vUnCom × qCom — por
+      // isso calculamos a partir dos mesmos valores já arredondados que
+      // estamos mandando (não de item.valor_total, que já vem líquido de
+      // desconto). Rejeição real da Sefaz quando um item tinha desconto:
+      // "Valor do Produto difere do produto Valor Unitário de
+      // Comercialização e Quantidade Comercial" — valor_total (líquido) era
+      // mandado como se fosse o bruto, e a conta não fechava.
+      const valorBrutoItem = (Number(valorUnitarioComercial) * Number(quantidadeComercial)).toFixed(2)
+      const valorDesconto = Number(item.valor_desconto ?? 0)
+      const valorLiquidoItem = Number(item.valor_total).toFixed(2)
       return {
         numero_item: String(indice + 1),
         codigo_produto: item.produto_id || item.id,
@@ -191,12 +202,13 @@ Deno.serve(async (req) => {
         cfop: imposto?.cfop || '5102',
         codigo_ncm: (imposto?.ncm || produto?.ncm || '').replace(/\D/g, ''),
         unidade_comercial: 'UN',
-        quantidade_comercial: Number(item.quantidade).toFixed(4),
-        valor_unitario_comercial: Number(item.valor_unitario).toFixed(2),
-        valor_bruto: valorBruto,
+        quantidade_comercial: quantidadeComercial,
+        valor_unitario_comercial: valorUnitarioComercial,
+        valor_bruto: valorBrutoItem,
+        valor_desconto: valorDesconto > 0 ? valorDesconto.toFixed(2) : undefined,
         unidade_tributavel: 'UN',
-        quantidade_tributavel: Number(item.quantidade).toFixed(4),
-        valor_unitario_tributavel: Number(item.valor_unitario).toFixed(2),
+        quantidade_tributavel: quantidadeComercial,
+        valor_unitario_tributavel: valorUnitarioComercial,
         indicador_total: '1',
         icms_origem: imposto?.origem ?? '0',
         icms_situacao_tributaria: imposto?.classe_fiscal ?? '102',
@@ -214,17 +226,18 @@ Deno.serve(async (req) => {
         // regime, inclusive Simples Nacional. Usando as alíquotas de teste
         // oficiais do período de transição (0,1% IBS + 0,9% CBS, conforme
         // documentação da Focus) — revisar com o contador conforme a reforma
-        // avança e as alíquotas de verdade entrarem em vigor.
+        // avança e as alíquotas de verdade entrarem em vigor. Base de cálculo
+        // usa o valor LÍQUIDO (já descontado), que é o que de fato foi cobrado.
         ibs_cbs_situacao_tributaria: '000',
         ibs_cbs_classificacao_tributaria: '000001',
-        ibs_cbs_base_calculo: valorBruto,
+        ibs_cbs_base_calculo: valorLiquidoItem,
         cbs_aliquota: '0.90',
-        cbs_valor: (Number(valorBruto) * 0.009).toFixed(2),
+        cbs_valor: (Number(valorLiquidoItem) * 0.009).toFixed(2),
         ibs_uf_aliquota: '0.10',
-        ibs_uf_valor: (Number(valorBruto) * 0.001).toFixed(2),
+        ibs_uf_valor: (Number(valorLiquidoItem) * 0.001).toFixed(2),
         ibs_mun_aliquota: '0.00',
         ibs_mun_valor: '0.00',
-        ibs_valor_total: (Number(valorBruto) * 0.001).toFixed(2),
+        ibs_valor_total: (Number(valorLiquidoItem) * 0.001).toFixed(2),
       }
     })
 
@@ -235,6 +248,8 @@ Deno.serve(async (req) => {
     const ufOficina = normalizarUf(oficina.estado)
     const ufCliente = normalizarUf(cliente.estado)
     const localDestino = ufCliente && ufOficina && ufCliente !== ufOficina ? '2' : '1'
+    const cpfCnpjClienteDigitos = cliente.cpf_cnpj.replace(/\D/g, '')
+    const ehPessoaJuridicaCliente = cpfCnpjClienteDigitos.length > 11
 
     const payload: Record<string, unknown> = {
       natureza_operacao: 'Venda de mercadoria',
@@ -244,8 +259,8 @@ Deno.serve(async (req) => {
       local_destino: localDestino,
       cnpj_emitente: oficina.cnpj.replace(/\D/g, ''),
       nome_destinatario: cliente.nome,
-      cpf_destinatario: cliente.cpf_cnpj.replace(/\D/g, '').length <= 11 ? cliente.cpf_cnpj.replace(/\D/g, '') : undefined,
-      cnpj_destinatario: cliente.cpf_cnpj.replace(/\D/g, '').length > 11 ? cliente.cpf_cnpj.replace(/\D/g, '') : undefined,
+      cpf_destinatario: ehPessoaJuridicaCliente ? undefined : cpfCnpjClienteDigitos,
+      cnpj_destinatario: ehPessoaJuridicaCliente ? cpfCnpjClienteDigitos : undefined,
       logradouro_destinatario: cliente.endereco,
       numero_destinatario: cliente.numero || 'S/N',
       bairro_destinatario: cliente.bairro,
@@ -259,14 +274,19 @@ Deno.serve(async (req) => {
 
     // NF-e comum exige alguns campos extras que a NFC-e não tem (ela já é
     // implicitamente venda presencial ao consumidor final). Como não
-    // coletamos a Inscrição Estadual do cliente, tratamos sempre como não
-    // contribuinte de ICMS (indicador "9") — cenário normal de venda de
-    // balcão pra pessoa física/empresa não inscrita.
+    // coletamos a Inscrição Estadual do cliente, tratamos sempre como sem IE
+    // conhecida — mas o indicador certo pra isso depende de pessoa física x
+    // jurídica: "9" (não contribuinte) é só pra CPF; pra CNPJ a Sefaz rejeita
+    // com "IE do destinatário não informada" (a regra de negócio da nota
+    // fiscal não aceita uma empresa como "não contribuinte" — só contribuinte
+    // com IE, indicador "1", ou isento de inscrição, indicador "2"). Como não
+    // temos a IE cadastrada, "2" (isento) é o cenário correto pra empresa
+    // cliente de balcão sem IE informada.
     if (tipoNota === 'nfe') {
       payload.tipo_documento = '1' // 1 = saída
       payload.finalidade_emissao = '1' // 1 = normal
       payload.consumidor_final = '1'
-      payload.indicador_ie_destinatario = '9'
+      payload.indicador_ie_destinatario = ehPessoaJuridicaCliente ? '2' : '9'
     }
 
     // 4. Envia pra Focus. A emissão de NFC-e é SÍNCRONA (a doc oficial da Focus
@@ -314,7 +334,10 @@ Deno.serve(async (req) => {
         url_danfe: resolverCaminhoFocus(ambiente, respostaFocus?.caminho_danfe),
         url_xml: resolverCaminhoFocus(ambiente, respostaFocus?.caminho_xml_nota_fiscal),
         qrcode_url: respostaFocus?.qrcode_url ?? null,
-        valor_total: ordem.valor_total,
+        // valorTotalPecas (não ordem.valor_total) — essa nota cobre só as
+        // peças; usar o total da OS inteira (peça + serviço) inflava o valor
+        // registrado sempre que a OS também tinha mão de obra.
+        valor_total: valorTotalPecas,
         cliente_nome: cliente.nome,
         mensagem_erro: mensagemFocusLegivel,
         payload_enviado: payload,
