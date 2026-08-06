@@ -1,13 +1,14 @@
 import { Document, Page, Text, View, Image, StyleSheet, pdf } from '@react-pdf/renderer'
 import type { OrdemServico, OrdemServicoItem } from '../types/ordemServico'
 import { ROTULO_STATUS_ORDEM } from '../types/ordemServico'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatCpfCnpj } from '@/utils/format'
 import { ROTULO_FORMA_PAGAMENTO, type FormaPagamento } from '@/features/caixa/types/caixa'
 import { buscarFormasPagamentoDaOrdem } from '@/features/caixa/services/caixaService'
 
 export type ModoDocumentoOrdem = 'os' | 'defeitos' | 'aprovacao' | 'orcamento'
 
 export interface CabecalhoOficinaPdf {
+  cnpj?: string | null
   enderecoLinhas?: string[]
   telefone?: string | null
   email?: string | null
@@ -17,7 +18,9 @@ export interface CabecalhoOficinaPdf {
 
 function linhasInfoOficina(cabecalho: CabecalhoOficinaPdf | undefined): string[] {
   if (!cabecalho) return []
-  const linhas = [...(cabecalho.enderecoLinhas ?? [])]
+  const linhas: string[] = []
+  if (cabecalho.cnpj) linhas.push(`CNPJ: ${formatCpfCnpj(cabecalho.cnpj)}`)
+  linhas.push(...(cabecalho.enderecoLinhas ?? []))
   if (cabecalho.telefone) linhas.push(`Telefone: ${cabecalho.telefone}`)
   if (cabecalho.email) linhas.push(cabecalho.email)
   return linhas
@@ -49,9 +52,14 @@ const estilos = StyleSheet.create({
   totais: { marginTop: 12, alignItems: 'flex-end' },
   totalGeral: { fontSize: 13, fontWeight: 700, marginTop: 4 },
   assinatura: { marginTop: 60, borderTop: '1 solid #333', width: 260, textAlign: 'center', paddingTop: 4 },
-  cabecalhoOficina: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  logoOficina: { width: 250, height: 250, objectFit: 'contain' },
-  infoOficina: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, paddingTop: 4, maxWidth: 240 },
+  cabecalhoOficina: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  // Só height (sem width fixo) faz a logo ocupar exatamente sua altura real
+  // — com width E height fixos numa caixa quadrada, uma logo retangular
+  // (a maioria é mais larga que alta) fica centralizada dentro da caixa
+  // com "object-fit: contain", sobrando espaço em branco acima/abaixo dela
+  // mesmo com alignItems: flex-start no container.
+  logoOficina: { height: 130, maxWidth: 260, objectFit: 'contain' },
+  infoOficina: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, maxWidth: 240 },
   infoOficinaLinha: { fontSize: 12, color: '#444', textAlign: 'right' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 9, color: '#777', textAlign: 'center' },
 })

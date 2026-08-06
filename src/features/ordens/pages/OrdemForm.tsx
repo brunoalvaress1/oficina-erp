@@ -359,6 +359,7 @@ export function OrdemForm() {
     if (!ordem) return
     const { gerarEAbrirPdfOrdem } = await import('../components/DocumentoOrdemPdf')
     await gerarEAbrirPdfOrdem(ordem, itensServidor, modo, {
+      cnpj: oficina?.cnpj,
       enderecoLinhas: linhasEnderecoOficina(oficina),
       telefone: oficina?.telefone,
       email: oficina?.email,

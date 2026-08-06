@@ -90,6 +90,7 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
         import('@/features/ordens/components/DocumentoOrdemPdf'),
       ])
       await gerarEAbrirPdfOrdem(detalhe.ordem, detalhe.itens, 'os', {
+        cnpj: oficina?.cnpj,
         enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,

@@ -66,6 +66,7 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
         import('@/features/ordens/components/DocumentoOrdemPdf'),
       ])
       await gerarEAbrirPdfOrdem(ordemDetalhe.ordem, ordemDetalhe.itens, 'os', {
+        cnpj: oficina?.cnpj,
         enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,

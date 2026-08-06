@@ -26,6 +26,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
     try {
       const { gerarEBaixarPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
       await gerarEBaixarPdfFechamento(resumo, {
+        cnpj: oficina?.cnpj,
         enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,
@@ -45,6 +46,7 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
     try {
       const { gerarEAbrirPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
       await gerarEAbrirPdfFechamento(resumo, {
+        cnpj: oficina?.cnpj,
         enderecoLinhas: linhasEnderecoOficina(oficina),
         telefone: oficina?.telefone,
         email: oficina?.email,

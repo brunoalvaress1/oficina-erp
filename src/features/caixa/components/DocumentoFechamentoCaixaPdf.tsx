@@ -1,7 +1,9 @@
 import { Document, Page, Text, View, Image, StyleSheet, pdf } from '@react-pdf/renderer'
 import type { ResumoSessaoCaixa } from '../types/caixaSessao'
+import { formatCpfCnpj } from '@/utils/format'
 
 export interface CabecalhoOficinaPdf {
+  cnpj?: string | null
   enderecoLinhas?: string[]
   telefone?: string | null
   email?: string | null
@@ -11,7 +13,9 @@ export interface CabecalhoOficinaPdf {
 
 function linhasInfoOficina(cabecalho: CabecalhoOficinaPdf | undefined): string[] {
   if (!cabecalho) return []
-  const linhas = [...(cabecalho.enderecoLinhas ?? [])]
+  const linhas: string[] = []
+  if (cabecalho.cnpj) linhas.push(`CNPJ: ${formatCpfCnpj(cabecalho.cnpj)}`)
+  linhas.push(...(cabecalho.enderecoLinhas ?? []))
   if (cabecalho.telefone) linhas.push(`Telefone: ${cabecalho.telefone}`)
   if (cabecalho.email) linhas.push(cabecalho.email)
   return linhas
@@ -33,9 +37,9 @@ const estilos = StyleSheet.create({
   colValor: { flex: 1, textAlign: 'right' },
   colData: { flex: 1, textAlign: 'right' },
   totalGeral: { fontSize: 12, fontWeight: 700, marginTop: 8 },
-  cabecalhoOficina: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  logoOficina: { width: 250, height: 250, objectFit: 'contain' },
-  infoOficina: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, paddingTop: 4, maxWidth: 240 },
+  cabecalhoOficina: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  logoOficina: { height: 130, maxWidth: 260, objectFit: 'contain' },
+  infoOficina: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, maxWidth: 240 },
   infoOficinaLinha: { fontSize: 11, color: '#444', textAlign: 'right' },
   rodape: { marginTop: 24, paddingTop: 6, borderTop: '0.5 solid #ccc', fontSize: 8, color: '#777', textAlign: 'center' },
 })
