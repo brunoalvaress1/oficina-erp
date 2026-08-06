@@ -13,9 +13,14 @@ interface VeiculoModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   veiculoExistente?: Veiculo
+  // Chamado com o veículo já atualizado depois de salvar — quem abriu o
+  // modal a partir de um snapshot local (ex.: o bloco de veículo dentro de
+  // uma OS) usa isso pra atualizar esse snapshot sem precisar recarregar a
+  // tela inteira.
+  onSalvo?: (veiculo: Veiculo) => void
 }
 
-export function VeiculoModal({ open, onOpenChange, veiculoExistente }: VeiculoModalProps) {
+export function VeiculoModal({ open, onOpenChange, veiculoExistente, onSalvo }: VeiculoModalProps) {
   const createMutation = useCreateVeiculo()
   const updateMutation = useUpdateVeiculo()
 
@@ -41,10 +46,20 @@ export function VeiculoModal({ open, onOpenChange, veiculoExistente }: VeiculoMo
     if (veiculoExistente) {
       updateMutation.mutate(
         { id: veiculoExistente.id, input },
-        { onSuccess: () => onOpenChange(false) }
+        {
+          onSuccess: (veiculo) => {
+            onOpenChange(false)
+            onSalvo?.(veiculo)
+          },
+        },
       )
     } else {
-      createMutation.mutate(input, { onSuccess: () => onOpenChange(false) })
+      createMutation.mutate(input, {
+        onSuccess: (veiculo) => {
+          onOpenChange(false)
+          onSalvo?.(veiculo)
+        },
+      })
     }
   }
 

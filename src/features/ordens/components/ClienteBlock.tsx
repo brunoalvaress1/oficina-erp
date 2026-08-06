@@ -47,15 +47,52 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
     onChange({ ...value, ...alteracoes })
   }
 
+  // Assinatura de um import antigo em CSV: o bairro nunca foi separado,
+  // ficou colado dentro do próprio campo de endereço junto com o número
+  // (ex: "Rua X, 130, Jardim Y" ou só "Rua X, Jardim Y"). Detecta pela
+  // vírgula e separa — bairro é sempre o último pedaço, o primeiro é a rua,
+  // e um pedaço do meio só vira número se for puramente numérico (o resto
+  // que sobrar, tipo "Até 1730/1731", vai pro complemento em vez de se
+  // perder). Só mexe quando o bairro está vazio — nunca risco de estragar
+  // um cadastro que já está correto.
+  function separarEnderecoConcatenado(valor: ClienteBlockValue): Partial<ClienteBlockValue> | null {
+    if (valor.bairro.trim()) return null
+    const partes = valor.endereco
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+    if (partes.length < 2) return null
+
+    const bairro = partes[partes.length - 1]
+    const rua = partes[0]
+    const meio = partes.slice(1, -1)
+    const numeroExtraido = !valor.numero.trim() ? meio.find((p) => /^\d+$/.test(p)) : undefined
+    const resto = meio.filter((p) => p !== numeroExtraido)
+
+    return {
+      endereco: rua,
+      bairro,
+      numero: numeroExtraido || valor.numero,
+      complemento: resto.length > 0 ? [valor.complemento, resto.join(', ')].filter(Boolean).join(' - ') : valor.complemento,
+    }
+  }
+
   // Carrega os dados de um cliente já cadastrado (via CPF/CNPJ ou via busca
-  // por nome) e, se o endereço ficou incompleto (comum em cadastros antigos
-  // importados), completa automaticamente pelo CEP que já está salvo — assim
-  // só falta digitar o número. Só preenche o que está vazio, nunca sobrescreve
-  // um valor que já existe (mesmo que pareça estranho, pode ter sido corrigido
-  // manualmente antes).
+  // por nome). Endereço incompleto ou malformado (comum em cadastros antigos
+  // importados) é corrigido em duas etapas: primeiro tenta separar um
+  // endereço concatenado (sem precisar de rede); se ainda faltar algo e
+  // tiver um CEP válido salvo, completa pela API de CEP. Em qualquer caso só
+  // preenche o que está vazio, nunca sobrescreve um valor que já existe —
+  // o operador vê o resultado na tela e corrige na hora se não ficar perfeito.
   async function aplicarClienteExistente(cliente: Cliente) {
-    const valor = clienteBlockValueDoExistente(cliente)
+    let valor = clienteBlockValueDoExistente(cliente)
     onChange(valor)
+
+    const separado = separarEnderecoConcatenado(valor)
+    if (separado) {
+      valor = { ...valor, ...separado }
+      onChange(valor)
+    }
 
     const enderecoIncompleto = !valor.endereco.trim() || !valor.bairro.trim() || !valor.codigoCidade.trim()
     const cepLimpo = valor.cep.replace(/\D/g, '')

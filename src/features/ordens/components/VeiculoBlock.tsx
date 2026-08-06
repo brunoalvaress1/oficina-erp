@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react'
-import { Car, Loader2, Search } from 'lucide-react'
+import { Car, Loader2, Search, UserCog } from 'lucide-react'
 import { buscarVeiculoPorPlaca } from '@/features/veiculos/services/veiculoService'
 import { useConsultaPlaca } from '@/features/veiculos/hooks/useConsultaPlaca'
+import { VeiculoModal } from '@/features/veiculos/components/VeiculoModal'
+import { PermissionGate } from '@/features/veiculos/components/PermissionGate'
 import { veiculoBlockValueDoExistente, veiculoBlockValueVazio, type VeiculoBlockValue } from '../types/veiculoClienteForm'
 
 interface VeiculoBlockProps {
@@ -31,6 +33,7 @@ export function VeiculoBlock({
   onBuscandoChange,
 }: VeiculoBlockProps) {
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
+  const [modalDonoAberto, setModalDonoAberto] = useState(false)
   const consultaPlaca = useConsultaPlaca()
   const placaConsultada = useRef<string | null>(null)
 
@@ -104,11 +107,28 @@ export function VeiculoBlock({
 
   return (
     <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
-      <div className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center size-7 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-          <Car size={15} />
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center size-7 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <Car size={15} />
+          </div>
+          <h2 className="font-medium">Dados do Veículo (opcional)</h2>
         </div>
-        <h2 className="font-medium">Dados do Veículo (opcional)</h2>
+        {/* Disponível mesmo com a OS travada (paga/cancelada/enviada ao caixa)
+            — trocar o dono é sobre o cadastro do veículo pra frente, não sobre
+            reescrever essa OS já fechada. Próximas OS's abertas por essa placa
+            já vêm com o dono novo automaticamente. */}
+        {value.veiculoExistente && (
+          <PermissionGate codigo="veiculos.editar">
+            <button
+              type="button"
+              onClick={() => setModalDonoAberto(true)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-medium"
+            >
+              <UserCog size={13} /> Trocar dono do veículo
+            </button>
+          </PermissionGate>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -192,6 +212,15 @@ export function VeiculoBlock({
           )}
         </div>
       </div>
+
+      {value.veiculoExistente && (
+        <VeiculoModal
+          open={modalDonoAberto}
+          onOpenChange={setModalDonoAberto}
+          veiculoExistente={value.veiculoExistente}
+          onSalvo={(veiculo) => onChange(veiculoBlockValueDoExistente(veiculo))}
+        />
+      )}
     </div>
   )
 }
