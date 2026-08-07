@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2, Pencil, Check, X, Package } from 'lucide-react'
 import { ItemOrdemRowNovo } from './ItemOrdemRow'
+import { CampoDesconto } from './CampoDesconto'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { Combobox } from '@/components/ui/Combobox'
 import { useFornecedoresSelect } from '@/features/fornecedores/hooks/useFornecedoresSelect'
@@ -120,7 +121,7 @@ export function ItensOrdemSection({
         <h2 className="font-medium">Produtos e Serviços</h2>
       </div>
 
-      {!somenteLeitura && <ItemOrdemRowNovo onAdicionar={onAdicionar} adicionando={adicionando} />}
+      {!somenteLeitura && <ItemOrdemRowNovo onAdicionar={onAdicionar} adicionando={adicionando} podeVerLucro={podeVerLucro} />}
 
       <div className="border rounded-lg bg-card shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -184,11 +185,15 @@ export function ItensOrdemSection({
                         />
                       </td>
                       <td className="px-3 py-2">
-                        <CampoMoeda
-                          value={edicao.valorDesconto}
-                          onChange={(v) => setEdicao({ ...edicao, valorDesconto: v })}
-                          className="w-20 h-8 rounded-md border bg-transparent px-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary/30"
-                        />
+                        <div className="w-28">
+                          <CampoDesconto
+                            valorBase={(Number(edicao.quantidade) || 0) * (Number(edicao.valorUnitario) || 0)}
+                            value={edicao.valorDesconto}
+                            onChange={(v) => setEdicao({ ...edicao, valorDesconto: v })}
+                            compacto
+                            mostrarLabel={false}
+                          />
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right font-medium">
                         {formatCurrency(

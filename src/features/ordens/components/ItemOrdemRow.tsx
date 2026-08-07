@@ -4,6 +4,7 @@ import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { useProdutosBusca } from '@/features/produtos/hooks/useProdutosBusca'
 import { useFornecedoresSelect } from '@/features/fornecedores/hooks/useFornecedoresSelect'
 import { usePermissions } from '@/hooks/usePermissions'
+import { CampoDesconto } from './CampoDesconto'
 import { useServicosBusca, useCriarServico } from '../hooks/useServicosBusca'
 import { usePecasTerceirizadasBusca } from '../hooks/usePecasTerceirizadas'
 import { garantirPecaNoCatalogo } from '../services/pecaTerceirizadaService'
@@ -29,9 +30,10 @@ const COR_TIPO_ATIVO: Record<TipoItemOrdem, string> = {
 interface ItemOrdemRowNovoProps {
   onAdicionar: (item: ItemOrdemForm) => void
   adicionando?: boolean
+  podeVerLucro: boolean
 }
 
-export function ItemOrdemRowNovo({ onAdicionar, adicionando }: ItemOrdemRowNovoProps) {
+export function ItemOrdemRowNovo({ onAdicionar, adicionando, podeVerLucro }: ItemOrdemRowNovoProps) {
   const { funcionario } = usePermissions()
   const [item, setItem] = useState<ItemOrdemForm>(() => criarItemVazio())
   const [tentouAdicionar, setTentouAdicionar] = useState(false)
@@ -230,7 +232,7 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando }: ItemOrdemRowNovoP
           </div>
         )}
 
-        {item.tipo === 'produto_estoque' && (
+        {item.tipo === 'produto_estoque' && podeVerLucro && (
           <div className="space-y-1">
             <label className="text-sm font-medium">Valor de Custo</label>
             <CampoMoeda
@@ -243,14 +245,11 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando }: ItemOrdemRowNovoP
           </div>
         )}
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Desconto</label>
-          <CampoMoeda
-            value={item.valorDesconto}
-            onChange={(v) => atualizar({ valorDesconto: v })}
-            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
-          />
-        </div>
+        <CampoDesconto
+          valorBase={(Number(item.quantidade) || 0) * (Number(item.valorUnitario) || 0)}
+          value={item.valorDesconto}
+          onChange={(v) => atualizar({ valorDesconto: v })}
+        />
       </div>
 
       <div className="flex justify-end">
