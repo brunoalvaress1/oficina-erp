@@ -2,9 +2,15 @@ import { useRef, useState } from 'react'
 import { Car, Loader2, Search, UserCog } from 'lucide-react'
 import { buscarVeiculoPorPlaca } from '@/features/veiculos/services/veiculoService'
 import { useConsultaPlaca } from '@/features/veiculos/hooks/useConsultaPlaca'
+import { useUpdateVeiculo } from '@/features/veiculos/hooks/useVeiculoMutations'
 import { VeiculoModal } from '@/features/veiculos/components/VeiculoModal'
 import { PermissionGate } from '@/features/veiculos/components/PermissionGate'
-import { veiculoBlockValueDoExistente, veiculoBlockValueVazio, type VeiculoBlockValue } from '../types/veiculoClienteForm'
+import {
+  veiculoBlockValueDoExistente,
+  veiculoBlockValueParaInput,
+  veiculoBlockValueVazio,
+  type VeiculoBlockValue,
+} from '../types/veiculoClienteForm'
 
 interface VeiculoBlockProps {
   value: VeiculoBlockValue
@@ -42,6 +48,7 @@ export function VeiculoBlock({
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
   const [modalDonoAberto, setModalDonoAberto] = useState(false)
   const consultaPlaca = useConsultaPlaca()
+  const atualizarVeiculoMutation = useUpdateVeiculo()
   const placaConsultada = useRef<string | null>(null)
 
   function atualizar(alteracoes: Partial<VeiculoBlockValue>) {
@@ -84,9 +91,14 @@ export function VeiculoBlock({
         // Veículo já cadastrado (estamos completando um cadastro incompleto,
         // não criando do zero) — só preenche o que estiver vazio, nunca
         // sobrescreve um dado que já foi digitado ou corrigido antes, e
-        // mantém o vínculo com o veículo/dono existente.
+        // mantém o vínculo com o veículo/dono existente. Salva direto no
+        // cadastro do veículo (igual o botão "Trocar dono") em vez de
+        // esperar o "Salvar Alterações" da OS — que nem aparece quando a OS
+        // já está paga, e é justamente aí que essa busca também precisa
+        // funcionar (completar um cadastro incompleto não depende do status
+        // da OS que só passou por aqui).
         if (value.veiculoExistente) {
-          atualizar({
+          const mesclado: Partial<VeiculoBlockValue> = {
             marca: value.marca.trim() || dados.marca || '',
             modelo: value.modelo.trim() || dados.modelo || '',
             cor: value.cor.trim() || dados.cor || '',
@@ -95,6 +107,12 @@ export function VeiculoBlock({
             chassi: value.chassi.trim() || dados.chassi || '',
             motor: value.motor.trim() || dados.motor || '',
             combustivel: value.combustivel.trim() || dados.combustivel || '',
+          }
+          const valorAtualizado = { ...value, ...mesclado }
+          atualizar(mesclado)
+          atualizarVeiculoMutation.mutate({
+            id: value.veiculoExistente.id,
+            input: veiculoBlockValueParaInput(valorAtualizado, value.veiculoExistente.clienteId),
           })
           return
         }
@@ -124,7 +142,6 @@ export function VeiculoBlock({
 
   const somenteLeituraCampos = disabled || (Boolean(value.veiculoExistente) && !permitirEditarVeiculoExistente)
   const placaTravada = disabled || (permitirEditarVeiculoExistente && Boolean(value.veiculoExistente))
-  const podeBuscarNaApi = !somenteLeituraCampos
   const kmMenorQueAnterior = kmAnterior != null && kmAtual.trim() !== '' && Number(kmAtual) < kmAnterior
   // Veículo é opcional (oficina não usa PDV) — só vira obrigatório campo a
   // campo quando a placa é preenchida (não dá pra ter só um pedaço do
@@ -175,22 +192,24 @@ export function VeiculoBlock({
                 <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               )}
             </div>
-            {podeBuscarNaApi && (
-              <button
-                type="button"
-                onClick={handleBuscarNaApi}
-                disabled={disabled || value.placa.replace(/[^A-Z0-9]/g, '').length < 7 || consultaPlaca.isPending}
-                title="Buscar dados do veículo pela placa (consome 1 consulta paga)"
-                className="h-9 px-3 rounded-md border shrink-0 disabled:opacity-50"
-              >
-                {consultaPlaca.isPending ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-              </button>
-            )}
+            {/* Sempre disponível, mesmo com a OS travada (paga/cancelada) —
+                completar um cadastro incompleto de veículo não depende do
+                status da OS, e o salvamento aqui é direto no cadastro do
+                veículo (ver handleBuscarNaApi), não passa pelo "Salvar
+                Alterações" da OS. */}
+            <button
+              type="button"
+              onClick={handleBuscarNaApi}
+              disabled={value.placa.replace(/[^A-Z0-9]/g, '').length < 7 || consultaPlaca.isPending || atualizarVeiculoMutation.isPending}
+              title="Buscar dados do veículo pela placa (consome 1 consulta paga)"
+              className="h-9 px-3 rounded-md border shrink-0 disabled:opacity-50"
+            >
+              {consultaPlaca.isPending ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+            </button>
           </div>
           {value.veiculoExistente ? (
             <p className="text-xs text-green-600">
-              Veículo já cadastrado — dados preenchidos automaticamente (sem custo)
-              {podeBuscarNaApi && ' · faltando algo? use a lupa pra completar pela API'}
+              Veículo já cadastrado — dados preenchidos automaticamente (sem custo) · faltando algo? use a lupa pra completar pela API
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Placa nova — clique na lupa pra buscar os dados (consulta paga) ou preencha manualmente</p>
