@@ -6,7 +6,13 @@ import { useContasBancariasBusca, useCriarContaBancaria } from '../hooks/useCont
 import { useMaquininhasBusca, useCriarMaquininha } from '../hooks/useMaquininhas'
 import { useBandeirasCartaoBusca, useCriarBandeiraCartao } from '../hooks/useBandeirasCartao'
 import { useConfiguracaoParcelamento } from '@/features/configuracoes/hooks/usePagamentosConfig'
-import { calcularJurosPercentual, calcularTroco, calcularValorComJuros, type FormaPagamentoForm } from '../types/formaPagamentoForm'
+import {
+  calcularJurosPercentual,
+  calcularTroco,
+  calcularValorComJuros,
+  calcularValorPorParcela,
+  type FormaPagamentoForm,
+} from '../types/formaPagamentoForm'
 import { ROTULO_FORMA_PAGAMENTO, type FormaPagamento } from '../types/caixa'
 import { formatCurrency } from '@/utils/format'
 import type { ContaBancaria } from '../types/contaBancaria'
@@ -54,8 +60,14 @@ export function FormaPagamentoRow({ forma, onChange, onRemover, podeRemover }: F
 
   const ehCartao = forma.formaPagamento === 'debito' || forma.formaPagamento === 'credito'
   const ehDinheiro = forma.formaPagamento === 'dinheiro'
-  const juros = calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual)
+  // "Automático" é o que a regra de Configurações aplicaria sozinha — usado
+  // só como dica no placeholder do campo de juros manual. "juros" é o que
+  // realmente vale pro cálculo (considera a sobrescrita, se houver).
+  const jurosAutomatico = calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual)
+  const juros = calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual, forma.jurosManual)
   const valorComJuros = calcularValorComJuros(forma, parcelasSemJuros, jurosPercentual)
+  const valorPorParcela = calcularValorPorParcela(forma, parcelasSemJuros, jurosPercentual)
+  const numeroParcelas = Number(forma.parcelas) || 1
   const troco = calcularTroco(forma)
 
   return (
@@ -146,20 +158,34 @@ export function FormaPagamentoRow({ forma, onChange, onRemover, podeRemover }: F
           )}
 
           {forma.formaPagamento === 'credito' && (
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Parcelas</label>
-              <select
-                value={forma.parcelas}
-                onChange={(e) => atualizar({ parcelas: e.target.value })}
-                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
-              >
-                {OPCOES_PARCELAS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}x {p > parcelasSemJuros ? `(${jurosPercentual}% de juros)` : 'sem juros'}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Parcelas</label>
+                <select
+                  value={forma.parcelas}
+                  onChange={(e) => atualizar({ parcelas: e.target.value })}
+                  className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                >
+                  {OPCOES_PARCELAS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}x {p > parcelasSemJuros ? `(${jurosPercentual}% de juros)` : 'sem juros'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Juros (%) — opcional</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={forma.jurosManual}
+                  onChange={(e) => atualizar({ jurosManual: e.target.value })}
+                  placeholder={jurosAutomatico > 0 ? `Automático: ${jurosAutomatico}` : '0 (automático: sem juros)'}
+                  className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+            </>
           )}
         </div>
 
@@ -177,9 +203,12 @@ export function FormaPagamentoRow({ forma, onChange, onRemover, podeRemover }: F
       {ehDinheiro && troco > 0 && (
         <p className="text-xs text-green-600">Troco: {formatCurrency(troco)}</p>
       )}
-      {juros > 0 && (
-        <p className="text-xs text-amber-600">
-          Com juros de parcelamento: {formatCurrency(valorComJuros)} cobrados do cliente (valor abatido da OS continua {formatCurrency(Number(forma.valor) || 0)})
+      {forma.formaPagamento === 'credito' && numeroParcelas > 1 && (
+        <p className={`text-xs ${juros > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+          {numeroParcelas}x de {formatCurrency(valorPorParcela)}
+          {juros > 0
+            ? ` · total ${formatCurrency(valorComJuros)} cobrado do cliente com ${juros}% de juros (valor abatido da OS continua ${formatCurrency(Number(forma.valor) || 0)})`
+            : ' · sem juros'}
         </p>
       )}
     </div>

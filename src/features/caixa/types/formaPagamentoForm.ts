@@ -12,6 +12,11 @@ export interface FormaPagamentoForm {
   parcelas: string
   bandeira: BandeiraCartao | null
   maquininha: Maquininha | null
+  // Vazio = usa a regra automática (parcelasSemJuros/jurosPercentual de
+  // Configurações). Preenchido = o vendedor decidiu na hora repassar uma
+  // taxa diferente da maquininha pro cliente (inclusive "0" pra passar sem
+  // juros mesmo parcelando acima do limite configurado).
+  jurosManual: string
 }
 
 export function criarFormaPagamentoVazia(formaPagamento: FormaPagamento = 'pix'): FormaPagamentoForm {
@@ -24,26 +29,39 @@ export function criarFormaPagamentoVazia(formaPagamento: FormaPagamento = 'pix')
     parcelas: '1',
     bandeira: null,
     maquininha: null,
+    jurosManual: '',
   }
 }
 
 // Regra de parcelamento configurável em Configurações > Formas de Pagamento
-// (padrão: acima de 6x aplica 8% de juros flat sobre o valor daquela forma).
+// (padrão: acima de 6x aplica 8% de juros flat sobre o valor daquela forma)
+// — mas o vendedor pode sobrescrever na hora (jurosManual), pra repassar a
+// taxa real da maquininha em vez do percentual padrão, ou não repassar juros
+// nenhum mesmo parcelando bastante.
 export function calcularJurosPercentual(
   formaPagamento: FormaPagamento,
   parcelas: string,
   parcelasSemJuros = 6,
   jurosPercentual = 8,
+  jurosManual?: string,
 ): number {
   if (formaPagamento !== 'credito') return 0
+  if (jurosManual != null && jurosManual.trim() !== '') return Number(jurosManual) || 0
   const numeroParcelas = Number(parcelas) || 1
   return numeroParcelas > parcelasSemJuros ? jurosPercentual : 0
 }
 
 export function calcularValorComJuros(forma: FormaPagamentoForm, parcelasSemJuros = 6, jurosPercentual = 8): number {
   const valor = Number(forma.valor) || 0
-  const juros = calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual)
+  const juros = calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual, forma.jurosManual)
   return valor * (1 + juros / 100)
+}
+
+// Valor de cada parcela — considerando os juros aplicados (automático ou
+// sobrescrito), pra mostrar "8x de R$ 125,00" na hora de escolher.
+export function calcularValorPorParcela(forma: FormaPagamentoForm, parcelasSemJuros = 6, jurosPercentual = 8): number {
+  const numeroParcelas = Number(forma.parcelas) || 1
+  return calcularValorComJuros(forma, parcelasSemJuros, jurosPercentual) / numeroParcelas
 }
 
 export function calcularTroco(forma: FormaPagamentoForm): number {
@@ -66,6 +84,7 @@ export function formaPagamentoParaInput(
     parcelas: forma.formaPagamento === 'credito' ? Number(forma.parcelas) || 1 : undefined,
     bandeira: forma.bandeira?.nome || undefined,
     maquininha: forma.maquininha?.nome || undefined,
-    jurosPercentual: calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual) || undefined,
+    jurosPercentual:
+      calcularJurosPercentual(forma.formaPagamento, forma.parcelas, parcelasSemJuros, jurosPercentual, forma.jurosManual) || undefined,
   }
 }
