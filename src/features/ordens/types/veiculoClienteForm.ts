@@ -1,5 +1,6 @@
 import type { Veiculo, VeiculoInput } from '@/features/veiculos/types/veiculo'
 import type { Cliente, ClienteInput } from '@/features/clientes/types/cliente'
+import { buscarEnderecoPorCep } from '@/utils/cep'
 
 export interface VeiculoBlockValue {
   veiculoExistente: Veiculo | null
@@ -139,6 +140,64 @@ export function clienteBlockValueDoExistente(cliente: Cliente): ClienteBlockValu
 // (ClienteForm), que é onde um CPF errado deveria ser pego antes de tudo.
 export function clienteBlockValueValido(valor: ClienteBlockValue): boolean {
   return Boolean(valor.nome.trim() && valor.codigoCidade.trim())
+}
+
+// Assinatura de um import antigo em CSV: o bairro nunca foi separado, ficou
+// colado dentro do próprio campo de endereço junto com o número (ex: "Rua X,
+// 130, Jardim Y" ou só "Rua X, Jardim Y"). Detecta pela vírgula e separa —
+// bairro é sempre o último pedaço, o primeiro é a rua, e um pedaço do meio só
+// vira número se for puramente numérico (o resto que sobrar, tipo "Até
+// 1730/1731", vai pro complemento em vez de se perder). Só mexe quando o
+// bairro está vazio — nunca risco de estragar um cadastro que já está correto.
+export function separarEnderecoConcatenado(valor: ClienteBlockValue): Partial<ClienteBlockValue> | null {
+  if (valor.bairro.trim()) return null
+  const partes = valor.endereco
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (partes.length < 2) return null
+
+  const bairro = partes[partes.length - 1]
+  const rua = partes[0]
+  const meio = partes.slice(1, -1)
+  const numeroExtraido = !valor.numero.trim() ? meio.find((p) => /^\d+$/.test(p)) : undefined
+  const resto = meio.filter((p) => p !== numeroExtraido)
+
+  return {
+    endereco: rua,
+    bairro,
+    numero: numeroExtraido || valor.numero,
+    complemento: resto.length > 0 ? [valor.complemento, resto.join(', ')].filter(Boolean).join(' - ') : valor.complemento,
+  }
+}
+
+// Completa/corrige um endereço incompleto ou malformado (comum em cadastros
+// antigos importados) em duas etapas: primeiro tenta separar um endereço
+// concatenado (sem precisar de rede); se ainda faltar algo e tiver um CEP
+// válido salvo, completa pela API de CEP. Em qualquer caso só preenche o que
+// está vazio, nunca sobrescreve um valor que já existe — usado tanto ao
+// carregar um cliente já cadastrado (CPF, busca por nome) quanto ao abrir uma
+// OS já existente que referencia esse cliente.
+export async function completarEnderecoCliente(valor: ClienteBlockValue): Promise<ClienteBlockValue> {
+  let atual = valor
+
+  const separado = separarEnderecoConcatenado(atual)
+  if (separado) atual = { ...atual, ...separado }
+
+  const enderecoIncompleto = !atual.endereco.trim() || !atual.bairro.trim() || !atual.codigoCidade.trim()
+  const cepLimpo = atual.cep.replace(/\D/g, '')
+  if (!enderecoIncompleto || cepLimpo.length !== 8) return atual
+
+  const endereco = await buscarEnderecoPorCep(cepLimpo)
+  if (!endereco) return atual
+  return {
+    ...atual,
+    endereco: atual.endereco.trim() || endereco.endereco,
+    bairro: atual.bairro.trim() || endereco.bairro,
+    cidade: atual.cidade.trim() || endereco.cidade,
+    estado: atual.estado.trim() || endereco.estado,
+    codigoCidade: atual.codigoCidade.trim() || endereco.codigoCidade,
+  }
 }
 
 export function clienteBlockValueParaInput(valor: ClienteBlockValue): ClienteInput {

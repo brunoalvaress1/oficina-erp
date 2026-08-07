@@ -42,6 +42,7 @@ import {
   clienteBlockValueParaInput,
   clienteBlockValueValido,
   clienteBlockValueVazio,
+  completarEnderecoCliente,
   veiculoBlockValueDoExistente,
   veiculoBlockValueInformado,
   veiculoBlockValueParaInput,
@@ -108,7 +109,13 @@ export function OrdemForm() {
   }, [veiculoDaOrdem?.id])
 
   useEffect(() => {
-    if (clienteDaOrdem) setClienteBlockValue(clienteBlockValueDoExistente(clienteDaOrdem))
+    if (!clienteDaOrdem) return
+    const valor = clienteBlockValueDoExistente(clienteDaOrdem)
+    setClienteBlockValue(valor)
+    // Endereço incompleto/malformado (bairro colado na rua, faltando CEP)
+    // é comum em cadastros antigos importados — completa automaticamente ao
+    // abrir a OS, igual já acontece ao selecionar o cliente por CPF/nome.
+    completarEnderecoCliente(valor).then(setClienteBlockValue)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clienteDaOrdem?.id])
 
@@ -320,7 +327,7 @@ export function OrdemForm() {
     }
   }
 
-  function handleSalvarCabecalho() {
+  async function handleSalvarCabecalho() {
     // Dados do veículo (marca/modelo/cor/etc) vivem na tabela veiculos, não na
     // OS — se algo mudou aqui (cadastro incompleto sendo corrigido direto na
     // OS), persiste separado. Usa o dono ATUAL do veículo (não o do bloco de
@@ -343,6 +350,33 @@ export function OrdemForm() {
           id: veiculoExistente.id,
           input: veiculoBlockValueParaInput(veiculoBlockValue, veiculoExistente.clienteId),
         })
+      }
+    }
+
+    // Mesma lógica pro cliente: telefone/e-mail/endereço vivem na tabela
+    // clientes, não na OS. CPF/CNPJ fica travado no bloco enquanto a OS já
+    // tem cliente vinculado, então clienteExistente aqui sempre é o mesmo
+    // cliente da OS — nunca risco de salvar em cima do cliente errado.
+    const clienteExistente = clienteBlockValue.clienteExistente
+    if (clienteExistente) {
+      const dadosClienteMudaram =
+        clienteBlockValue.telefone !== (clienteExistente.telefone ?? '') ||
+        clienteBlockValue.email !== (clienteExistente.email ?? '') ||
+        clienteBlockValue.cep !== (clienteExistente.cep ?? '') ||
+        clienteBlockValue.endereco !== (clienteExistente.endereco ?? '') ||
+        clienteBlockValue.numero !== (clienteExistente.numero ?? '') ||
+        clienteBlockValue.bairro !== (clienteExistente.bairro ?? '') ||
+        clienteBlockValue.cidade !== (clienteExistente.cidade ?? '') ||
+        clienteBlockValue.estado !== (clienteExistente.estado ?? '') ||
+        clienteBlockValue.codigoCidade !== (clienteExistente.codigoCidade ?? '')
+      if (dadosClienteMudaram) {
+        try {
+          await atualizarCliente(clienteExistente.id, clienteBlockValueParaInput(clienteBlockValue))
+        } catch (error) {
+          toast.error('Erro ao salvar dados do cliente', {
+            description: error instanceof Error ? error.message : String(error),
+          })
+        }
       }
     }
 
@@ -587,7 +621,8 @@ export function OrdemForm() {
         value={clienteBlockValue}
         onChange={setClienteBlockValue}
         tentouSalvar={tentouSalvar}
-        disabled={!modoCriacao || somenteLeitura}
+        disabled={somenteLeitura}
+        permitirEditarClienteExistente={!modoCriacao}
       />
 
       <div className="space-y-4">

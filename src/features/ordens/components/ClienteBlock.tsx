@@ -8,7 +8,12 @@ import { useClienteSearch } from '@/features/clientes/hooks/useClienteSearch'
 import { buscarEnderecoPorCep } from '@/utils/cep'
 import { formatCpfCnpj, formatPhone, formatCep, capitalizarPalavras } from '@/utils/format'
 import { cpfCnpjValidoOuVazio } from '@/utils/cpfCnpj'
-import { clienteBlockValueDoExistente, clienteBlockValueVazio, type ClienteBlockValue } from '../types/veiculoClienteForm'
+import {
+  clienteBlockValueDoExistente,
+  clienteBlockValueVazio,
+  completarEnderecoCliente,
+  type ClienteBlockValue,
+} from '../types/veiculoClienteForm'
 import type { Cliente } from '@/features/clientes/types/cliente'
 
 interface ClienteBlockProps {
@@ -16,9 +21,16 @@ interface ClienteBlockProps {
   onChange: (valor: ClienteBlockValue) => void
   tentouSalvar: boolean
   disabled?: boolean
+  // true ao EDITAR uma OS já existente (nunca na criação) — solta telefone,
+  // e-mail e endereço mesmo com o cliente já cadastrado (pra poder corrigir/
+  // completar um cadastro incompleto direto por aqui). CPF/CNPJ continua
+  // travado nesse modo: trocar de cliente não é "editar dados", senão o
+  // salvamento do cabeçalho da OS acabaria alterando o cadastro do cliente
+  // errado.
+  permitirEditarClienteExistente?: boolean
 }
 
-export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: ClienteBlockProps) {
+export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitirEditarClienteExistente }: ClienteBlockProps) {
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [buscaNomeAberta, setBuscaNomeAberta] = useState(false)
@@ -47,67 +59,14 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
     onChange({ ...value, ...alteracoes })
   }
 
-  // Assinatura de um import antigo em CSV: o bairro nunca foi separado,
-  // ficou colado dentro do próprio campo de endereço junto com o número
-  // (ex: "Rua X, 130, Jardim Y" ou só "Rua X, Jardim Y"). Detecta pela
-  // vírgula e separa — bairro é sempre o último pedaço, o primeiro é a rua,
-  // e um pedaço do meio só vira número se for puramente numérico (o resto
-  // que sobrar, tipo "Até 1730/1731", vai pro complemento em vez de se
-  // perder). Só mexe quando o bairro está vazio — nunca risco de estragar
-  // um cadastro que já está correto.
-  function separarEnderecoConcatenado(valor: ClienteBlockValue): Partial<ClienteBlockValue> | null {
-    if (valor.bairro.trim()) return null
-    const partes = valor.endereco
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)
-    if (partes.length < 2) return null
-
-    const bairro = partes[partes.length - 1]
-    const rua = partes[0]
-    const meio = partes.slice(1, -1)
-    const numeroExtraido = !valor.numero.trim() ? meio.find((p) => /^\d+$/.test(p)) : undefined
-    const resto = meio.filter((p) => p !== numeroExtraido)
-
-    return {
-      endereco: rua,
-      bairro,
-      numero: numeroExtraido || valor.numero,
-      complemento: resto.length > 0 ? [valor.complemento, resto.join(', ')].filter(Boolean).join(' - ') : valor.complemento,
-    }
-  }
-
   // Carrega os dados de um cliente já cadastrado (via CPF/CNPJ ou via busca
-  // por nome). Endereço incompleto ou malformado (comum em cadastros antigos
-  // importados) é corrigido em duas etapas: primeiro tenta separar um
-  // endereço concatenado (sem precisar de rede); se ainda faltar algo e
-  // tiver um CEP válido salvo, completa pela API de CEP. Em qualquer caso só
-  // preenche o que está vazio, nunca sobrescreve um valor que já existe —
-  // o operador vê o resultado na tela e corrige na hora se não ficar perfeito.
+  // por nome) e corrige endereço incompleto/malformado (ver
+  // completarEnderecoCliente) — mostra os dados brutos na hora, depois
+  // atualiza com a correção assim que ela terminar.
   async function aplicarClienteExistente(cliente: Cliente) {
-    let valor = clienteBlockValueDoExistente(cliente)
+    const valor = clienteBlockValueDoExistente(cliente)
     onChange(valor)
-
-    const separado = separarEnderecoConcatenado(valor)
-    if (separado) {
-      valor = { ...valor, ...separado }
-      onChange(valor)
-    }
-
-    const enderecoIncompleto = !valor.endereco.trim() || !valor.bairro.trim() || !valor.codigoCidade.trim()
-    const cepLimpo = valor.cep.replace(/\D/g, '')
-    if (!enderecoIncompleto || cepLimpo.length !== 8) return
-
-    const endereco = await buscarEnderecoPorCep(cepLimpo)
-    if (!endereco) return
-    onChange({
-      ...valor,
-      endereco: valor.endereco.trim() || endereco.endereco,
-      bairro: valor.bairro.trim() || endereco.bairro,
-      cidade: valor.cidade.trim() || endereco.cidade,
-      estado: valor.estado.trim() || endereco.estado,
-      codigoCidade: valor.codigoCidade.trim() || endereco.codigoCidade,
-    })
+    onChange(await completarEnderecoCliente(valor))
   }
 
   async function handleSelecionarClientePorNome(id: string) {
@@ -219,6 +178,11 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
   // muitos clientes antigos foram importados sem esses dados.
   const somenteLeituraCampos = disabled || Boolean(value.clienteExistente)
   const somenteLeituraEndereco = disabled
+  // CPF/CNPJ não é gated por clienteExistente como nome/sexo/nascimento (tem
+  // que poder digitar um documento novo do zero) — mas ao editar uma OS já
+  // existente isso precisa travar assim que houver um cliente vinculado, ou
+  // trocar o documento aqui trocaria pra qual cliente essa OS aponta.
+  const cpfCnpjTravado = disabled || (permitirEditarClienteExistente && Boolean(value.clienteExistente))
   const digitosDocumento = value.cpfCnpj.replace(/\D/g, '')
   const ehPessoaJuridica = digitosDocumento.length === 14
   const documentoInvalido = Boolean(digitosDocumento) && !cpfCnpjValidoOuVazio(value.cpfCnpj)
@@ -240,7 +204,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled }: Client
               value={value.cpfCnpj}
               onChange={(e) => handleCpfCnpjChange(e.target.value)}
               onFocus={handleTrocarDocumentoManualmente}
-              disabled={disabled}
+              disabled={cpfCnpjTravado}
               className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
                 (tentouSalvar && !value.cpfCnpj.trim()) || documentoInvalido
                   ? 'border-destructive focus:ring-destructive/40'
