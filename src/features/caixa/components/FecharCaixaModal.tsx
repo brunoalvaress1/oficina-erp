@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { formatCurrency } from '@/utils/format'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
 import { linhasEnderecoOficina } from '@/features/configuracoes/types/oficina'
+import { usePermissions } from '@/hooks/usePermissions'
 import { useResumoSessaoCaixa, useFecharCaixa } from '../hooks/useCaixaSessao'
 
 interface FecharCaixaModalProps {
@@ -19,20 +20,28 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
   const { data: resumo, isLoading } = useResumoSessaoCaixa(open ? caixaSessaoId : undefined)
   const fecharMutation = useFecharCaixa()
   const { data: oficina } = useDadosOficina()
+  const { hasPermission } = usePermissions()
+  // Lucro só aparece aqui, no fechamento — é a única tela do caixa que
+  // mostra esse dado, e mesmo assim só pra quem tem a permissão.
+  const podeVerLucro = hasPermission('ordens.visualizar_lucro')
 
   async function handleBaixarPdf() {
     if (!resumo) return
     setProcessandoPdf('baixar')
     try {
       const { gerarEBaixarPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
-      await gerarEBaixarPdfFechamento(resumo, {
-        cnpj: oficina?.cnpj,
-        enderecoLinhas: linhasEnderecoOficina(oficina),
-        telefone: oficina?.telefone,
-        email: oficina?.email,
-        logoUrl: oficina?.logoUrl,
-        rodape: oficina?.rodapeImpressao,
-      })
+      await gerarEBaixarPdfFechamento(
+        resumo,
+        {
+          cnpj: oficina?.cnpj,
+          enderecoLinhas: linhasEnderecoOficina(oficina),
+          telefone: oficina?.telefone,
+          email: oficina?.email,
+          logoUrl: oficina?.logoUrl,
+          rodape: oficina?.rodapeImpressao,
+        },
+        podeVerLucro,
+      )
     } catch (error) {
       toast.error('Erro ao gerar PDF', { description: error instanceof Error ? error.message : String(error) })
     } finally {
@@ -45,14 +54,18 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
     setProcessandoPdf('imprimir')
     try {
       const { gerarEAbrirPdfFechamento } = await import('./DocumentoFechamentoCaixaPdf')
-      await gerarEAbrirPdfFechamento(resumo, {
-        cnpj: oficina?.cnpj,
-        enderecoLinhas: linhasEnderecoOficina(oficina),
-        telefone: oficina?.telefone,
-        email: oficina?.email,
-        logoUrl: oficina?.logoUrl,
-        rodape: oficina?.rodapeImpressao,
-      })
+      await gerarEAbrirPdfFechamento(
+        resumo,
+        {
+          cnpj: oficina?.cnpj,
+          enderecoLinhas: linhasEnderecoOficina(oficina),
+          telefone: oficina?.telefone,
+          email: oficina?.email,
+          logoUrl: oficina?.logoUrl,
+          rodape: oficina?.rodapeImpressao,
+        },
+        podeVerLucro,
+      )
     } catch (error) {
       toast.error('Erro ao gerar PDF', { description: error instanceof Error ? error.message : String(error) })
     } finally {
@@ -92,6 +105,11 @@ export function FecharCaixaModal({ caixaSessaoId, open, onOpenChange }: FecharCa
               <div className="border-t pt-2">
                 <Linha label={`Total Geral (${resumo.quantidadeRecebimentos} recebimentos)`} valor={formatCurrency(resumo.totalGeral)} destaque />
               </div>
+              {podeVerLucro && (
+                <div className="border-t pt-2">
+                  <Linha label="Lucro do Período" valor={formatCurrency(resumo.lucroTotal)} destaque />
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">

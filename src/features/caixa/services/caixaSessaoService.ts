@@ -82,7 +82,14 @@ export async function buscarResumoSessao(caixaSessaoId: string): Promise<ResumoS
   const recebimentosResp = await supabase
     .from('caixa_recebimentos')
     .select(
-      'id, valor_total, created_at, caixa_recebimento_formas(valor, forma_pagamento), caixa_lancamentos(ordens_servico(numero, clientes(nome)))',
+      `id, valor_total, created_at,
+       caixa_recebimento_formas(valor, forma_pagamento),
+       caixa_lancamentos(
+         ordens_servico(
+           numero, clientes(nome),
+           ordem_servico_itens(tipo, quantidade, valor_total, valor_custo)
+         )
+       )`,
     )
     .eq('caixa_sessao_id', caixaSessaoId)
     .eq('cancelado', false)
@@ -99,6 +106,17 @@ export async function buscarResumoSessao(caixaSessaoId: string): Promise<ResumoS
 
   const totalDinheiro = somaPorForma('dinheiro')
 
+  // Lucro só existe aqui, no fechamento — não é exposto no resumo do dia a
+  // dia do caixa (ver caixaService.buscarDashboardCaixa). Mesma regra do
+  // lucro estimado da OS: serviço entra inteiro (não tem custo de peça),
+  // peça sem custo registrado é ignorada.
+  const itens = recebimentos.flatMap((r: any) => r.caixa_lancamentos?.ordens_servico?.ordem_servico_itens ?? [])
+  const lucroTotal = itens.reduce((soma: number, item: any) => {
+    if (item.tipo === 'servico') return soma + Number(item.valor_total)
+    if (item.valor_custo != null) return soma + (Number(item.valor_total) - Number(item.valor_custo) * Number(item.quantidade))
+    return soma
+  }, 0)
+
   return {
     sessao,
     totalDinheiro,
@@ -113,6 +131,7 @@ export async function buscarResumoSessao(caixaSessaoId: string): Promise<ResumoS
     totalGeral: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
     quantidadeRecebimentos: recebimentos.length,
     valorEsperadoDinheiro: sessao.valorAbertura + totalDinheiro,
+    lucroTotal,
     recebimentos: recebimentos.map((r: any) => ({
       ordemNumero: Number(r.caixa_lancamentos?.ordens_servico?.numero ?? 0),
       clienteNome: r.caixa_lancamentos?.ordens_servico?.clientes?.nome ?? null,

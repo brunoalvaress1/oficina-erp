@@ -39,5 +39,6 @@ export interface ResumoSessaoCaixa {
   totalGeral: number
   quantidadeRecebimentos: number
   valorEsperadoDinheiro: number
+  lucroTotal: number
   recebimentos: RecebimentoResumoSessao[]
 }

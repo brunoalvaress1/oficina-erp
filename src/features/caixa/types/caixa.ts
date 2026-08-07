@@ -149,5 +149,4 @@ export interface DashboardCaixa {
   pendentes: number
   quantidadeOs: number
   totalGeral: number
-  lucroHoje: number
 }

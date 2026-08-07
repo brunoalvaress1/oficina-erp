@@ -1,13 +1,13 @@
 import { Wallet } from 'lucide-react'
 import { useDashboardCaixa } from '../hooks/useDashboardCaixa'
-import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency } from '@/utils/format'
 import { cn } from '@/lib/utils'
 
+// Lucro não aparece aqui de propósito, nem pra quem tem permissão — só é
+// mostrado no momento do fechamento do caixa (ver FecharCaixaModal), pra não
+// ficar exposto no dia a dia.
 export function DashboardCaixa() {
   const { data, isLoading } = useDashboardCaixa()
-  const { hasPermission } = usePermissions()
-  const podeVerLucro = hasPermission('ordens.visualizar_lucro')
 
   if (isLoading || !data) {
     return (
@@ -38,9 +38,6 @@ export function DashboardCaixa() {
         </div>
         <div className="border-t pt-2 mt-2">
           <Linha label="Total Geral" valor={formatCurrency(data.totalGeral)} destaque cor="text-primary" />
-          {podeVerLucro && (
-            <Linha label="Lucro Hoje" valor={formatCurrency(data.lucroHoje)} destaque cor="text-emerald-600 dark:text-emerald-400" />
-          )}
         </div>
       </div>
     </div>

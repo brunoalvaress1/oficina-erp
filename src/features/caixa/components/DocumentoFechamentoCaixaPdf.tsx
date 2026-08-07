@@ -55,9 +55,13 @@ function formatarDataHora(data: string): string {
 interface DocumentoFechamentoCaixaPdfProps {
   resumo: ResumoSessaoCaixa
   cabecalho?: CabecalhoOficinaPdf
+  // Lucro só entra no PDF pra quem tem permissão de ver lucro — o resumo já
+  // traz o valor calculado independente disso, então quem chama decide se
+  // passa true aqui (ver FecharCaixaModal).
+  mostrarLucro?: boolean
 }
 
-export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFechamentoCaixaPdfProps) {
+export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho, mostrarLucro }: DocumentoFechamentoCaixaPdfProps) {
   const { sessao } = resumo
   const linhasOficina = linhasInfoOficina(cabecalho)
 
@@ -141,6 +145,7 @@ export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFech
             <Text style={estilos.valor}>{formatarMoeda(resumo.valorEsperadoDinheiro)}</Text>
           </View>
           <Text style={estilos.totalGeral}>Total Geral Recebido: {formatarMoeda(resumo.totalGeral)}</Text>
+          {mostrarLucro && <Text style={estilos.totalGeral}>Lucro do Período: {formatarMoeda(resumo.lucroTotal)}</Text>}
         </View>
 
         <View style={estilos.secao}>
@@ -170,8 +175,12 @@ export function DocumentoFechamentoCaixaPdf({ resumo, cabecalho }: DocumentoFech
   )
 }
 
-export async function gerarEBaixarPdfFechamento(resumo: ResumoSessaoCaixa, cabecalho?: CabecalhoOficinaPdf): Promise<void> {
-  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} cabecalho={cabecalho} />).toBlob()
+export async function gerarEBaixarPdfFechamento(
+  resumo: ResumoSessaoCaixa,
+  cabecalho?: CabecalhoOficinaPdf,
+  mostrarLucro?: boolean,
+): Promise<void> {
+  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} cabecalho={cabecalho} mostrarLucro={mostrarLucro} />).toBlob()
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -182,8 +191,12 @@ export async function gerarEBaixarPdfFechamento(resumo: ResumoSessaoCaixa, cabec
   URL.revokeObjectURL(url)
 }
 
-export async function gerarEAbrirPdfFechamento(resumo: ResumoSessaoCaixa, cabecalho?: CabecalhoOficinaPdf): Promise<void> {
-  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} cabecalho={cabecalho} />).toBlob()
+export async function gerarEAbrirPdfFechamento(
+  resumo: ResumoSessaoCaixa,
+  cabecalho?: CabecalhoOficinaPdf,
+  mostrarLucro?: boolean,
+): Promise<void> {
+  const blob = await pdf(<DocumentoFechamentoCaixaPdf resumo={resumo} cabecalho={cabecalho} mostrarLucro={mostrarLucro} />).toBlob()
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener,noreferrer')
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
