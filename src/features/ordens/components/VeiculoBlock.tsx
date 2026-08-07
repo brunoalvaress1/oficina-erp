@@ -20,6 +20,12 @@ interface VeiculoBlockProps {
   // CRIAR o veículo de novo (ainda não sabíamos que já existia) e batia na
   // trava de placa duplicada do banco.
   onBuscandoChange?: (buscando: boolean) => void
+  // true ao EDITAR uma OS já existente (nunca na criação) — solta os campos
+  // de dados do veículo mesmo quando ele já está cadastrado (pra poder
+  // corrigir/completar um cadastro incompleto direto por aqui), mas mantém a
+  // placa travada: trocar de veículo não é "editar dados", é outra OS ou o
+  // botão "Trocar dono".
+  permitirEditarVeiculoExistente?: boolean
 }
 
 export function VeiculoBlock({
@@ -31,6 +37,7 @@ export function VeiculoBlock({
   tentouSalvar,
   disabled,
   onBuscandoChange,
+  permitirEditarVeiculoExistente,
 }: VeiculoBlockProps) {
   const [buscandoNoBanco, setBuscandoNoBanco] = useState(false)
   const [modalDonoAberto, setModalDonoAberto] = useState(false)
@@ -74,6 +81,23 @@ export function VeiculoBlock({
     consultaPlaca.mutate(placaFormatada, {
       onSuccess: (dados) => {
         if (!dados) return
+        // Veículo já cadastrado (estamos completando um cadastro incompleto,
+        // não criando do zero) — só preenche o que estiver vazio, nunca
+        // sobrescreve um dado que já foi digitado ou corrigido antes, e
+        // mantém o vínculo com o veículo/dono existente.
+        if (value.veiculoExistente) {
+          atualizar({
+            marca: value.marca.trim() || dados.marca || '',
+            modelo: value.modelo.trim() || dados.modelo || '',
+            cor: value.cor.trim() || dados.cor || '',
+            ano: value.ano.trim() || dados.ano || '',
+            anoModelo: value.anoModelo.trim() || dados.anoModelo || '',
+            chassi: value.chassi.trim() || dados.chassi || '',
+            motor: value.motor.trim() || dados.motor || '',
+            combustivel: value.combustivel.trim() || dados.combustivel || '',
+          })
+          return
+        }
         onChange({
           veiculoExistente: null,
           placa: placaFormatada,
@@ -98,7 +122,9 @@ export function VeiculoBlock({
     }
   }
 
-  const somenteLeituraCampos = disabled || Boolean(value.veiculoExistente)
+  const somenteLeituraCampos = disabled || (Boolean(value.veiculoExistente) && !permitirEditarVeiculoExistente)
+  const placaTravada = disabled || (permitirEditarVeiculoExistente && Boolean(value.veiculoExistente))
+  const podeBuscarNaApi = !somenteLeituraCampos
   const kmMenorQueAnterior = kmAnterior != null && kmAtual.trim() !== '' && Number(kmAtual) < kmAnterior
   // Veículo é opcional (oficina não usa PDV) — só vira obrigatório campo a
   // campo quando a placa é preenchida (não dá pra ter só um pedaço do
@@ -141,7 +167,7 @@ export function VeiculoBlock({
                 onChange={(e) => handlePlacaChange(e.target.value)}
                 onFocus={handleTrocarPlacaManualmente}
                 maxLength={7}
-                disabled={disabled}
+                disabled={placaTravada}
                 placeholder="ABC1D23"
                 className="w-full h-9 rounded-md border bg-transparent px-3 text-sm uppercase outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
               />
@@ -149,7 +175,7 @@ export function VeiculoBlock({
                 <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               )}
             </div>
-            {!value.veiculoExistente && (
+            {podeBuscarNaApi && (
               <button
                 type="button"
                 onClick={handleBuscarNaApi}
@@ -162,7 +188,10 @@ export function VeiculoBlock({
             )}
           </div>
           {value.veiculoExistente ? (
-            <p className="text-xs text-green-600">Veículo já cadastrado — dados preenchidos automaticamente (sem custo)</p>
+            <p className="text-xs text-green-600">
+              Veículo já cadastrado — dados preenchidos automaticamente (sem custo)
+              {podeBuscarNaApi && ' · faltando algo? use a lupa pra completar pela API'}
+            </p>
           ) : (
             <p className="text-xs text-muted-foreground">Placa nova — clique na lupa pra buscar os dados (consulta paga) ou preencha manualmente</p>
           )}
@@ -173,22 +202,22 @@ export function VeiculoBlock({
           <input
             value={value.modelo}
             onChange={(e) => atualizar({ modelo: e.target.value })}
-            disabled={disabled || somenteLeituraCampos}
+            disabled={somenteLeituraCampos}
             className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
               tentouSalvar && veiculoInformado && !value.modelo.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
             }`}
           />
         </div>
 
-        <CampoTexto label="Marca" valor={value.marca} onChange={(v) => atualizar({ marca: v })} disabled={disabled || somenteLeituraCampos} />
-        <CampoTexto label="Ano" valor={value.ano} onChange={(v) => atualizar({ ano: v })} disabled={disabled || somenteLeituraCampos} />
-        <CampoTexto label="Ano Modelo" valor={value.anoModelo} onChange={(v) => atualizar({ anoModelo: v })} disabled={disabled || somenteLeituraCampos} />
-        <CampoTexto label="Cor" valor={value.cor} onChange={(v) => atualizar({ cor: v })} disabled={disabled || somenteLeituraCampos} />
-        <CampoTexto label="Motor" valor={value.motor} onChange={(v) => atualizar({ motor: v })} disabled={disabled || somenteLeituraCampos} />
-        <CampoTexto label="Combustível" valor={value.combustivel} onChange={(v) => atualizar({ combustivel: v })} disabled={disabled || somenteLeituraCampos} />
-        <CampoTexto label="Chassi" valor={value.chassi} onChange={(v) => atualizar({ chassi: v })} disabled={disabled || somenteLeituraCampos} />
+        <CampoTexto label="Marca" valor={value.marca} onChange={(v) => atualizar({ marca: v })} disabled={somenteLeituraCampos} />
+        <CampoTexto label="Ano" valor={value.ano} onChange={(v) => atualizar({ ano: v })} disabled={somenteLeituraCampos} />
+        <CampoTexto label="Ano Modelo" valor={value.anoModelo} onChange={(v) => atualizar({ anoModelo: v })} disabled={somenteLeituraCampos} />
+        <CampoTexto label="Cor" valor={value.cor} onChange={(v) => atualizar({ cor: v })} disabled={somenteLeituraCampos} />
+        <CampoTexto label="Motor" valor={value.motor} onChange={(v) => atualizar({ motor: v })} disabled={somenteLeituraCampos} />
+        <CampoTexto label="Combustível" valor={value.combustivel} onChange={(v) => atualizar({ combustivel: v })} disabled={somenteLeituraCampos} />
+        <CampoTexto label="Chassi" valor={value.chassi} onChange={(v) => atualizar({ chassi: v })} disabled={somenteLeituraCampos} />
         <div className="space-y-1 md:col-span-2">
-          <CampoTexto label="Opcionais" valor={value.opcionais} onChange={(v) => atualizar({ opcionais: v })} disabled={disabled || somenteLeituraCampos} />
+          <CampoTexto label="Opcionais" valor={value.opcionais} onChange={(v) => atualizar({ opcionais: v })} disabled={somenteLeituraCampos} />
         </div>
 
         <div className="space-y-1">

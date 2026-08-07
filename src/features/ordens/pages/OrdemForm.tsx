@@ -5,6 +5,7 @@ import { ClipboardList, FileText, Printer, MessageCircle } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useFuncionariosSelect } from '@/features/estoque/hooks/useFuncionariosSelect'
 import { useVeiculoDetalhe } from '@/features/veiculos/hooks/useVeiculoDetalhe'
+import { useUpdateVeiculo } from '@/features/veiculos/hooks/useVeiculoMutations'
 import { buscarVeiculoPorPlaca, criarVeiculo } from '@/features/veiculos/services/veiculoService'
 import { abrirWhatsApp, montarMensagemOrdemPronta } from '@/utils/whatsapp'
 import { useDadosOficina } from '@/features/configuracoes/hooks/useOficina'
@@ -112,6 +113,7 @@ export function OrdemForm() {
   }, [clienteDaOrdem?.id])
 
   const criarMutation = useCriarOrdemServico()
+  const atualizarVeiculoMutation = useUpdateVeiculo()
   const atualizarCabecalhoMutation = useAtualizarCabecalhoOrdem(id ?? '')
   const finalizarMutation = useFinalizarOrdemServico(id ?? '')
   const reabrirMutation = useReabrirOrdemServico(id ?? '')
@@ -319,6 +321,31 @@ export function OrdemForm() {
   }
 
   function handleSalvarCabecalho() {
+    // Dados do veículo (marca/modelo/cor/etc) vivem na tabela veiculos, não na
+    // OS — se algo mudou aqui (cadastro incompleto sendo corrigido direto na
+    // OS), persiste separado. Usa o dono ATUAL do veículo (não o do bloco de
+    // cliente), pra esse salvamento nunca mudar o dono sem querer — trocar
+    // dono tem botão próprio.
+    const veiculoExistente = veiculoBlockValue.veiculoExistente
+    if (veiculoExistente) {
+      const dadosVeiculoMudaram =
+        veiculoBlockValue.marca !== (veiculoExistente.marca ?? '') ||
+        veiculoBlockValue.modelo !== veiculoExistente.modelo ||
+        veiculoBlockValue.cor !== (veiculoExistente.cor ?? '') ||
+        veiculoBlockValue.ano !== (veiculoExistente.ano ?? '') ||
+        veiculoBlockValue.anoModelo !== (veiculoExistente.anoModelo ?? '') ||
+        veiculoBlockValue.chassi !== (veiculoExistente.chassi ?? '') ||
+        veiculoBlockValue.motor !== (veiculoExistente.motor ?? '') ||
+        veiculoBlockValue.combustivel !== (veiculoExistente.combustivel ?? '') ||
+        veiculoBlockValue.opcionais !== (veiculoExistente.opcionais ?? '')
+      if (dadosVeiculoMudaram) {
+        atualizarVeiculoMutation.mutate({
+          id: veiculoExistente.id,
+          input: veiculoBlockValueParaInput(veiculoBlockValue, veiculoExistente.clienteId),
+        })
+      }
+    }
+
     atualizarCabecalhoMutation.mutate({
       numeroPrisma: numeroPrisma || undefined,
       mecanicoId: mecanicoId || undefined,
@@ -551,8 +578,9 @@ export function OrdemForm() {
         onChangeKmAtual={setKmAtual}
         kmAnterior={kmAnterior}
         tentouSalvar={tentouSalvar}
-        disabled={!modoCriacao || somenteLeitura}
+        disabled={somenteLeitura}
         onBuscandoChange={setBuscandoVeiculo}
+        permitirEditarVeiculoExistente={!modoCriacao}
       />
 
       <ClienteBlock
