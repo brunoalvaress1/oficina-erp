@@ -239,7 +239,9 @@ export function OrdemForm() {
     if (!clienteIdDoVeiculo || clienteBlockValue.clienteExistente?.id === clienteIdDoVeiculo) return
 
     const cliente = await buscarClientePorId(clienteIdDoVeiculo)
-    setClienteBlockValue(clienteBlockValueDoExistente(cliente))
+    const valorCliente = clienteBlockValueDoExistente(cliente)
+    setClienteBlockValue(valorCliente)
+    setClienteBlockValue(await completarEnderecoCliente(valorCliente))
   }
 
   async function handleSalvarNova() {
