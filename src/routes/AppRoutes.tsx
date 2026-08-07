@@ -7,6 +7,7 @@ import { SuperAdminRoute } from './SuperAdminRoute'
 import { SuperAdminOficinas } from '@/features/superAdmin/pages/SuperAdminOficinas'
 import { Login } from '@/pages/Login'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { Dashboard } from '@/features/dashboard/pages/Dashboard'
 import { ClientesList } from '@/features/clientes/pages/ClientesList'
 import { VeiculosList } from '@/features/veiculos/pages/VeiculosList'
 import { ProdutosList } from '@/features/produtos/pages/ProdutosList'
@@ -69,7 +70,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<PlaceholderPage title="Dashboard" />} />
+        <Route path="/dashboard" element={<Dashboard />} />
 
         <Route path="/clientes" element={<PermissionRoute codigo="clientes.visualizar"><ClientesList /></PermissionRoute>} />
         <Route path="/clientes/novo" element={<PermissionRoute codigo="clientes.visualizar"><PlaceholderPage title="Novo Cliente" /></PermissionRoute>} />

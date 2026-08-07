@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PermissionGate } from './PermissionGate'
+import { PermissoesChecklist } from './PermissoesChecklist'
 import { HistoricoFuncionario } from './HistoricoFuncionario'
 import { useCriarFuncionario, useAtualizarFuncionario } from '../hooks/useFuncionarioMutations'
 import { usePermissoesCatalogo } from '../hooks/usePermissoesCatalogo'
@@ -70,15 +71,6 @@ export function FuncionarioModal({ funcionario, open, onOpenChange }: Funcionari
 
   const { data: historico } = useHistoricoFuncionario(aba === 'historico' ? funcionario?.id : undefined)
 
-  function alternarCodigo(codigo: string) {
-    setCodigosSelecionados((atual) => {
-      const novo = new Set(atual)
-      if (novo.has(codigo)) novo.delete(codigo)
-      else novo.add(codigo)
-      return novo
-    })
-  }
-
   function aplicarPerfil() {
     const perfil = (perfis ?? []).find((p) => p.id === perfilParaAplicar)
     if (!perfil) return
@@ -99,7 +91,6 @@ export function FuncionarioModal({ funcionario, open, onOpenChange }: Funcionari
     definirPermissoes.mutate({ funcionarioId: funcionario.id, codigos: Array.from(codigosSelecionados) })
   }
 
-  const categorias = Array.from(new Set((catalogo ?? []).map((p) => p.categoria))).sort()
   const podeSalvarDados = nome.trim() !== '' && (ehEdicao || (email.trim() !== '' && senha.trim().length >= 6))
   const salvandoDados = criar.isPending || atualizar.isPending
 
@@ -241,25 +232,7 @@ export function FuncionarioModal({ funcionario, open, onOpenChange }: Funcionari
                 </button>
               </div>
             )}
-            <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-              {categorias.map((categoria) => (
-                <div key={categoria} className="space-y-1.5">
-                  <h3 className="text-xs font-semibold uppercase text-muted-foreground">{categoria}</h3>
-                  {(catalogo ?? [])
-                    .filter((p) => p.categoria === categoria)
-                    .map((permissao) => (
-                      <label key={permissao.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={codigosSelecionados.has(permissao.codigo)}
-                          onChange={() => alternarCodigo(permissao.codigo)}
-                        />
-                        {permissao.descricao}
-                      </label>
-                    ))}
-                </div>
-              ))}
-            </div>
+            <PermissoesChecklist catalogo={catalogo ?? []} selecionados={codigosSelecionados} onChange={setCodigosSelecionados} />
             <button
               type="button"
               disabled={definirPermissoes.isPending}

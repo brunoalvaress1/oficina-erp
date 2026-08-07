@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { usePermissoesCatalogo } from '@/features/funcionarios/hooks/usePermissoesCatalogo'
+import { PermissoesChecklist } from '@/features/funcionarios/components/PermissoesChecklist'
 import { useAtualizarPerfil, useCriarPerfil, useExcluirPerfil, usePerfis } from '../hooks/usePerfis'
 import type { PerfilPermissao } from '../types/permissaoPerfil'
 
@@ -33,15 +34,6 @@ export function Perfis() {
     setModalAberto(true)
   }
 
-  function alternarCodigo(codigo: string) {
-    setCodigosSelecionados((atual) => {
-      const novo = new Set(atual)
-      if (novo.has(codigo)) novo.delete(codigo)
-      else novo.add(codigo)
-      return novo
-    })
-  }
-
   function handleSalvar() {
     const input = { nome, codigos: Array.from(codigosSelecionados) }
     if (perfilEditando) {
@@ -56,7 +48,6 @@ export function Perfis() {
     excluir.mutate(perfil.id)
   }
 
-  const categorias = Array.from(new Set((catalogo ?? []).map((p) => p.categoria))).sort()
   const salvando = criar.isPending || atualizar.isPending
 
   return (
@@ -127,21 +118,7 @@ export function Perfis() {
                 className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
-            <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
-              {categorias.map((categoria) => (
-                <div key={categoria} className="space-y-1.5">
-                  <h3 className="text-xs font-semibold uppercase text-muted-foreground">{categoria}</h3>
-                  {(catalogo ?? [])
-                    .filter((p) => p.categoria === categoria)
-                    .map((permissao) => (
-                      <label key={permissao.id} className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={codigosSelecionados.has(permissao.codigo)} onChange={() => alternarCodigo(permissao.codigo)} />
-                        {permissao.descricao}
-                      </label>
-                    ))}
-                </div>
-              ))}
-            </div>
+            <PermissoesChecklist catalogo={catalogo ?? []} selecionados={codigosSelecionados} onChange={setCodigosSelecionados} />
             <button
               type="button"
               disabled={!nome.trim() || salvando}
