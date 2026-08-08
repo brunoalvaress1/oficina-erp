@@ -149,6 +149,18 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
     query = query.eq('status', params.status)
   }
 
+  if (params.veiculoId) {
+    query = query.eq('veiculo_id', params.veiculoId)
+  }
+
+  if (params.dataAberturaInicio) {
+    query = query.gte('data_abertura', params.dataAberturaInicio)
+  }
+
+  if (params.dataAberturaFim) {
+    query = query.lte('data_abertura', params.dataAberturaFim)
+  }
+
   if (search) {
     const termo = search.replace(/,/g, ' ')
     const condicoes = [

@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDebouncedCallback } from 'use-debounce'
-import { Plus } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
+import { Combobox } from '@/components/ui/Combobox'
+import { FiltroPeriodoOpcional, filtroPeriodoOpcionalPadrao, type FiltroPeriodoOpcionalState } from '@/components/ui/FiltroPeriodoOpcional'
+import { useVeiculosBusca } from '@/features/veiculos/hooks/useVeiculosBusca'
+import type { Veiculo } from '@/features/veiculos/types/veiculo'
 import { useOrdens } from '../hooks/useOrdens'
 import { useSemaforoItens } from '../hooks/useSemaforoItens'
 import { OrdemCard } from '../components/OrdemCard'
 import { PermissionGate } from '../components/PermissionGate'
 import { Pagination } from '@/components/ui/Pagination'
-import { ROTULO_STATUS_ORDEM, type StatusOrdemServico } from '../types/ordemServico'
+import { ROTULO_STATUS_ORDEM, type CampoOrdenacaoOrdem, type StatusOrdemServico } from '../types/ordemServico'
 
 const FILTROS_STATUS: Array<{ valor: StatusOrdemServico | 'todas'; rotulo: string }> = [
   { valor: 'todas', rotulo: 'Todas' },
@@ -30,6 +34,21 @@ export function OrdensList() {
   const [status, setStatus] = useState<StatusOrdemServico | 'todas'>('todas')
   const [numeroNota, setNumeroNota] = useState('')
   const [numeroNotaDebounced, setNumeroNotaDebounced] = useState('')
+  const [veiculoFiltro, setVeiculoFiltro] = useState<Veiculo | null>(null)
+  const [termoBuscaVeiculo, setTermoBuscaVeiculo] = useState('')
+  const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
+  const [sortBy, setSortBy] = useState<CampoOrdenacaoOrdem>('numero')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const { data: veiculosEncontrados = [] } = useVeiculosBusca(termoBuscaVeiculo)
+
+  function handleOrdenarPor(campo: CampoOrdenacaoOrdem) {
+    if (sortBy === campo) {
+      setSortDirection((atual) => (atual === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(campo)
+      setSortDirection('asc')
+    }
+  }
 
   const aplicarBuscaComDebounce = useDebouncedCallback((valor: string) => {
     setBuscaDebounced(valor)
@@ -57,8 +76,11 @@ export function OrdensList() {
     search: buscaDebounced,
     status,
     numeroNota: numeroNotaDebounced,
-    sortBy: 'numero',
-    sortDirection: 'desc',
+    veiculoId: veiculoFiltro?.id,
+    dataAberturaInicio: filtroPeriodo.periodo === 'todas' ? undefined : filtroPeriodo.dataInicio || undefined,
+    dataAberturaFim: filtroPeriodo.periodo === 'todas' ? undefined : filtroPeriodo.dataFim || undefined,
+    sortBy,
+    sortDirection,
   })
 
   const ordens = data?.data ?? []
@@ -97,6 +119,33 @@ export function OrdensList() {
               placeholder="Filtrar por nº da Nota Fiscal do fornecedor..."
               className="md:w-72 h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
+            <div className="md:w-64">
+              <Combobox<Veiculo>
+                value={veiculoFiltro}
+                onSelect={(veiculo) => {
+                  setVeiculoFiltro(veiculo)
+                  setPage(1)
+                }}
+                onSearch={setTermoBuscaVeiculo}
+                items={veiculosEncontrados}
+                getKey={(v) => v.id}
+                getLabel={(v) => `${v.placa} — ${v.modelo}`}
+                placeholder="Filtrar por veículo (placa/modelo)..."
+              />
+            </div>
+            {veiculoFiltro && (
+              <button
+                type="button"
+                onClick={() => {
+                  setVeiculoFiltro(null)
+                  setTermoBuscaVeiculo('')
+                  setPage(1)
+                }}
+                className="h-9 px-3 rounded-md border text-xs font-medium shrink-0"
+              >
+                Limpar veículo
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {FILTROS_STATUS.map((filtro) => (
@@ -115,21 +164,35 @@ export function OrdensList() {
               </button>
             ))}
           </div>
+          <FiltroPeriodoOpcional
+            valor={filtroPeriodo}
+            onChange={(novo) => {
+              setFiltroPeriodo(novo)
+              setPage(1)
+            }}
+          />
         </div>
 
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
               <th className="w-10 px-3 py-2"></th>
-              <th className="text-left font-medium px-3 py-2">Nº OS</th>
+              <ThOrdenavel campo="numero" rotulo="Nº OS" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
               <th className="text-left font-medium px-3 py-2">Cliente</th>
               <th className="text-left font-medium px-3 py-2">Veículo</th>
               <th className="text-left font-medium px-3 py-2">Placa</th>
               <th className="text-left font-medium px-3 py-2">KM</th>
-              <th className="text-left font-medium px-3 py-2">Status</th>
+              <ThOrdenavel campo="status" rotulo="Status" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
               <th className="text-left font-medium px-3 py-2">Mecânico</th>
-              <th className="text-right font-medium px-3 py-2">Valor Total</th>
-              <th className="text-left font-medium px-3 py-2">Abertura</th>
+              <ThOrdenavel
+                campo="valorTotal"
+                rotulo="Valor Total"
+                alinhamento="right"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onOrdenar={handleOrdenarPor}
+              />
+              <ThOrdenavel campo="dataAbertura" rotulo="Abertura" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
             </tr>
           </thead>
           <tbody>
@@ -167,5 +230,30 @@ export function OrdensList() {
         }}
       />
     </div>
+  )
+}
+
+interface ThOrdenavelProps {
+  campo: CampoOrdenacaoOrdem
+  rotulo: string
+  alinhamento?: 'left' | 'right'
+  sortBy: CampoOrdenacaoOrdem
+  sortDirection: 'asc' | 'desc'
+  onOrdenar: (campo: CampoOrdenacaoOrdem) => void
+}
+
+function ThOrdenavel({ campo, rotulo, alinhamento = 'left', sortBy, sortDirection, onOrdenar }: ThOrdenavelProps) {
+  const ativo = sortBy === campo
+  return (
+    <th className={`font-medium px-3 py-2 ${alinhamento === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        type="button"
+        onClick={() => onOrdenar(campo)}
+        className={`flex items-center gap-0.5 hover:text-foreground transition-colors ${alinhamento === 'right' ? 'ml-auto' : ''} ${ativo ? 'text-foreground' : ''}`}
+      >
+        {rotulo}
+        {ativo && (sortDirection === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />)}
+      </button>
+    </th>
   )
 }

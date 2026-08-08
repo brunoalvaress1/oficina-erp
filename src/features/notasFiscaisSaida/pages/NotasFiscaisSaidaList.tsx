@@ -3,7 +3,11 @@ import { ExternalLink, FileCheck2, FileText, Hourglass, QrCode, Receipt, Refresh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency } from '@/utils/format'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
-import { calcularIntervaloPeriodo, ROTULO_PERIODO_FINANCEIRO, type PeriodoFinanceiro } from '@/features/financeiro/types/filtroFinanceiro'
+import {
+  FiltroPeriodoOpcional,
+  filtroPeriodoOpcionalPadrao,
+  type FiltroPeriodoOpcionalState,
+} from '@/components/ui/FiltroPeriodoOpcional'
 import { PermissionGate } from '../components/PermissionGate'
 import { EmitirNotaFiscalModal } from '../components/EmitirNotaFiscalModal'
 import {
@@ -38,68 +42,6 @@ const COR_STATUS: Record<StatusNotaFiscal, string> = {
   erro: 'bg-red-100 text-red-700',
 }
 
-// "Todas" não existe nos períodos do Financeiro (lá sempre tem um período
-// ativo) — aqui faz diferença: filtrar por período por padrão esconderia
-// silenciosamente OS pagas antigas ainda pendentes de emitir, então o filtro
-// de data começa desligado nas duas abas e é opt-in.
-type PeriodoNotas = 'todas' | PeriodoFinanceiro
-
-const PERIODOS_NOTAS: PeriodoNotas[] = ['todas', 'hoje', 'ultimos_7_dias', 'ultimos_30_dias', 'este_mes', 'mes_anterior', 'este_ano', 'personalizado']
-
-interface FiltroPeriodoState {
-  periodo: PeriodoNotas
-  dataInicio: string
-  dataFim: string
-}
-
-function filtroPeriodoPadrao(): FiltroPeriodoState {
-  return { periodo: 'todas', dataInicio: '', dataFim: '' }
-}
-
-function FiltroPeriodoNotas({ valor, onChange }: { valor: FiltroPeriodoState; onChange: (valor: FiltroPeriodoState) => void }) {
-  function handlePeriodo(periodo: PeriodoNotas) {
-    if (periodo === 'todas' || periodo === 'personalizado') {
-      onChange({ periodo, dataInicio: periodo === 'todas' ? '' : valor.dataInicio, dataFim: periodo === 'todas' ? '' : valor.dataFim })
-      return
-    }
-    onChange({ periodo, ...calcularIntervaloPeriodo(periodo) })
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        {PERIODOS_NOTAS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => handlePeriodo(p)}
-            className={`h-8 px-3 rounded-full text-xs font-medium border ${valor.periodo === p ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
-          >
-            {p === 'todas' ? 'Todas' : ROTULO_PERIODO_FINANCEIRO[p]}
-          </button>
-        ))}
-      </div>
-      {valor.periodo === 'personalizado' && (
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={valor.dataInicio}
-            onChange={(e) => onChange({ ...valor, dataInicio: e.target.value })}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          />
-          <span className="text-sm text-muted-foreground">até</span>
-          <input
-            type="date"
-            value={valor.dataFim}
-            onChange={(e) => onChange({ ...valor, dataFim: e.target.value })}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
 function dataDentroDoIntervalo(data: string | null, dataInicio: string, dataFim: string): boolean {
   if (!data) return false
   const instante = new Date(data).getTime()
@@ -116,7 +58,7 @@ const ROTULO_MODELO: Record<ModeloNotaFiscal, string> = {
 function AbaOsPagas() {
   const { data: ordens, isLoading } = useOrdensPagasParaEmitir()
   const [ordemParaEmitir, setOrdemParaEmitir] = useState<OrdemPagaParaEmitir | null>(null)
-  const [filtro, setFiltro] = useState<FiltroPeriodoState>(filtroPeriodoPadrao())
+  const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
   const [modeloSelecao, setModeloSelecao] = useState<ModeloNotaFiscal>('peca')
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const emitirEmLote = useEmitirNotasEmLote()
@@ -176,7 +118,7 @@ function AbaOsPagas() {
 
   return (
     <div className="space-y-3">
-      <FiltroPeriodoNotas valor={filtro} onChange={setFiltro} />
+      <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
         <CardIndicador titulo="OS aguardando emissão" valor={String(ordensFiltradas.length)} icone={<Hourglass size={15} />} />
@@ -303,7 +245,7 @@ function AbaOsPagas() {
 
 function AbaEmitidas() {
   const [filtroStatus, setFiltroStatus] = useState<StatusNotaFiscal | ''>('')
-  const [filtro, setFiltro] = useState<FiltroPeriodoState>(filtroPeriodoPadrao())
+  const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
 
   const params = {
     status: filtroStatus || undefined,
@@ -328,7 +270,7 @@ function AbaEmitidas() {
 
   return (
     <div className="space-y-3">
-      <FiltroPeriodoNotas valor={filtro} onChange={setFiltro} />
+      <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
 
       <div className="flex flex-wrap gap-2">
         {(['', 'processando', 'autorizada', 'rejeitada', 'cancelada', 'erro'] as const).map((status) => (
