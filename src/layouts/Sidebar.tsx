@@ -18,9 +18,12 @@ import {
   ChevronRight,
   ChevronDown,
   Wrench,
+  Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/hooks/usePermissions'
+import { usePagamentoSistema } from '@/features/pagamentoSistema/hooks/usePagamentoSistema'
+import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '@/features/pagamentoSistema/utils'
 
 interface SidebarProps {
   collapsed: boolean
@@ -120,11 +123,18 @@ const menuItems: MenuItem[] = [
       { to: '/configuracoes/atualizacoes', label: 'Atualizações' },
     ],
   },
+  { to: '/pagamento-sistema', icon: Banknote, label: 'Pagamento do Sistema' },
 ]
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation()
   const { hasPermission, isLoading: carregandoPermissoes } = usePermissions()
+  const { data: infoPagamento } = usePagamentoSistema()
+
+  const diasPagamento = diasParaVencimento(infoPagamento?.vencimentoMensalidade ?? null)
+  const pagamentoUrgente =
+    infoPagamento?.statusAssinatura === 'bloqueada' ||
+    (diasPagamento != null && diasPagamento <= DIAS_LIMITE_VENCENDO)
 
   const itensVisiveis = carregandoPermissoes ? [] : menuItems.filter((item) => !item.codigo || hasPermission(item.codigo))
 
@@ -183,8 +193,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   )
                 }
               >
-                <item.icon size={18} className="shrink-0" />
-                {expandida && <span className="truncate">{item.label}</span>}
+                <span className="relative shrink-0">
+                  <item.icon size={18} />
+                  {item.to === '/pagamento-sistema' && pagamentoUrgente && (
+                    <span className="absolute -top-1 -right-1 size-2 rounded-full bg-red-500" />
+                  )}
+                </span>
+                {expandida && (
+                  <span className="truncate flex items-center gap-1.5">
+                    {item.label}
+                    {item.to === '/pagamento-sistema' && pagamentoUrgente && (
+                      <span className="size-1.5 rounded-full bg-red-500 shrink-0" />
+                    )}
+                  </span>
+                )}
               </NavLink>
             )
           }

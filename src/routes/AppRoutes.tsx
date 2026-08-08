@@ -55,6 +55,7 @@ import { Atualizacoes } from '@/features/configuracoes/pages/Atualizacoes'
 import { NotaFiscal } from '@/features/configuracoes/pages/NotaFiscal'
 import { WhatsApp } from '@/features/configuracoes/pages/WhatsApp'
 import { NotasFiscaisSaidaList } from '@/features/notasFiscaisSaida/pages/NotasFiscaisSaidaList'
+import { PagamentoSistema } from '@/features/pagamentoSistema/pages/PagamentoSistema'
 
 export function AppRoutes() {
   return (
@@ -131,6 +132,8 @@ export function AppRoutes() {
         <Route path="/configuracoes/whatsapp" element={<PermissionRoute codigo="configuracoes.visualizar"><WhatsApp /></PermissionRoute>} />
 
         <Route path="/notas-fiscais" element={<PermissionRoute codigo="notas_fiscais.visualizar"><NotasFiscaisSaidaList /></PermissionRoute>} />
+
+        <Route path="/pagamento-sistema" element={<PagamentoSistema />} />
       </Route>
 
       {/* Painel do dono do sistema — layout e login completamente separados

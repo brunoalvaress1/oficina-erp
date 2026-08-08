@@ -1,12 +1,53 @@
-import { useState } from 'react'
-import { Ban, CheckCircle2, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { AlertTriangle, Ban, CheckCircle2, Plus, TriangleAlert } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
+import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '@/features/pagamentoSistema/utils'
 import { useAtualizarStatusOficinaAdmin, useAtualizarVencimentoOficinaAdmin, useCriarOficinaAdmin, useOficinasAdmin } from '../hooks/useSuperAdmin'
 import type { CriarOficinaInput, OficinaAdmin } from '../types/oficinaAdmin'
 
 function estaVencida(vencimento: string | null): boolean {
-  if (!vencimento) return false
-  return new Date(`${vencimento}T00:00:00`) < new Date(new Date().toDateString())
+  const dias = diasParaVencimento(vencimento)
+  return dias != null && dias < 0
+}
+
+// Prioridade pra ordenar a lista com quem precisa de atenção primeiro:
+// vencida > vencendo em breve > sem vencimento definido > em dia.
+function prioridadeUrgencia(oficina: OficinaAdmin): number {
+  if (oficina.statusAssinatura === 'bloqueada') return 0
+  const dias = diasParaVencimento(oficina.vencimentoMensalidade)
+  if (dias == null) return 3
+  if (dias < 0) return 1
+  if (dias <= DIAS_LIMITE_VENCENDO) return 2
+  return 4
+}
+
+function SituacaoVencimento({ oficina }: { oficina: OficinaAdmin }) {
+  if (oficina.statusAssinatura === 'bloqueada') return null
+  const dias = diasParaVencimento(oficina.vencimentoMensalidade)
+  if (dias == null) return <p className="text-xs text-muted-foreground mt-0.5">Sem vencimento definido</p>
+  if (dias < 0) {
+    return (
+      <p className="text-xs font-medium text-red-600 mt-0.5 flex items-center gap-1">
+        <TriangleAlert size={11} /> Vencida há {Math.abs(dias)} dia{Math.abs(dias) === 1 ? '' : 's'}
+      </p>
+    )
+  }
+  if (dias === 0) {
+    return (
+      <p className="text-xs font-medium text-amber-600 mt-0.5 flex items-center gap-1">
+        <AlertTriangle size={11} /> Vence hoje
+      </p>
+    )
+  }
+  if (dias <= DIAS_LIMITE_VENCENDO) {
+    return (
+      <p className="text-xs font-medium text-amber-600 mt-0.5 flex items-center gap-1">
+        <AlertTriangle size={11} /> Vence em {dias} dia{dias === 1 ? '' : 's'}
+      </p>
+    )
+  }
+  return <p className="text-xs text-muted-foreground mt-0.5">Em dia ({dias} dias)</p>
 }
 
 function InputVencimento({ oficina }: { oficina: OficinaAdmin }) {
@@ -134,10 +175,23 @@ function ModalBloquear({ oficina, onOpenChange }: { oficina: OficinaAdmin | null
 }
 
 export function SuperAdminOficinas() {
-  const { data: oficinas, isLoading } = useOficinasAdmin()
+  const { data: oficinasCarregadas, isLoading } = useOficinasAdmin()
   const atualizar = useAtualizarStatusOficinaAdmin()
   const [modalCriarAberto, setModalCriarAberto] = useState(false)
   const [oficinaParaBloquear, setOficinaParaBloquear] = useState<OficinaAdmin | null>(null)
+
+  const oficinas = useMemo(
+    () => [...(oficinasCarregadas ?? [])].sort((a, b) => prioridadeUrgencia(a) - prioridadeUrgencia(b)),
+    [oficinasCarregadas],
+  )
+
+  const qtdVencidas = oficinas.filter((o) => o.statusAssinatura === 'ativa' && estaVencida(o.vencimentoMensalidade)).length
+  const qtdVencendoEmBreve = oficinas.filter((o) => {
+    if (o.statusAssinatura !== 'ativa') return false
+    const dias = diasParaVencimento(o.vencimentoMensalidade)
+    return dias != null && dias >= 0 && dias <= DIAS_LIMITE_VENCENDO
+  }).length
+  const qtdBloqueadas = oficinas.filter((o) => o.statusAssinatura === 'bloqueada').length
 
   return (
     <div className="space-y-4">
@@ -153,6 +207,13 @@ export function SuperAdminOficinas() {
         >
           <Plus size={14} /> Nova Oficina
         </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <CardIndicador titulo="Total de Oficinas" valor={String(oficinas.length)} />
+        <CardIndicador titulo="Mensalidade Vencida" valor={String(qtdVencidas)} destaque={qtdVencidas > 0 ? 'negativo' : 'neutro'} />
+        <CardIndicador titulo="Vencendo em até 5 dias" valor={String(qtdVencendoEmBreve)} destaque={qtdVencendoEmBreve > 0 ? 'negativo' : 'neutro'} />
+        <CardIndicador titulo="Bloqueadas" valor={String(qtdBloqueadas)} destaque={qtdBloqueadas > 0 ? 'negativo' : 'neutro'} />
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -181,7 +242,10 @@ export function SuperAdminOficinas() {
                 <td className="px-3 py-2">{oficina.cnpj ?? '-'}</td>
                 <td className="px-3 py-2">{oficina.email ?? '-'}</td>
                 <td className="px-3 py-2">{oficina.qtdFuncionarios}</td>
-                <td className="px-3 py-2"><InputVencimento oficina={oficina} /></td>
+                <td className="px-3 py-2">
+                  <InputVencimento oficina={oficina} />
+                  <SituacaoVencimento oficina={oficina} />
+                </td>
                 <td className="px-3 py-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${oficina.statusAssinatura === 'ativa' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
                     {oficina.statusAssinatura === 'ativa' ? 'Ativa' : 'Bloqueada'}
