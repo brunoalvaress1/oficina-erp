@@ -33,6 +33,7 @@ export function DashboardCaixa() {
         <Linha label="Crédito" valor={formatCurrency(data.recebidoCredito)} />
         <Linha label="Boleto" valor={formatCurrency(data.recebidoBoleto)} />
         <div className="border-t pt-2 mt-2">
+          <Linha label="Descontos Hoje" valor={formatCurrency(data.descontosHoje)} />
           <Linha label="Pendentes" valor={String(data.pendentes)} />
           <Linha label="Qtd. OS recebidas hoje" valor={String(data.quantidadeOs)} />
         </div>

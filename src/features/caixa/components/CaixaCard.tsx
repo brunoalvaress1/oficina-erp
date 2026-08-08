@@ -242,6 +242,9 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
         </span>
       </td>
       <td className="px-3 py-2 text-right font-medium">{formatCurrency(lancamento.valorTotal)}</td>
+      <td className="px-3 py-2 text-right text-muted-foreground">
+        {lancamento.descontoRecebimento > 0 ? `-${formatCurrency(lancamento.descontoRecebimento)}` : '-'}
+      </td>
       <td className="px-3 py-2">{formatDate(lancamento.dataAbertura)}</td>
 
       {/* Dialogs precisam ir via portal — <tr> não pode ter <div> como filho direto (HTML inválido). */}

@@ -42,6 +42,7 @@ export interface CaixaLancamento {
   responsavelNome: string | null
   valorTotal: number
   valorDesconto: number
+  descontoRecebimento: number
   dataAbertura: string
 }
 
@@ -149,4 +150,5 @@ export interface DashboardCaixa {
   pendentes: number
   quantidadeOs: number
   totalGeral: number
+  descontosHoje: number
 }

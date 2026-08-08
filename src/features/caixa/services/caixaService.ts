@@ -31,7 +31,8 @@ const SELECT_LANCAMENTO = `
     clientes (nome, telefone),
     veiculos (placa, modelo),
     responsavel:funcionarios!ordens_servico_responsavel_id_fkey (nome)
-  )
+  ),
+  caixa_recebimentos (desconto, cancelado)
 `
 
 function mapLancamento(row: any): CaixaLancamento {
@@ -54,6 +55,9 @@ function mapLancamento(row: any): CaixaLancamento {
     responsavelNome: ordem?.responsavel?.nome ?? null,
     valorTotal: Number(ordem?.valor_total ?? 0),
     valorDesconto: Number(ordem?.valor_desconto ?? 0),
+    descontoRecebimento: (row.caixa_recebimentos ?? [])
+      .filter((r: any) => !r.cancelado)
+      .reduce((soma: number, r: any) => soma + Number(r.desconto ?? 0), 0),
     dataAbertura: ordem?.data_abertura,
   }
 }
@@ -243,7 +247,7 @@ export async function buscarDashboardCaixa(): Promise<DashboardCaixa> {
   const [recebimentosResp, pendentesResp] = await Promise.all([
     supabase
       .from('caixa_recebimentos')
-      .select('id, valor_total, caixa_recebimento_formas(valor, forma_pagamento)')
+      .select('id, valor_total, desconto, caixa_recebimento_formas(valor, forma_pagamento)')
       .eq('cancelado', false)
       .gte('created_at', inicio)
       .lte('created_at', fim),
@@ -270,6 +274,7 @@ export async function buscarDashboardCaixa(): Promise<DashboardCaixa> {
     pendentes: pendentesResp.count ?? 0,
     quantidadeOs: recebimentos.length,
     totalGeral: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
+    descontosHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.desconto ?? 0), 0),
   }
 }
 

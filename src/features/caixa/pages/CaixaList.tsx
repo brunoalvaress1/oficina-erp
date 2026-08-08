@@ -142,20 +142,21 @@ export function CaixaList() {
                 <th className="text-left font-medium px-3 py-2">Placa</th>
                 <th className="text-left font-medium px-3 py-2">Status</th>
                 <th className="text-right font-medium px-3 py-2">Valor</th>
+                <th className="text-right font-medium px-3 py-2">Desconto</th>
                 <th className="text-left font-medium px-3 py-2">Data</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">
                     Carregando...
                   </td>
                 </tr>
               )}
               {!isLoading && total === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">
                     Nenhum lançamento encontrado
                   </td>
                 </tr>
