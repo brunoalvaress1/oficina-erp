@@ -149,16 +149,29 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
     query = query.eq('status', params.status)
   }
 
-  if (params.veiculoId) {
-    query = query.eq('veiculo_id', params.veiculoId)
+  const numero = params.numero?.trim().replace(/\D/g, '') ?? ''
+  if (numero) {
+    query = query.ilike('numero::text', `%${numero}%`)
   }
 
-  if (params.dataAberturaInicio) {
-    query = query.gte('data_abertura', params.dataAberturaInicio)
+  const clienteNome = params.clienteNome?.trim() ?? ''
+  if (clienteNome) {
+    query = query.ilike('clientes.nome', `%${clienteNome.replace(/,/g, ' ')}%`)
   }
 
-  if (params.dataAberturaFim) {
-    query = query.lte('data_abertura', params.dataAberturaFim)
+  const veiculoModelo = params.veiculoModelo?.trim() ?? ''
+  if (veiculoModelo) {
+    query = query.ilike('veiculos.modelo', `%${veiculoModelo.replace(/,/g, ' ')}%`)
+  }
+
+  const placa = params.placa?.trim() ?? ''
+  if (placa) {
+    query = query.ilike('veiculos.placa', `%${placa.replace(/,/g, ' ')}%`)
+  }
+
+  const kmAtual = params.kmAtual?.trim().replace(/\D/g, '') ?? ''
+  if (kmAtual) {
+    query = query.ilike('km_atual::text', `%${kmAtual}%`)
   }
 
   if (search) {

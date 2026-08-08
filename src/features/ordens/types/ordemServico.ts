@@ -127,9 +127,11 @@ export interface ListarOrdensParams {
   search?: string
   status?: StatusOrdemServico | 'todas'
   numeroNota?: string
-  veiculoId?: string
-  dataAberturaInicio?: string
-  dataAberturaFim?: string
+  numero?: string
+  clienteNome?: string
+  veiculoModelo?: string
+  placa?: string
+  kmAtual?: string
   sortBy?: CampoOrdenacaoOrdem
   sortDirection?: 'asc' | 'desc'
 }

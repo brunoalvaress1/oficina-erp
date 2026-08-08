@@ -2,10 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDebouncedCallback } from 'use-debounce'
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
-import { Combobox } from '@/components/ui/Combobox'
-import { FiltroPeriodoOpcional, filtroPeriodoOpcionalPadrao, type FiltroPeriodoOpcionalState } from '@/components/ui/FiltroPeriodoOpcional'
-import { useVeiculosBusca } from '@/features/veiculos/hooks/useVeiculosBusca'
-import type { Veiculo } from '@/features/veiculos/types/veiculo'
 import { useOrdens } from '../hooks/useOrdens'
 import { useSemaforoItens } from '../hooks/useSemaforoItens'
 import { OrdemCard } from '../components/OrdemCard'
@@ -25,6 +21,8 @@ const FILTROS_STATUS: Array<{ valor: StatusOrdemServico | 'todas'; rotulo: strin
   { valor: 'cancelada', rotulo: ROTULO_STATUS_ORDEM.cancelada },
 ]
 
+const CLASSE_INPUT_FILTRO_COLUNA = 'w-full h-7 px-1.5 rounded border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30'
+
 export function OrdensList() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
@@ -34,12 +32,18 @@ export function OrdensList() {
   const [status, setStatus] = useState<StatusOrdemServico | 'todas'>('todas')
   const [numeroNota, setNumeroNota] = useState('')
   const [numeroNotaDebounced, setNumeroNotaDebounced] = useState('')
-  const [veiculoFiltro, setVeiculoFiltro] = useState<Veiculo | null>(null)
-  const [termoBuscaVeiculo, setTermoBuscaVeiculo] = useState('')
-  const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
+  const [numero, setNumero] = useState('')
+  const [numeroDebounced, setNumeroDebounced] = useState('')
+  const [clienteNome, setClienteNome] = useState('')
+  const [clienteNomeDebounced, setClienteNomeDebounced] = useState('')
+  const [veiculoModelo, setVeiculoModelo] = useState('')
+  const [veiculoModeloDebounced, setVeiculoModeloDebounced] = useState('')
+  const [placa, setPlaca] = useState('')
+  const [placaDebounced, setPlacaDebounced] = useState('')
+  const [kmAtual, setKmAtual] = useState('')
+  const [kmAtualDebounced, setKmAtualDebounced] = useState('')
   const [sortBy, setSortBy] = useState<CampoOrdenacaoOrdem>('numero')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-  const { data: veiculosEncontrados = [] } = useVeiculosBusca(termoBuscaVeiculo)
 
   function handleOrdenarPor(campo: CampoOrdenacaoOrdem) {
     if (sortBy === campo) {
@@ -60,6 +64,31 @@ export function OrdensList() {
     setPage(1)
   }, 300)
 
+  const aplicarNumeroComDebounce = useDebouncedCallback((valor: string) => {
+    setNumeroDebounced(valor)
+    setPage(1)
+  }, 300)
+
+  const aplicarClienteNomeComDebounce = useDebouncedCallback((valor: string) => {
+    setClienteNomeDebounced(valor)
+    setPage(1)
+  }, 300)
+
+  const aplicarVeiculoModeloComDebounce = useDebouncedCallback((valor: string) => {
+    setVeiculoModeloDebounced(valor)
+    setPage(1)
+  }, 300)
+
+  const aplicarPlacaComDebounce = useDebouncedCallback((valor: string) => {
+    setPlacaDebounced(valor)
+    setPage(1)
+  }, 300)
+
+  const aplicarKmAtualComDebounce = useDebouncedCallback((valor: string) => {
+    setKmAtualDebounced(valor)
+    setPage(1)
+  }, 300)
+
   function handleBuscaChange(valor: string) {
     setBusca(valor)
     aplicarBuscaComDebounce(valor)
@@ -70,15 +99,42 @@ export function OrdensList() {
     aplicarNumeroNotaComDebounce(valor)
   }
 
+  function handleNumeroChange(valor: string) {
+    setNumero(valor)
+    aplicarNumeroComDebounce(valor)
+  }
+
+  function handleClienteNomeChange(valor: string) {
+    setClienteNome(valor)
+    aplicarClienteNomeComDebounce(valor)
+  }
+
+  function handleVeiculoModeloChange(valor: string) {
+    setVeiculoModelo(valor)
+    aplicarVeiculoModeloComDebounce(valor)
+  }
+
+  function handlePlacaChange(valor: string) {
+    setPlaca(valor)
+    aplicarPlacaComDebounce(valor)
+  }
+
+  function handleKmAtualChange(valor: string) {
+    setKmAtual(valor)
+    aplicarKmAtualComDebounce(valor)
+  }
+
   const { data, isLoading } = useOrdens({
     page,
     pageSize,
     search: buscaDebounced,
     status,
     numeroNota: numeroNotaDebounced,
-    veiculoId: veiculoFiltro?.id,
-    dataAberturaInicio: filtroPeriodo.periodo === 'todas' ? undefined : filtroPeriodo.dataInicio || undefined,
-    dataAberturaFim: filtroPeriodo.periodo === 'todas' ? undefined : filtroPeriodo.dataFim || undefined,
+    numero: numeroDebounced,
+    clienteNome: clienteNomeDebounced,
+    veiculoModelo: veiculoModeloDebounced,
+    placa: placaDebounced,
+    kmAtual: kmAtualDebounced,
     sortBy,
     sortDirection,
   })
@@ -119,58 +175,8 @@ export function OrdensList() {
               placeholder="Filtrar por nº da Nota Fiscal do fornecedor..."
               className="md:w-72 h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
-            <div className="md:w-64">
-              <Combobox<Veiculo>
-                value={veiculoFiltro}
-                onSelect={(veiculo) => {
-                  setVeiculoFiltro(veiculo)
-                  setPage(1)
-                }}
-                onSearch={setTermoBuscaVeiculo}
-                items={veiculosEncontrados}
-                getKey={(v) => v.id}
-                getLabel={(v) => `${v.placa} — ${v.modelo}`}
-                placeholder="Filtrar por veículo (placa/modelo)..."
-              />
-            </div>
-            {veiculoFiltro && (
-              <button
-                type="button"
-                onClick={() => {
-                  setVeiculoFiltro(null)
-                  setTermoBuscaVeiculo('')
-                  setPage(1)
-                }}
-                className="h-9 px-3 rounded-md border text-xs font-medium shrink-0"
-              >
-                Limpar veículo
-              </button>
-            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {FILTROS_STATUS.map((filtro) => (
-              <button
-                key={filtro.valor}
-                type="button"
-                onClick={() => {
-                  setStatus(filtro.valor)
-                  setPage(1)
-                }}
-                className={`h-7 px-3 rounded-full text-xs font-medium border ${
-                  status === filtro.valor ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'
-                }`}
-              >
-                {filtro.rotulo}
-              </button>
-            ))}
-          </div>
-          <FiltroPeriodoOpcional
-            valor={filtroPeriodo}
-            onChange={(novo) => {
-              setFiltroPeriodo(novo)
-              setPage(1)
-            }}
-          />
+          <p className="text-xs text-muted-foreground">Use os campos abaixo do cabeçalho da tabela pra filtrar por coluna (Nº OS, cliente, veículo, placa, KM, status).</p>
         </div>
 
         <table className="w-full text-sm">
@@ -193,6 +199,75 @@ export function OrdensList() {
                 onOrdenar={handleOrdenarPor}
               />
               <ThOrdenavel campo="dataAbertura" rotulo="Abertura" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
+            </tr>
+            <tr className="bg-muted/20">
+              <th className="px-3 py-1.5"></th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={numero}
+                  onChange={(e) => handleNumeroChange(e.target.value)}
+                  placeholder="Filtrar..."
+                  className={CLASSE_INPUT_FILTRO_COLUNA}
+                />
+              </th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="text"
+                  value={clienteNome}
+                  onChange={(e) => handleClienteNomeChange(e.target.value)}
+                  placeholder="Filtrar..."
+                  className={CLASSE_INPUT_FILTRO_COLUNA}
+                />
+              </th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="text"
+                  value={veiculoModelo}
+                  onChange={(e) => handleVeiculoModeloChange(e.target.value)}
+                  placeholder="Filtrar..."
+                  className={CLASSE_INPUT_FILTRO_COLUNA}
+                />
+              </th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="text"
+                  value={placa}
+                  onChange={(e) => handlePlacaChange(e.target.value)}
+                  placeholder="Filtrar..."
+                  className={CLASSE_INPUT_FILTRO_COLUNA}
+                />
+              </th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={kmAtual}
+                  onChange={(e) => handleKmAtualChange(e.target.value)}
+                  placeholder="Filtrar..."
+                  className={CLASSE_INPUT_FILTRO_COLUNA}
+                />
+              </th>
+              <th className="px-2 py-1.5">
+                <select
+                  value={status}
+                  onChange={(e) => {
+                    setStatus(e.target.value as StatusOrdemServico | 'todas')
+                    setPage(1)
+                  }}
+                  className={CLASSE_INPUT_FILTRO_COLUNA}
+                >
+                  {FILTROS_STATUS.map((filtro) => (
+                    <option key={filtro.valor} value={filtro.valor}>
+                      {filtro.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
             </tr>
           </thead>
           <tbody>
