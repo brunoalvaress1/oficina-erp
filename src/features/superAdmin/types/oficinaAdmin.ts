@@ -10,6 +10,7 @@ export interface OficinaAdmin {
   bloqueadaEm: string | null
   bloqueadaMotivo: string | null
   vencimentoMensalidade: string | null
+  valorMensalidade: number | null
   createdAt: string
   qtdFuncionarios: number
 }

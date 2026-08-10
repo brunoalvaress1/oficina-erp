@@ -6,6 +6,7 @@ import type { ChangeEvent } from 'react'
 interface CampoMoedaProps {
   value: string
   onChange: (value: string) => void
+  onBlur?: () => void
   disabled?: boolean
   placeholder?: string
   className?: string
@@ -19,7 +20,7 @@ function formatarCentavos(digitos: string): string {
   return `${parteInteira},${parteCentavos}`
 }
 
-export function CampoMoeda({ value, onChange, disabled, placeholder = '0,00', className }: CampoMoedaProps) {
+export function CampoMoeda({ value, onChange, onBlur, disabled, placeholder = '0,00', className }: CampoMoedaProps) {
   const centavosAtuais = value ? Math.round(Math.abs(Number(value)) * 100) : 0
   const textoExibido = value && centavosAtuais > 0 ? formatarCentavos(String(centavosAtuais)) : ''
 
@@ -35,6 +36,7 @@ export function CampoMoeda({ value, onChange, disabled, placeholder = '0,00', cl
       inputMode="numeric"
       value={textoExibido}
       onChange={handleChange}
+      onBlur={onBlur}
       disabled={disabled}
       placeholder={placeholder}
       className={className}

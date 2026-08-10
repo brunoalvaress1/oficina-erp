@@ -13,12 +13,14 @@ Deno.serve(async (req) => {
 
   try {
     await autenticarSuperAdmin(req, admin)
-    const { oficinaId, statusAssinatura, motivo, vencimentoMensalidade } = await req.json()
+    const { oficinaId, statusAssinatura, motivo, vencimentoMensalidade, valorMensalidade } = await req.json()
     if (!oficinaId) throw new Error('OFICINA_ID_OBRIGATORIO')
     if (statusAssinatura !== undefined && statusAssinatura !== 'ativa' && statusAssinatura !== 'bloqueada') {
       throw new Error('STATUS_INVALIDO')
     }
-    if (statusAssinatura === undefined && vencimentoMensalidade === undefined) throw new Error('NADA_PARA_ATUALIZAR')
+    if (statusAssinatura === undefined && vencimentoMensalidade === undefined && valorMensalidade === undefined) {
+      throw new Error('NADA_PARA_ATUALIZAR')
+    }
 
     const colunas: Record<string, unknown> = {}
     if (statusAssinatura !== undefined) {
@@ -27,6 +29,7 @@ Deno.serve(async (req) => {
       colunas.bloqueada_motivo = statusAssinatura === 'bloqueada' ? motivo || null : null
     }
     if (vencimentoMensalidade !== undefined) colunas.vencimento_mensalidade = vencimentoMensalidade || null
+    if (valorMensalidade !== undefined) colunas.valor_mensalidade = valorMensalidade === null || valorMensalidade === '' ? null : Number(valorMensalidade)
 
     const { data: oficina, error } = await admin.from('oficinas').update(colunas).eq('id', oficinaId).select('*').single()
     if (error) throw new Error(error.message)

@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Ban, CheckCircle2, Plus, TriangleAlert } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
 import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '@/features/pagamentoSistema/utils'
-import { useAtualizarStatusOficinaAdmin, useAtualizarVencimentoOficinaAdmin, useCriarOficinaAdmin, useOficinasAdmin } from '../hooks/useSuperAdmin'
+import {
+  useAtualizarStatusOficinaAdmin,
+  useAtualizarValorMensalidadeOficinaAdmin,
+  useAtualizarVencimentoOficinaAdmin,
+  useCriarOficinaAdmin,
+  useOficinasAdmin,
+} from '../hooks/useSuperAdmin'
 import type { CriarOficinaInput, OficinaAdmin } from '../types/oficinaAdmin'
 
 function estaVencida(vencimento: string | null): boolean {
@@ -64,6 +71,29 @@ function InputVencimento({ oficina }: { oficina: OficinaAdmin }) {
       }}
       className={`h-8 rounded-md border bg-transparent px-2 text-xs outline-none focus:ring-1 focus:ring-primary/30 ${estaVencida(oficina.vencimentoMensalidade) && oficina.statusAssinatura === 'ativa' ? 'border-destructive text-destructive' : ''}`}
     />
+  )
+}
+
+function InputValorMensalidade({ oficina }: { oficina: OficinaAdmin }) {
+  const valorOriginal = oficina.valorMensalidade != null ? String(oficina.valorMensalidade) : ''
+  const [valor, setValor] = useState(valorOriginal)
+  const atualizar = useAtualizarValorMensalidadeOficinaAdmin()
+
+  function handleBlur() {
+    if (valor !== valorOriginal) atualizar.mutate({ oficinaId: oficina.id, valorMensalidade: valor ? Number(valor) : null })
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-muted-foreground">R$</span>
+      <CampoMoeda
+        value={valor}
+        onChange={setValor}
+        onBlur={handleBlur}
+        placeholder="0,00"
+        className="h-8 w-20 rounded-md border bg-transparent px-2 text-xs outline-none focus:ring-1 focus:ring-primary/30"
+      />
+    </div>
   )
 }
 
@@ -225,16 +255,17 @@ export function SuperAdminOficinas() {
               <th className="text-left font-medium px-3 py-2">E-mail</th>
               <th className="text-left font-medium px-3 py-2">Funcionários</th>
               <th className="text-left font-medium px-3 py-2">Vencimento</th>
+              <th className="text-left font-medium px-3 py-2">Valor</th>
               <th className="text-left font-medium px-3 py-2">Status</th>
               <th className="text-right font-medium px-3 py-2">Ações</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Carregando...</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Carregando...</td></tr>
             )}
             {!isLoading && (oficinas ?? []).length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhuma oficina cadastrada</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Nenhuma oficina cadastrada</td></tr>
             )}
             {(oficinas ?? []).map((oficina) => (
               <tr key={oficina.id} className="border-t">
@@ -245,6 +276,9 @@ export function SuperAdminOficinas() {
                 <td className="px-3 py-2">
                   <InputVencimento oficina={oficina} />
                   <SituacaoVencimento oficina={oficina} />
+                </td>
+                <td className="px-3 py-2">
+                  <InputValorMensalidade oficina={oficina} />
                 </td>
                 <td className="px-3 py-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${oficina.statusAssinatura === 'ativa' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>

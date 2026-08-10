@@ -39,3 +39,8 @@ export async function atualizarVencimentoOficinaAdmin(oficinaId: string, vencime
   const { error } = await supabase.functions.invoke('admin-atualizar-status-oficina', { body: { oficinaId, vencimentoMensalidade } })
   if (error) throw new Error(await extrairMensagemErro(error))
 }
+
+export async function atualizarValorMensalidadeOficinaAdmin(oficinaId: string, valorMensalidade: number | null): Promise<void> {
+  const { error } = await supabase.functions.invoke('admin-atualizar-status-oficina', { body: { oficinaId, valorMensalidade } })
+  if (error) throw new Error(await extrairMensagemErro(error))
+}

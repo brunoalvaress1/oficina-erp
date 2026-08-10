@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { AlertTriangle, Calendar, Check, Copy, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { formatDate } from '@/utils/format'
+import { AlertTriangle, Calendar, Check, Copy, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react'
+import { formatCurrency, formatDate } from '@/utils/format'
 import { usePagamentoSistema } from '../hooks/usePagamentoSistema'
 import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '../utils'
 import { CHAVE_PIX_SISTEMA, MENSAGEM_URGENCIA_SISTEMA } from '../constants'
@@ -76,15 +76,29 @@ export function PagamentoSistema() {
       )}
 
       <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary shrink-0">
-            <Calendar size={16} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary shrink-0">
+              <Calendar size={16} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Data de vencimento</p>
+              <p className="text-lg font-semibold">
+                {info.vencimentoMensalidade ? formatDate(info.vencimentoMensalidade) : 'Ainda não definida — fale com o suporte'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Data de vencimento</p>
-            <p className="text-lg font-semibold">
-              {info.vencimentoMensalidade ? formatDate(info.vencimentoMensalidade) : 'Ainda não definida — fale com o suporte'}
-            </p>
+
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary shrink-0">
+              <Wallet size={16} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Valor da mensalidade</p>
+              <p className="text-lg font-semibold">
+                {info.valorMensalidade != null ? formatCurrency(info.valorMensalidade) : 'Fale com o suporte'}
+              </p>
+            </div>
           </div>
         </div>
 

@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
 
     const { data: oficinas, error } = await admin
       .from('oficinas')
-      .select('id, nome_fantasia, razao_social, cnpj, email, status_assinatura, bloqueada_em, bloqueada_motivo, vencimento_mensalidade, created_at, funcionarios(id)')
+      .select('id, nome_fantasia, razao_social, cnpj, email, status_assinatura, bloqueada_em, bloqueada_motivo, vencimento_mensalidade, valor_mensalidade, created_at, funcionarios(id)')
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
 
@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
       bloqueadaEm: o.bloqueada_em,
       bloqueadaMotivo: o.bloqueada_motivo,
       vencimentoMensalidade: o.vencimento_mensalidade,
+      valorMensalidade: o.valor_mensalidade === null ? null : Number(o.valor_mensalidade),
       createdAt: o.created_at,
       qtdFuncionarios: Array.isArray(o.funcionarios) ? o.funcionarios.length : 0,
     }))

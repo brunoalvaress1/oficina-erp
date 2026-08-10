@@ -8,13 +8,14 @@ import type { InfoPagamentoSistema } from '../types/pagamentoSistema'
 export async function buscarInfoPagamentoSistema(): Promise<InfoPagamentoSistema | null> {
   const { data, error } = await supabase
     .from('oficinas')
-    .select('nome_fantasia, vencimento_mensalidade, status_assinatura, bloqueada_motivo')
+    .select('nome_fantasia, vencimento_mensalidade, valor_mensalidade, status_assinatura, bloqueada_motivo')
     .maybeSingle()
   if (error) throw new Error(error.message)
   if (!data) return null
   return {
     nomeFantasia: data.nome_fantasia,
     vencimentoMensalidade: data.vencimento_mensalidade,
+    valorMensalidade: data.valor_mensalidade === null ? null : Number(data.valor_mensalidade),
     statusAssinatura: data.status_assinatura,
     bloqueadaMotivo: data.bloqueada_motivo,
   }

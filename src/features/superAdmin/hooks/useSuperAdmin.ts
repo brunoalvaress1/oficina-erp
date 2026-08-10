@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/providers/AuthProvider'
 import {
   atualizarStatusOficinaAdmin,
+  atualizarValorMensalidadeOficinaAdmin,
   atualizarVencimentoOficinaAdmin,
   criarOficinaAdmin,
   listarOficinasAdmin,
@@ -61,5 +62,18 @@ export function useAtualizarVencimentoOficinaAdmin() {
       toast.success('Vencimento atualizado')
     },
     onError: (error: Error) => toast.error('Erro ao atualizar vencimento', { description: error.message }),
+  })
+}
+
+export function useAtualizarValorMensalidadeOficinaAdmin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ oficinaId, valorMensalidade }: { oficinaId: string; valorMensalidade: number | null }) =>
+      atualizarValorMensalidadeOficinaAdmin(oficinaId, valorMensalidade),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['oficinas-admin'] })
+      toast.success('Valor da mensalidade atualizado')
+    },
+    onError: (error: Error) => toast.error('Erro ao atualizar valor', { description: error.message }),
   })
 }
