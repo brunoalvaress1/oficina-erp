@@ -184,10 +184,10 @@ export function OrdensList() {
             <tr>
               <th className="w-10 px-3 py-2"></th>
               <ThOrdenavel campo="numero" rotulo="Nº OS" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
-              <th className="text-left font-medium px-3 py-2">Cliente</th>
-              <th className="text-left font-medium px-3 py-2">Veículo</th>
-              <th className="text-left font-medium px-3 py-2">Placa</th>
-              <th className="text-left font-medium px-3 py-2">KM</th>
+              <ThOrdenavel campo="clienteNome" rotulo="Cliente" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
+              <ThOrdenavel campo="veiculoModelo" rotulo="Veículo" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
+              <ThOrdenavel campo="veiculoPlaca" rotulo="Placa" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
+              <ThOrdenavel campo="kmAtual" rotulo="KM" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
               <ThOrdenavel campo="status" rotulo="Status" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
               <th className="text-left font-medium px-3 py-2">Mecânico</th>
               <ThOrdenavel

@@ -13,11 +13,15 @@ import type {
   OrdemServicoItem,
 } from '../types/ordemServico'
 
-const COLUNA_POR_CAMPO: Record<CampoOrdenacaoOrdem, string> = {
-  numero: 'numero',
-  dataAbertura: 'data_abertura',
-  status: 'status',
-  valorTotal: 'valor_total',
+const ORDENACAO_POR_CAMPO: Record<CampoOrdenacaoOrdem, { coluna: string; referencedTable?: string }> = {
+  numero: { coluna: 'numero' },
+  dataAbertura: { coluna: 'data_abertura' },
+  status: { coluna: 'status' },
+  valorTotal: { coluna: 'valor_total' },
+  kmAtual: { coluna: 'km_atual' },
+  clienteNome: { coluna: 'nome', referencedTable: 'clientes' },
+  veiculoModelo: { coluna: 'modelo', referencedTable: 'veiculos' },
+  veiculoPlaca: { coluna: 'placa', referencedTable: 'veiculos' },
 }
 
 const SELECT_ORDEM = `
@@ -190,10 +194,12 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
     query = query.or(condicoes.join(','))
   }
 
-  const coluna = COLUNA_POR_CAMPO[params.sortBy ?? 'numero']
+  const ordenacao = ORDENACAO_POR_CAMPO[params.sortBy ?? 'numero']
   const ascendente = params.sortDirection === 'asc'
 
-  const { data, count, error } = await query.order(coluna, { ascending: ascendente }).range(from, to)
+  const { data, count, error } = await query
+    .order(ordenacao.coluna, { ascending: ascendente, referencedTable: ordenacao.referencedTable })
+    .range(from, to)
   if (error) throw new Error(error.message)
 
   return {

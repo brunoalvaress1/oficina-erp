@@ -119,7 +119,15 @@ export interface AtualizarCabecalhoInput {
   dataEntrada?: string
 }
 
-export type CampoOrdenacaoOrdem = 'numero' | 'dataAbertura' | 'status' | 'valorTotal'
+export type CampoOrdenacaoOrdem =
+  | 'numero'
+  | 'dataAbertura'
+  | 'status'
+  | 'valorTotal'
+  | 'clienteNome'
+  | 'veiculoModelo'
+  | 'veiculoPlaca'
+  | 'kmAtual'
 
 export interface ListarOrdensParams {
   page?: number
