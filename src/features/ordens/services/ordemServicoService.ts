@@ -13,15 +13,15 @@ import type {
   OrdemServicoItem,
 } from '../types/ordemServico'
 
-const ORDENACAO_POR_CAMPO: Record<CampoOrdenacaoOrdem, { coluna: string; referencedTable?: string }> = {
-  numero: { coluna: 'numero' },
-  dataAbertura: { coluna: 'data_abertura' },
-  status: { coluna: 'status' },
-  valorTotal: { coluna: 'valor_total' },
-  kmAtual: { coluna: 'km_atual' },
-  clienteNome: { coluna: 'nome', referencedTable: 'clientes' },
-  veiculoModelo: { coluna: 'modelo', referencedTable: 'veiculos' },
-  veiculoPlaca: { coluna: 'placa', referencedTable: 'veiculos' },
+const COLUNA_POR_CAMPO: Record<CampoOrdenacaoOrdem, string> = {
+  numero: 'numero',
+  dataAbertura: 'data_abertura',
+  status: 'status',
+  valorTotal: 'valor_total',
+  kmAtual: 'km_atual',
+  clienteNome: 'cliente_nome',
+  veiculoModelo: 'veiculo_modelo',
+  veiculoPlaca: 'veiculo_placa',
 }
 
 const SELECT_ORDEM = `
@@ -31,11 +31,6 @@ const SELECT_ORDEM = `
   responsavel:funcionarios!ordens_servico_responsavel_id_fkey (nome),
   mecanico:funcionarios!ordens_servico_mecanico_id_fkey (nome)
 `
-
-function selectOrdemParaLista(precisaFiltrarPorNota: boolean): string {
-  const embedItens = precisaFiltrarPorNota ? 'ordem_servico_itens!inner(numero_nota)' : ''
-  return embedItens ? `${SELECT_ORDEM}, ${embedItens}` : SELECT_ORDEM
-}
 
 function mapOrdem(row: any): OrdemServico {
   return {
@@ -52,6 +47,44 @@ function mapOrdem(row: any): OrdemServico {
     responsavelNome: row.responsavel?.nome,
     mecanicoId: row.mecanico_id,
     mecanicoNome: row.mecanico?.nome,
+    dataAbertura: row.data_abertura,
+    dataEntrada: row.data_entrada,
+    kmAtual: row.km_atual === null ? null : Number(row.km_atual),
+    kmAnterior: row.km_anterior === null ? null : Number(row.km_anterior),
+    status: row.status,
+    defeitosRelatados: row.defeitos_relatados,
+    observacoesInternas: row.observacoes_internas,
+    valorProdutos: Number(row.valor_produtos ?? 0),
+    valorServicos: Number(row.valor_servicos ?? 0),
+    valorDesconto: Number(row.valor_desconto ?? 0),
+    valorTotal: Number(row.valor_total ?? 0),
+    criadoPor: row.criado_por,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+// Lê da view ordens_servico_lista (ordens_servico + nome do cliente/veículo já
+// achatados) em vez da tabela + embed usada em mapOrdem/buscarOrdemDetalhe -
+// o PostgREST não ordena a tabela principal por coluna de recurso embutido
+// (só reordena o array aninhado), então pra Cliente/Veículo/Placa realmente
+// funcionarem como ordenação a query precisa vir de colunas de primeiro
+// nível, não de `clientes(nome)`/`veiculos(modelo)`.
+function mapOrdemLista(row: any): OrdemServico {
+  return {
+    id: row.id,
+    numero: Number(row.numero),
+    oficinaId: row.oficina_id,
+    numeroPrisma: row.numero_prisma,
+    clienteId: row.cliente_id,
+    clienteNome: row.cliente_nome,
+    veiculoId: row.veiculo_id,
+    veiculoPlaca: row.veiculo_placa,
+    veiculoModelo: row.veiculo_modelo,
+    responsavelId: row.responsavel_id,
+    responsavelNome: row.responsavel_nome,
+    mecanicoId: row.mecanico_id,
+    mecanicoNome: row.mecanico_nome,
     dataAbertura: row.data_abertura,
     dataEntrada: row.data_entrada,
     kmAtual: row.km_atual === null ? null : Number(row.km_atual),
@@ -143,10 +176,17 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
 
   const numeroNota = params.numeroNota?.trim() ?? ''
 
-  let query = supabase.from('ordens_servico').select(selectOrdemParaLista(Boolean(numeroNota)), { count: 'exact' })
+  let query = supabase.from('ordens_servico_lista').select('*', { count: 'exact' })
 
   if (numeroNota) {
-    query = query.ilike('ordem_servico_itens.numero_nota', `%${numeroNota.replace(/,/g, ' ')}%`)
+    const { data: itensComNota, error: erroItens } = await supabase
+      .from('ordem_servico_itens')
+      .select('ordem_servico_id')
+      .ilike('numero_nota', `%${numeroNota.replace(/,/g, ' ')}%`)
+    if (erroItens) throw new Error(erroItens.message)
+    const idsComNota = [...new Set((itensComNota ?? []).map((r) => r.ordem_servico_id))]
+    if (idsComNota.length === 0) return { data: [], total: 0, page, pageSize }
+    query = query.in('id', idsComNota)
   }
 
   if (params.status && params.status !== 'todas') {
@@ -164,17 +204,17 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
 
   const clienteNome = params.clienteNome?.trim() ?? ''
   if (clienteNome) {
-    query = query.ilike('clientes.nome', `%${clienteNome.replace(/,/g, ' ')}%`)
+    query = query.ilike('cliente_nome', `%${clienteNome.replace(/,/g, ' ')}%`)
   }
 
   const veiculoModelo = params.veiculoModelo?.trim() ?? ''
   if (veiculoModelo) {
-    query = query.ilike('veiculos.modelo', `%${veiculoModelo.replace(/,/g, ' ')}%`)
+    query = query.ilike('veiculo_modelo', `%${veiculoModelo.replace(/,/g, ' ')}%`)
   }
 
   const placa = params.placa?.trim() ?? ''
   if (placa) {
-    query = query.ilike('veiculos.placa', `%${placa.replace(/,/g, ' ')}%`)
+    query = query.ilike('veiculo_placa', `%${placa.replace(/,/g, ' ')}%`)
   }
 
   const kmAtual = params.kmAtual?.trim().replace(/\D/g, '') ?? ''
@@ -186,11 +226,11 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
     const termo = search.replace(/,/g, ' ')
     const condicoes = [
       `numero_prisma.ilike.%${termo}%`,
-      `clientes.nome.ilike.%${termo}%`,
-      `clientes.cpf_cnpj.ilike.%${termo}%`,
-      `clientes.telefone.ilike.%${termo}%`,
-      `veiculos.placa.ilike.%${termo}%`,
-      `veiculos.modelo.ilike.%${termo}%`,
+      `cliente_nome.ilike.%${termo}%`,
+      `cliente_cpf_cnpj.ilike.%${termo}%`,
+      `cliente_telefone.ilike.%${termo}%`,
+      `veiculo_placa.ilike.%${termo}%`,
+      `veiculo_modelo.ilike.%${termo}%`,
     ]
     if (/^\d+$/.test(termo.trim())) {
       condicoes.push(`numero.eq.${termo.trim()}`)
@@ -198,16 +238,14 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
     query = query.or(condicoes.join(','))
   }
 
-  const ordenacao = ORDENACAO_POR_CAMPO[params.sortBy ?? 'numero']
+  const coluna = COLUNA_POR_CAMPO[params.sortBy ?? 'numero']
   const ascendente = params.sortDirection === 'asc'
 
-  const { data, count, error } = await query
-    .order(ordenacao.coluna, { ascending: ascendente, referencedTable: ordenacao.referencedTable })
-    .range(from, to)
+  const { data, count, error } = await query.order(coluna, { ascending: ascendente }).range(from, to)
   if (error) throw new Error(error.message)
 
   return {
-    data: (data ?? []).map(mapOrdem),
+    data: (data ?? []).map(mapOrdemLista),
     total: count ?? 0,
     page,
     pageSize,
