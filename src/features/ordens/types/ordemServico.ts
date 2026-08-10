@@ -133,7 +133,7 @@ export interface ListarOrdensParams {
   page?: number
   pageSize?: number
   search?: string
-  status?: StatusOrdemServico | 'todas'
+  status?: StatusOrdemServico | StatusOrdemServico[] | 'todas'
   numeroNota?: string
   numero?: string
   clienteNome?: string

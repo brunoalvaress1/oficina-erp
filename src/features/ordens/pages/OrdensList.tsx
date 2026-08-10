@@ -9,19 +9,23 @@ import { PermissionGate } from '../components/PermissionGate'
 import { Pagination } from '@/components/ui/Pagination'
 import { ROTULO_STATUS_ORDEM, type CampoOrdenacaoOrdem, type StatusOrdemServico } from '../types/ordemServico'
 
-const FILTROS_STATUS: Array<{ valor: StatusOrdemServico | 'todas'; rotulo: string }> = [
+type FiltroStatusValor = StatusOrdemServico[] | 'todas'
+
+const STATUS_EM_ABERTO: StatusOrdemServico[] = ['em_aberto', 'em_execucao']
+
+const FILTROS_STATUS: Array<{ valor: FiltroStatusValor; rotulo: string }> = [
+  { valor: STATUS_EM_ABERTO, rotulo: 'Em Aberto' },
+  { valor: ['finalizada'], rotulo: ROTULO_STATUS_ORDEM.finalizada },
+  { valor: ['enviada_caixa'], rotulo: ROTULO_STATUS_ORDEM.enviada_caixa },
+  { valor: ['paga'], rotulo: ROTULO_STATUS_ORDEM.paga },
+  { valor: ['cancelada'], rotulo: ROTULO_STATUS_ORDEM.cancelada },
   { valor: 'todas', rotulo: 'Todas' },
-  { valor: 'em_aberto', rotulo: ROTULO_STATUS_ORDEM.em_aberto },
-  { valor: 'em_execucao', rotulo: ROTULO_STATUS_ORDEM.em_execucao },
-  { valor: 'aguardando_aprovacao', rotulo: ROTULO_STATUS_ORDEM.aguardando_aprovacao },
-  { valor: 'aguardando_pecas', rotulo: ROTULO_STATUS_ORDEM.aguardando_pecas },
-  { valor: 'finalizada', rotulo: ROTULO_STATUS_ORDEM.finalizada },
-  { valor: 'enviada_caixa', rotulo: ROTULO_STATUS_ORDEM.enviada_caixa },
-  { valor: 'paga', rotulo: ROTULO_STATUS_ORDEM.paga },
-  { valor: 'cancelada', rotulo: ROTULO_STATUS_ORDEM.cancelada },
 ]
 
-const CLASSE_INPUT_FILTRO_COLUNA = 'w-full h-7 px-1.5 rounded border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30'
+function mesmoFiltroStatus(a: FiltroStatusValor, b: FiltroStatusValor): boolean {
+  if (a === 'todas' || b === 'todas') return a === b
+  return a.length === b.length && a.every((v) => b.includes(v))
+}
 
 export function OrdensList() {
   const navigate = useNavigate()
@@ -29,19 +33,9 @@ export function OrdensList() {
   const [pageSize, setPageSize] = useState(20)
   const [busca, setBusca] = useState('')
   const [buscaDebounced, setBuscaDebounced] = useState('')
-  const [status, setStatus] = useState<StatusOrdemServico | 'todas'>('todas')
+  const [status, setStatus] = useState<FiltroStatusValor>(STATUS_EM_ABERTO)
   const [numeroNota, setNumeroNota] = useState('')
   const [numeroNotaDebounced, setNumeroNotaDebounced] = useState('')
-  const [numero, setNumero] = useState('')
-  const [numeroDebounced, setNumeroDebounced] = useState('')
-  const [clienteNome, setClienteNome] = useState('')
-  const [clienteNomeDebounced, setClienteNomeDebounced] = useState('')
-  const [veiculoModelo, setVeiculoModelo] = useState('')
-  const [veiculoModeloDebounced, setVeiculoModeloDebounced] = useState('')
-  const [placa, setPlaca] = useState('')
-  const [placaDebounced, setPlacaDebounced] = useState('')
-  const [kmAtual, setKmAtual] = useState('')
-  const [kmAtualDebounced, setKmAtualDebounced] = useState('')
   const [sortBy, setSortBy] = useState<CampoOrdenacaoOrdem>('numero')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -64,31 +58,6 @@ export function OrdensList() {
     setPage(1)
   }, 300)
 
-  const aplicarNumeroComDebounce = useDebouncedCallback((valor: string) => {
-    setNumeroDebounced(valor)
-    setPage(1)
-  }, 300)
-
-  const aplicarClienteNomeComDebounce = useDebouncedCallback((valor: string) => {
-    setClienteNomeDebounced(valor)
-    setPage(1)
-  }, 300)
-
-  const aplicarVeiculoModeloComDebounce = useDebouncedCallback((valor: string) => {
-    setVeiculoModeloDebounced(valor)
-    setPage(1)
-  }, 300)
-
-  const aplicarPlacaComDebounce = useDebouncedCallback((valor: string) => {
-    setPlacaDebounced(valor)
-    setPage(1)
-  }, 300)
-
-  const aplicarKmAtualComDebounce = useDebouncedCallback((valor: string) => {
-    setKmAtualDebounced(valor)
-    setPage(1)
-  }, 300)
-
   function handleBuscaChange(valor: string) {
     setBusca(valor)
     aplicarBuscaComDebounce(valor)
@@ -99,42 +68,12 @@ export function OrdensList() {
     aplicarNumeroNotaComDebounce(valor)
   }
 
-  function handleNumeroChange(valor: string) {
-    setNumero(valor)
-    aplicarNumeroComDebounce(valor)
-  }
-
-  function handleClienteNomeChange(valor: string) {
-    setClienteNome(valor)
-    aplicarClienteNomeComDebounce(valor)
-  }
-
-  function handleVeiculoModeloChange(valor: string) {
-    setVeiculoModelo(valor)
-    aplicarVeiculoModeloComDebounce(valor)
-  }
-
-  function handlePlacaChange(valor: string) {
-    setPlaca(valor)
-    aplicarPlacaComDebounce(valor)
-  }
-
-  function handleKmAtualChange(valor: string) {
-    setKmAtual(valor)
-    aplicarKmAtualComDebounce(valor)
-  }
-
   const { data, isLoading } = useOrdens({
     page,
     pageSize,
     search: buscaDebounced,
     status,
     numeroNota: numeroNotaDebounced,
-    numero: numeroDebounced,
-    clienteNome: clienteNomeDebounced,
-    veiculoModelo: veiculoModeloDebounced,
-    placa: placaDebounced,
-    kmAtual: kmAtualDebounced,
     sortBy,
     sortDirection,
   })
@@ -176,7 +115,23 @@ export function OrdensList() {
               className="md:w-72 h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
-          <p className="text-xs text-muted-foreground">Use os campos abaixo do cabeçalho da tabela pra filtrar por coluna (Nº OS, cliente, veículo, placa, KM, status).</p>
+          <div className="flex flex-wrap gap-2">
+            {FILTROS_STATUS.map((filtro) => (
+              <button
+                key={filtro.rotulo}
+                type="button"
+                onClick={() => {
+                  setStatus(filtro.valor)
+                  setPage(1)
+                }}
+                className={`h-7 px-3 rounded-full text-xs font-medium border ${
+                  mesmoFiltroStatus(status, filtro.valor) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'
+                }`}
+              >
+                {filtro.rotulo}
+              </button>
+            ))}
+          </div>
         </div>
 
         <table className="w-full text-sm">
@@ -199,75 +154,6 @@ export function OrdensList() {
                 onOrdenar={handleOrdenarPor}
               />
               <ThOrdenavel campo="dataAbertura" rotulo="Abertura" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
-            </tr>
-            <tr className="bg-muted/20">
-              <th className="px-3 py-1.5"></th>
-              <th className="px-2 py-1.5">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={numero}
-                  onChange={(e) => handleNumeroChange(e.target.value)}
-                  placeholder="Filtrar..."
-                  className={CLASSE_INPUT_FILTRO_COLUNA}
-                />
-              </th>
-              <th className="px-2 py-1.5">
-                <input
-                  type="text"
-                  value={clienteNome}
-                  onChange={(e) => handleClienteNomeChange(e.target.value)}
-                  placeholder="Filtrar..."
-                  className={CLASSE_INPUT_FILTRO_COLUNA}
-                />
-              </th>
-              <th className="px-2 py-1.5">
-                <input
-                  type="text"
-                  value={veiculoModelo}
-                  onChange={(e) => handleVeiculoModeloChange(e.target.value)}
-                  placeholder="Filtrar..."
-                  className={CLASSE_INPUT_FILTRO_COLUNA}
-                />
-              </th>
-              <th className="px-2 py-1.5">
-                <input
-                  type="text"
-                  value={placa}
-                  onChange={(e) => handlePlacaChange(e.target.value)}
-                  placeholder="Filtrar..."
-                  className={CLASSE_INPUT_FILTRO_COLUNA}
-                />
-              </th>
-              <th className="px-2 py-1.5">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={kmAtual}
-                  onChange={(e) => handleKmAtualChange(e.target.value)}
-                  placeholder="Filtrar..."
-                  className={CLASSE_INPUT_FILTRO_COLUNA}
-                />
-              </th>
-              <th className="px-2 py-1.5">
-                <select
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value as StatusOrdemServico | 'todas')
-                    setPage(1)
-                  }}
-                  className={CLASSE_INPUT_FILTRO_COLUNA}
-                >
-                  {FILTROS_STATUS.map((filtro) => (
-                    <option key={filtro.valor} value={filtro.valor}>
-                      {filtro.rotulo}
-                    </option>
-                  ))}
-                </select>
-              </th>
-              <th className="px-2 py-1.5"></th>
-              <th className="px-2 py-1.5"></th>
-              <th className="px-2 py-1.5"></th>
             </tr>
           </thead>
           <tbody>

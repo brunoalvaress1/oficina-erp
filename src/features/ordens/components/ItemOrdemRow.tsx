@@ -210,15 +210,6 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando, podeVerLucro }: Ite
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Valor Unitário (OS) *</label>
-          <CampoMoeda
-            value={item.valorUnitario}
-            onChange={(v) => atualizar({ valorUnitario: v })}
-            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
-          />
-        </div>
-
         {item.tipo === 'produto_terceirizado' && (
           <div className="space-y-1">
             <label className="text-sm font-medium">Custo *</label>
@@ -231,6 +222,15 @@ export function ItemOrdemRowNovo({ onAdicionar, adicionando, podeVerLucro }: Ite
             />
           </div>
         )}
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Valor Unitário (OS) *</label>
+          <CampoMoeda
+            value={item.valorUnitario}
+            onChange={(v) => atualizar({ valorUnitario: v })}
+            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
 
         {item.tipo === 'produto_estoque' && podeVerLucro && (
           <div className="space-y-1">

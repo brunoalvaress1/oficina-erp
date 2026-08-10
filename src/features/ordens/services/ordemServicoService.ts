@@ -150,7 +150,11 @@ export async function listarOrdens(params: ListarOrdensParams = {}): Promise<Lis
   }
 
   if (params.status && params.status !== 'todas') {
-    query = query.eq('status', params.status)
+    if (Array.isArray(params.status)) {
+      if (params.status.length > 0) query = query.in('status', params.status)
+    } else {
+      query = query.eq('status', params.status)
+    }
   }
 
   const numero = params.numero?.trim().replace(/\D/g, '') ?? ''
