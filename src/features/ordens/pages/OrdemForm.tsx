@@ -273,7 +273,8 @@ export function OrdemForm() {
           clienteBlockValue.bairro !== (clienteExistente.bairro ?? '') ||
           clienteBlockValue.cidade !== (clienteExistente.cidade ?? '') ||
           clienteBlockValue.estado !== (clienteExistente.estado ?? '') ||
-          clienteBlockValue.codigoCidade !== (clienteExistente.codigoCidade ?? '')
+          clienteBlockValue.codigoCidade !== (clienteExistente.codigoCidade ?? '') ||
+          clienteBlockValue.inscricaoEstadual !== (clienteExistente.inscricaoEstadual ?? '')
         if (dadosMudaram) {
           // Telefone/e-mail/endereço podem ser trocados ou completados na
           // própria OS mesmo pra cliente já cadastrado (muitos clientes
@@ -370,7 +371,8 @@ export function OrdemForm() {
         clienteBlockValue.bairro !== (clienteExistente.bairro ?? '') ||
         clienteBlockValue.cidade !== (clienteExistente.cidade ?? '') ||
         clienteBlockValue.estado !== (clienteExistente.estado ?? '') ||
-        clienteBlockValue.codigoCidade !== (clienteExistente.codigoCidade ?? '')
+        clienteBlockValue.codigoCidade !== (clienteExistente.codigoCidade ?? '') ||
+        clienteBlockValue.inscricaoEstadual !== (clienteExistente.inscricaoEstadual ?? '')
       if (dadosClienteMudaram) {
         try {
           await atualizarCliente(clienteExistente.id, clienteBlockValueParaInput(clienteBlockValue))

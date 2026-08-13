@@ -92,6 +92,7 @@ export interface ClienteBlockValue {
   codigoCidade: string
   sexo: string
   dataNascimento: string
+  inscricaoEstadual: string
 }
 
 export function clienteBlockValueVazio(): ClienteBlockValue {
@@ -111,6 +112,7 @@ export function clienteBlockValueVazio(): ClienteBlockValue {
     codigoCidade: '',
     sexo: '',
     dataNascimento: '',
+    inscricaoEstadual: '',
   }
 }
 
@@ -131,6 +133,7 @@ export function clienteBlockValueDoExistente(cliente: Cliente): ClienteBlockValu
     codigoCidade: cliente.codigoCidade ?? '',
     sexo: cliente.sexo ?? '',
     dataNascimento: cliente.dataNascimento ?? '',
+    inscricaoEstadual: cliente.inscricaoEstadual ?? '',
   }
 }
 
@@ -216,5 +219,6 @@ export function clienteBlockValueParaInput(valor: ClienteBlockValue): ClienteInp
     sexo: valor.sexo || undefined,
     dataNascimento: valor.dataNascimento || undefined,
     observacoes: valor.complemento ? `Complemento: ${valor.complemento}` : undefined,
+    inscricaoEstadual: valor.inscricaoEstadual || undefined,
   }
 }

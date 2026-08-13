@@ -297,6 +297,19 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
           />
         </div>
 
+        {ehPessoaJuridica && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Inscrição Estadual</label>
+            <input
+              value={value.inscricaoEstadual}
+              onChange={(e) => atualizar({ inscricaoEstadual: e.target.value })}
+              placeholder="Deixe em branco se isento"
+              disabled={disabled}
+              className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+            />
+          </div>
+        )}
+
         <div className="space-y-1">
           <label className="text-sm font-medium">CEP {ehPessoaJuridica ? '*' : ''}</label>
           <div className="relative">
