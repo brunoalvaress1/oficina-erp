@@ -36,6 +36,7 @@ function mapRow(row: any): Cliente {
     sexo: row.sexo,
     dataNascimento: row.data_nascimento,
     observacoes: row.observacoes,
+    inscricaoEstadual: row.inscricao_estadual,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -114,6 +115,7 @@ export async function criarCliente(input: ClienteInput, oficinaId: string): Prom
       sexo: input.sexo || null,
       data_nascimento: input.dataNascimento || null,
       observacoes: input.observacoes || null,
+      inscricao_estadual: input.inscricaoEstadual || null,
     })
     .select()
     .single()
@@ -140,6 +142,7 @@ export async function atualizarCliente(id: string, input: ClienteInput): Promise
       sexo: input.sexo || null,
       data_nascimento: input.dataNascimento || null,
       observacoes: input.observacoes || null,
+      inscricao_estadual: input.inscricaoEstadual || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

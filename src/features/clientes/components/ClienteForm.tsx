@@ -36,10 +36,13 @@ export function ClienteForm({ clienteExistente, onSubmit, isSubmitting }: Client
       sexo: clienteExistente?.sexo ?? '',
       dataNascimento: clienteExistente?.dataNascimento ?? '',
       observacoes: clienteExistente?.observacoes ?? '',
+      inscricaoEstadual: clienteExistente?.inscricaoEstadual ?? '',
     },
   })
 
   const cep = watch('cep')
+  const cpfCnpj = watch('cpfCnpj')
+  const ehPessoaJuridica = (cpfCnpj ?? '').replace(/\D/g, '').length === 14
 
   useEffect(() => {
     const cepLimpo = (cep ?? '').replace(/\D/g, '')
@@ -85,6 +88,21 @@ export function ClienteForm({ clienteExistente, onSubmit, isSubmitting }: Client
             className="w-full h-9 px-3 rounded-md border bg-transparent text-sm outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
+
+        {ehPessoaJuridica && (
+          <div className="col-span-2 space-y-1">
+            <label className="text-sm font-medium">Inscrição Estadual</label>
+            <input
+              {...register('inscricaoEstadual')}
+              placeholder="Deixe em branco se o cliente for isento de IE"
+              className="w-full h-9 px-3 rounded-md border bg-transparent text-sm outline-none focus:ring-1 focus:ring-primary"
+            />
+            <p className="text-xs text-muted-foreground">
+              Obrigatória para emitir nota fiscal a clientes pessoa jurídica que são contribuintes de ICMS —
+              sem ela, a Sefaz pode rejeitar a nota com "IE do destinatário não informada".
+            </p>
+          </div>
+        )}
 
         <div className="col-span-2 space-y-1">
           <label className="text-sm font-medium">E-mail</label>

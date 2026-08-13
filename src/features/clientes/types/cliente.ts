@@ -15,6 +15,7 @@ export interface Cliente {
   sexo: string | null
   dataNascimento: string | null
   observacoes: string | null
+  inscricaoEstadual: string | null
   createdAt: string
   updatedAt: string
 }
@@ -34,6 +35,7 @@ export interface ClienteInput {
   sexo?: string
   dataNascimento?: string
   observacoes?: string
+  inscricaoEstadual?: string
 }
 
 export type CampoOrdenacaoCliente =

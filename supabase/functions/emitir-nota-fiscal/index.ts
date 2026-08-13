@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
 
     const { data: cliente, error: erroCliente } = await admin
       .from('clientes')
-      .select('nome, cpf_cnpj, cep, endereco, numero, bairro, cidade, estado, codigo_cidade, telefone, email')
+      .select('nome, cpf_cnpj, cep, endereco, numero, bairro, cidade, estado, codigo_cidade, telefone, email, inscricao_estadual')
       .eq('id', ordem.cliente_id)
       .single()
     if (erroCliente || !cliente) throw new Error('CLIENTE_NAO_ENCONTRADO')
@@ -273,20 +273,29 @@ Deno.serve(async (req) => {
     }
 
     // NF-e comum exige alguns campos extras que a NFC-e não tem (ela já é
-    // implicitamente venda presencial ao consumidor final). Como não
-    // coletamos a Inscrição Estadual do cliente, tratamos sempre como sem IE
-    // conhecida — mas o indicador certo pra isso depende de pessoa física x
-    // jurídica: "9" (não contribuinte) é só pra CPF; pra CNPJ a Sefaz rejeita
-    // com "IE do destinatário não informada" (a regra de negócio da nota
-    // fiscal não aceita uma empresa como "não contribuinte" — só contribuinte
-    // com IE, indicador "1", ou isento de inscrição, indicador "2"). Como não
-    // temos a IE cadastrada, "2" (isento) é o cenário correto pra empresa
-    // cliente de balcão sem IE informada.
+    // implicitamente venda presencial ao consumidor final). O indicador de
+    // IE do destinatário depende de pessoa física x jurídica E de o cliente
+    // ter IE cadastrada: "9" (não contribuinte) é só pra CPF; pra CNPJ a
+    // Sefaz não aceita "não contribuinte" — só contribuinte com IE
+    // (indicador "1", exige a IE real) ou isento de inscrição (indicador
+    // "2"). Se marcamos "2" (isento) mas o CNPJ está registrado como
+    // contribuinte ativo na base da Sefaz, ela rejeita mesmo assim com "IE
+    // do destinatário não informada" — por isso "1" + IE real é usado sempre
+    // que o cliente tiver IE cadastrada, e "2" fica só de fallback pra
+    // cliente jurídico realmente sem IE.
+    const ieClienteDigitos = (cliente.inscricao_estadual || '').replace(/\D/g, '')
     if (tipoNota === 'nfe') {
       payload.tipo_documento = '1' // 1 = saída
       payload.finalidade_emissao = '1' // 1 = normal
       payload.consumidor_final = '1'
-      payload.indicador_ie_destinatario = ehPessoaJuridicaCliente ? '2' : '9'
+      if (!ehPessoaJuridicaCliente) {
+        payload.indicador_ie_destinatario = '9'
+      } else if (ieClienteDigitos) {
+        payload.indicador_ie_destinatario = '1'
+        payload.inscricao_estadual_destinatario = ieClienteDigitos
+      } else {
+        payload.indicador_ie_destinatario = '2'
+      }
     }
 
     // 4. Envia pra Focus. A emissão de NFC-e é SÍNCRONA (a doc oficial da Focus

@@ -17,6 +17,7 @@ export const clienteSchema = z
     sexo: z.string().optional(),
     dataNascimento: z.string().optional(),
     observacoes: z.string().optional(),
+    inscricaoEstadual: z.string().optional(),
   })
   // Pessoa Jurídica (CNPJ, 14 dígitos): telefone e CEP passam a ser obrigatórios.
   .superRefine((valores, contexto) => {
