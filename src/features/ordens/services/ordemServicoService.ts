@@ -162,6 +162,7 @@ function traduzirErro(mensagem: string): string {
   if (mensagem.includes('NOTA_FISCAL_EMITIDA')) return 'Já existe nota fiscal emitida pra essa venda — cancele a nota fiscal antes de reabrir a OS.'
   if (mensagem.includes('ORDEM_SEM_ITENS')) return 'Adicione ao menos um produto ou serviço antes de finalizar.'
   if (mensagem.includes('ORDEM_NAO_ENCONTRADA')) return 'Ordem de serviço não encontrada.'
+  if (mensagem.includes('CLIENTE_NAO_ENCONTRADO')) return 'Cliente não encontrado.'
   if (mensagem.includes('ITEM_NAO_ENCONTRADO')) return 'Item não encontrado.'
   return mensagem
 }

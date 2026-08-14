@@ -11,6 +11,7 @@ const ROTULOS_ACAO: Record<string, string> = {
   item_aprovacao_pendente: 'Aprovação do item revertida para aguardando',
   cabecalho_atualizado: 'Dados da ordem atualizados',
   status_alterado: 'Status alterado',
+  cliente_alterado: 'Cliente da OS alterado',
   finalizada: 'Ordem finalizada e enviada ao caixa',
   reaberta: 'Ordem reaberta',
 }

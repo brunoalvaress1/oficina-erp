@@ -117,6 +117,7 @@ export interface AtualizarCabecalhoInput {
   defeitosRelatados?: string
   observacoesInternas?: string
   dataEntrada?: string
+  clienteId?: string
 }
 
 export type CampoOrdenacaoOrdem =

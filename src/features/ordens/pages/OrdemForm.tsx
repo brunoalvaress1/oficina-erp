@@ -384,6 +384,14 @@ export function OrdemForm() {
       }
     }
 
+    // Se o dono do veículo foi trocado (botão "Trocar dono do veículo") enquanto
+    // essa OS ainda está aberta, o cliente da PRÓPRIA OS acompanha a troca —
+    // sem isso, a OS continuava com o dono antigo mesmo depois de trocar o
+    // cadastro do veículo (a troca só valia pras próximas OS's dessa placa).
+    const clienteMudou = Boolean(
+      clienteBlockValue.clienteExistente && clienteBlockValue.clienteExistente.id !== ordem?.clienteId,
+    )
+
     atualizarCabecalhoMutation.mutate({
       numeroPrisma: numeroPrisma || undefined,
       mecanicoId: mecanicoId || undefined,
@@ -391,6 +399,7 @@ export function OrdemForm() {
       defeitosRelatados: defeitosRelatados || undefined,
       observacoesInternas: observacoesInternas || undefined,
       dataEntrada,
+      clienteId: clienteMudou ? clienteBlockValue.clienteExistente!.id : undefined,
     })
   }
 
