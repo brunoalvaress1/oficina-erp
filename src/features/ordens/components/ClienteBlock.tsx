@@ -147,6 +147,12 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
     }
   }
 
+  // Só corrige o campo do cliente já vinculado (sem buscar/trocar de
+  // cliente) — usado quando o cliente da OS nunca teve CPF/CNPJ cadastrado.
+  function handleCpfCnpjCompletar(digitado: string) {
+    atualizar({ cpfCnpj: formatCpfCnpj(digitado) })
+  }
+
   async function handleCepChange(digitado: string) {
     const formatado = formatCep(digitado)
     atualizar({ cep: formatado })
@@ -182,7 +188,16 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
   // que poder digitar um documento novo do zero) — mas ao editar uma OS já
   // existente isso precisa travar assim que houver um cliente vinculado, ou
   // trocar o documento aqui trocaria pra qual cliente essa OS aponta.
-  const cpfCnpjTravado = disabled || (permitirEditarClienteExistente && Boolean(value.clienteExistente))
+  // Exceção: se o cliente já vinculado NUNCA teve CPF/CNPJ cadastrado (cliente
+  // de balcão antigo), libera só pra completar — usa o cpfCnpj do
+  // clienteExistente (snapshot carregado do banco) pra decidir isso, não o
+  // value.cpfCnpj ao vivo, senão o campo travaria de novo assim que o
+  // primeiro dígito fosse digitado.
+  const podeCompletarCpfCnpjFaltante = Boolean(
+    permitirEditarClienteExistente && value.clienteExistente && !value.clienteExistente.cpfCnpj,
+  )
+  const cpfCnpjTravado =
+    disabled || (permitirEditarClienteExistente && Boolean(value.clienteExistente) && !podeCompletarCpfCnpjFaltante)
   const digitosDocumento = value.cpfCnpj.replace(/\D/g, '')
   const ehPessoaJuridica = digitosDocumento.length === 14
   const documentoInvalido = Boolean(digitosDocumento) && !cpfCnpjValidoOuVazio(value.cpfCnpj)
@@ -202,8 +217,10 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
           <div className="relative">
             <input
               value={value.cpfCnpj}
-              onChange={(e) => handleCpfCnpjChange(e.target.value)}
-              onFocus={handleTrocarDocumentoManualmente}
+              onChange={(e) =>
+                podeCompletarCpfCnpjFaltante ? handleCpfCnpjCompletar(e.target.value) : handleCpfCnpjChange(e.target.value)
+              }
+              onFocus={podeCompletarCpfCnpjFaltante ? undefined : handleTrocarDocumentoManualmente}
               disabled={cpfCnpjTravado}
               className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
                 (tentouSalvar && !value.cpfCnpj.trim()) || documentoInvalido
@@ -217,6 +234,8 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
           </div>
           {documentoInvalido ? (
             <p className="text-xs text-destructive">CPF/CNPJ inválido — confira os números digitados</p>
+          ) : podeCompletarCpfCnpjFaltante ? (
+            <p className="text-xs text-amber-600">Cliente sem CPF/CNPJ cadastrado — preencha aqui pra completar o cadastro</p>
           ) : value.clienteExistente ? (
             <p className="text-xs text-green-600">
               Cliente já cadastrado — dados preenchidos automaticamente (telefone, e-mail e endereço podem ser corrigidos aqui)

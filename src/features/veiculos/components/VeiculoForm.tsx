@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Search } from 'lucide-react'
@@ -6,7 +7,9 @@ import { veiculoSchema, type VeiculoFormValues } from '../schemas/veiculoSchema'
 import type { Veiculo } from '../types/veiculo'
 import { useConsultaPlaca } from '../hooks/useConsultaPlaca'
 
-import { useClientesSelect } from '@/features/clientes/hooks/useClientesSelect'
+import { Combobox } from '@/components/ui/Combobox'
+import { useClientesBusca, type ClienteBusca } from '@/features/clientes/hooks/useClientesBusca'
+import { formatCpfCnpj, formatPhone } from '@/utils/format'
 
 interface VeiculoFormProps {
   veiculoExistente?: Veiculo
@@ -19,7 +22,13 @@ export function VeiculoForm({
   onSubmit,
   isSubmitting,
 }: VeiculoFormProps) {
-  const { data: clientes = [], isLoading } = useClientesSelect()
+  const [termoBuscaCliente, setTermoBuscaCliente] = useState('')
+  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteBusca | null>(
+    veiculoExistente
+      ? { id: veiculoExistente.clienteId, nome: veiculoExistente.clienteNome ?? '', cpf_cnpj: null, telefone: null }
+      : null,
+  )
+  const { data: clientesEncontrados = [], isLoading: buscandoClientes } = useClientesBusca(termoBuscaCliente)
   const consultaPlaca = useConsultaPlaca()
 
   const {
@@ -90,26 +99,25 @@ export function VeiculoForm({
             Cliente *
           </label>
 
-          <select
-            {...register('clienteId')}
-            disabled={isLoading}
-            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-          >
-            <option value="">
-              {isLoading
-                ? 'Carregando clientes...'
-                : 'Selecione um cliente'}
-            </option>
-
-            {clientes.map((cliente) => (
-              <option
-                key={cliente.id}
-                value={cliente.id}
-              >
-                {cliente.nome}
-              </option>
-            ))}
-          </select>
+          <Combobox<ClienteBusca>
+            value={clienteSelecionado}
+            onSelect={(cliente) => {
+              setClienteSelecionado(cliente)
+              setValue('clienteId', cliente.id, { shouldValidate: true })
+            }}
+            onSearch={setTermoBuscaCliente}
+            items={clientesEncontrados}
+            isLoading={buscandoClientes}
+            getKey={(c) => c.id}
+            getLabel={(c) => c.nome}
+            getDescription={(c) =>
+              [c.cpf_cnpj ? formatCpfCnpj(c.cpf_cnpj) : null, c.telefone ? formatPhone(c.telefone) : null]
+                .filter(Boolean)
+                .join(' · ') || undefined
+            }
+            placeholder="Buscar cliente por nome, CPF/CNPJ ou telefone..."
+            emptyMessage="Nenhum cliente encontrado"
+          />
 
           {errors.clienteId && (
             <p className="text-xs text-destructive">

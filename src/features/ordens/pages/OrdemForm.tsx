@@ -265,6 +265,7 @@ export function OrdemForm() {
       } else {
         clienteId = clienteExistente.id
         const dadosMudaram =
+          clienteBlockValue.cpfCnpj !== (clienteExistente.cpfCnpj ?? '') ||
           clienteBlockValue.telefone !== (clienteExistente.telefone ?? '') ||
           clienteBlockValue.email !== (clienteExistente.email ?? '') ||
           clienteBlockValue.cep !== (clienteExistente.cep ?? '') ||
@@ -363,6 +364,7 @@ export function OrdemForm() {
     const clienteExistente = clienteBlockValue.clienteExistente
     if (clienteExistente) {
       const dadosClienteMudaram =
+        clienteBlockValue.cpfCnpj !== (clienteExistente.cpfCnpj ?? '') ||
         clienteBlockValue.telefone !== (clienteExistente.telefone ?? '') ||
         clienteBlockValue.email !== (clienteExistente.email ?? '') ||
         clienteBlockValue.cep !== (clienteExistente.cep ?? '') ||
