@@ -13,11 +13,17 @@ import type { CriarOficinaInput, StatusAssinatura } from '../types/oficinaAdmin'
 
 export function useSouSuperAdmin() {
   const { user } = useAuth()
-  return useQuery({
+  const query = useQuery({
     queryKey: ['sou-super-admin', user?.id],
     queryFn: () => souSuperAdmin(),
     enabled: !!user,
   })
+  // isLoading do React Query fica falso no instante em que `user` acabou de
+  // ficar disponível mas o fetch ainda não disparou (data ainda undefined) —
+  // isso deixava ProtectedRoute/SuperAdminRoute/RaizRedirect tratarem "ainda
+  // não sei" como "não é super admin" por um frame logo após o F5. isPending
+  // cobre isso (não depende de já estar buscando).
+  return { ...query, isLoading: !!user && query.isPending }
 }
 
 export function useOficinasAdmin() {

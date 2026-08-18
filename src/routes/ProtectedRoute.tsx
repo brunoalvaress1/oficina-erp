@@ -16,7 +16,7 @@ interface ProtectedRouteProps {
 // bloqueada (só o resto do sistema fica trancado) — é assim que dá pra
 // mostrar essa tela de aviso em vez de uma tela vazia/quebrada.
 function useStatusOficina(habilitado: boolean) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['status-oficina-bloqueio'],
     queryFn: async () => {
       const { data } = await supabase.from('oficinas').select('nome_fantasia, status_assinatura, bloqueada_motivo').maybeSingle()
@@ -24,6 +24,11 @@ function useStatusOficina(habilitado: boolean) {
     },
     enabled: habilitado,
   })
+  // isLoading do React Query fica falso no instante em que `habilitado` acabou
+  // de virar true mas o fetch ainda não disparou (data ainda undefined) — isso
+  // deixava esse guard "vazar" pra tela real com dados incompletos por um
+  // frame logo após o F5. isPending cobre isso (não depende de já estar buscando).
+  return { ...query, isLoading: habilitado && query.isPending }
 }
 
 export function ProtectedRoute({ children, admin }: ProtectedRouteProps) {
