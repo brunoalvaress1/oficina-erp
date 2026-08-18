@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Plus, Pencil, Check, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { formatCurrency } from '@/utils/format'
+import { PermissionGate } from '../components/PermissionGate'
 import { useCatalogo } from '../hooks/useCatalogo'
-import { useAtualizarServicoConfig, useCriarServicoConfig, useServicosConfig } from '../hooks/useServicosConfig'
+import { useAtualizarServicoConfig, useCriarServicoConfig, useExcluirServicoConfig, useServicosConfig } from '../hooks/useServicosConfig'
 import type { Servico, ServicoInput } from '@/features/ordens/types/servico'
 
 const FORM_VAZIO: ServicoInput = { nome: '', valorPadrao: 0, categoriaId: null, tempoMedioMinutos: null, descricao: null }
@@ -12,6 +13,7 @@ export function Servicos() {
   const { data: categorias } = useCatalogo('categorias_servicos')
   const criar = useCriarServicoConfig()
   const atualizar = useAtualizarServicoConfig()
+  const excluir = useExcluirServicoConfig()
 
   const [mostrarForm, setMostrarForm] = useState(false)
   const [novo, setNovo] = useState<ServicoInput>(FORM_VAZIO)
@@ -48,6 +50,12 @@ export function Servicos() {
 
   function alternarAtivo(servico: Servico) {
     atualizar.mutate({ id: servico.id, input: { ativo: !servico.ativo } })
+  }
+
+  function handleExcluir(servico: Servico) {
+    if (confirm(`Excluir o serviço "${servico.nome}"?`)) {
+      excluir.mutate(servico.id)
+    }
   }
 
   return (
@@ -218,6 +226,16 @@ export function Servicos() {
                           <button type="button" onClick={() => iniciarEdicao(servico)} title="Editar" className="h-7 w-7 flex items-center justify-center rounded-md border">
                             <Pencil size={13} />
                           </button>
+                          <PermissionGate codigo="configuracoes.visualizar">
+                            <button
+                              type="button"
+                              onClick={() => handleExcluir(servico)}
+                              title="Excluir"
+                              className="h-7 w-7 flex items-center justify-center rounded-md border text-destructive"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </PermissionGate>
                         </div>
                       </td>
                     </>

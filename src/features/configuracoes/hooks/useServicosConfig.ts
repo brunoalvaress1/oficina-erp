@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useRealtimeInvalidacao } from '@/hooks/useRealtimeInvalidacao'
-import { atualizarServico, criarServico, listarServicosCompleto } from '@/features/ordens/services/servicoService'
+import { atualizarServico, criarServico, excluirServico, listarServicosCompleto } from '@/features/ordens/services/servicoService'
 import type { ServicoInput } from '@/features/ordens/types/servico'
 
 export function useServicosConfig() {
@@ -38,5 +38,17 @@ export function useAtualizarServicoConfig() {
       toast.success('Serviço atualizado')
     },
     onError: (error: Error) => toast.error('Erro ao atualizar serviço', { description: error.message }),
+  })
+}
+
+export function useExcluirServicoConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => excluirServico(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicos-completo'] })
+      toast.success('Serviço excluído')
+    },
+    onError: (error: Error) => toast.error('Erro ao excluir serviço', { description: error.message }),
   })
 }
