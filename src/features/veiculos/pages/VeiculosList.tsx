@@ -210,6 +210,7 @@ export function VeiculosList() {
           setPageSize(novoTamanho)
           setPage(1)
         }}
+        pageSizeOptions={[20, 30, 50, 100, 250, 500]}
       />
 
       <VeiculoModal

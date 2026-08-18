@@ -7,11 +7,11 @@ import type {
   VeiculoInput,
 } from '../types/veiculo'
 
-const ORDENACAO_POR_CAMPO: Record<CampoOrdenacaoVeiculo, { coluna: string; tabelaEstrangeira?: string }> = {
-  placa: { coluna: 'placa' },
-  modelo: { coluna: 'modelo' },
-  marca: { coluna: 'marca' },
-  clienteNome: { coluna: 'nome', tabelaEstrangeira: 'clientes' },
+const COLUNA_POR_CAMPO: Record<CampoOrdenacaoVeiculo, string> = {
+  placa: 'placa',
+  modelo: 'modelo',
+  marca: 'marca',
+  clienteNome: 'cliente_nome',
 }
 
 function mapRow(row: any): Veiculo {
@@ -20,6 +20,33 @@ function mapRow(row: any): Veiculo {
     oficinaId: row.oficina_id,
     clienteId: row.cliente_id,
     clienteNome: row.clientes?.nome,
+    placa: row.placa,
+    marca: row.marca,
+    modelo: row.modelo,
+    cor: row.cor,
+    ano: row.ano,
+    anoModelo: row.ano_modelo,
+    chassi: row.chassi,
+    kmAtual: row.km_atual,
+    combustivel: row.combustivel,
+    motor: row.motor,
+    opcionais: row.opcionais,
+    observacoes: row.observacoes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+// Lê da view veiculos_lista (cliente_nome já achatado) em vez da tabela +
+// embed usada em mapRow — ver comentário na migration da view: ordenar por
+// coluna de tabela relacionada embutida (clientes(nome)) não funciona no
+// PostgREST, só uma coluna de primeiro nível ordena de verdade.
+function mapVeiculoLista(row: any): Veiculo {
+  return {
+    id: row.id,
+    oficinaId: row.oficina_id,
+    clienteId: row.cliente_id,
+    clienteNome: row.cliente_nome,
     placa: row.placa,
     marca: row.marca,
     modelo: row.modelo,
@@ -62,24 +89,22 @@ export async function listarVeiculos(params: ListarVeiculosParams = {}): Promise
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  let query = supabase.from('veiculos').select('*, clientes (nome)', { count: 'exact' })
+  let query = supabase.from('veiculos_lista').select('*', { count: 'exact' })
 
   if (search) {
     const termo = search.replace(/,/g, ' ')
-    query = query.or(`placa.ilike.%${termo}%,modelo.ilike.%${termo}%,marca.ilike.%${termo}%`)
+    query = query.or(`placa.ilike.%${termo}%,modelo.ilike.%${termo}%,marca.ilike.%${termo}%,cliente_nome.ilike.%${termo}%`)
   }
 
-  const { coluna, tabelaEstrangeira } = ORDENACAO_POR_CAMPO[params.sortBy ?? 'placa']
+  const coluna = COLUNA_POR_CAMPO[params.sortBy ?? 'placa']
   const ascendente = params.sortDirection !== 'desc'
 
-  const { data, count, error } = await query
-    .order(coluna, { ascending: ascendente, foreignTable: tabelaEstrangeira })
-    .range(from, to)
+  const { data, count, error } = await query.order(coluna, { ascending: ascendente }).range(from, to)
 
   if (error) throw new Error(error.message)
 
   return {
-    data: (data ?? []).map(mapRow),
+    data: (data ?? []).map(mapVeiculoLista),
     total: count ?? 0,
     page,
     pageSize,
