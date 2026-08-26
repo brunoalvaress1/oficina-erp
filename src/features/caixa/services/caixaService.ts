@@ -237,8 +237,14 @@ export async function cancelarRecebimento(
   if (error) throw new Error(traduzirErro(error.message))
 }
 
-export async function buscarDashboardCaixa(): Promise<DashboardCaixa> {
-  const { inicio, fim } = limitesDoDiaLocal()
+// Sem argumentos, é o resumo de hoje (comportamento original). Com
+// dataInicio/dataFim (formato 'YYYY-MM-DD'), soma o período inteiro — mesmo
+// padrão já usado no filtro "recebidas_periodo" de listarCaixaLancamentos:
+// limitesDoDiaLocal calcula início/fim de UM dia no fuso local, então chama
+// duas vezes (uma pro primeiro dia, outra pro último) pra montar o intervalo.
+export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string): Promise<DashboardCaixa> {
+  const { inicio } = limitesDoDiaLocal(dataInicio)
+  const { fim } = limitesDoDiaLocal(dataFim ?? dataInicio)
 
   // Não busca custo/lucro aqui de propósito — o resumo do dia é visível pra
   // quem opera o caixa no dia a dia, e lucro só deve existir no momento do
