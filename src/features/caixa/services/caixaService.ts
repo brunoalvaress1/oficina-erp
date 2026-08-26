@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { capturarIpPublico } from '@/utils/capturarIp'
+import type { TaxaMaquininha } from '@/features/configuracoes/types/pagamentos'
 import type {
   CaixaLancamento,
   CaixaLancamentoDetalhe,
@@ -13,6 +14,7 @@ import type {
   ListarHistoricoCaixaParams,
   ListarHistoricoCaixaResult,
 } from '../types/caixa'
+import type { GrupoTaxaMaquininha } from '../types/bandeiraCartao'
 
 // Limites de um "dia" no fuso horário local do navegador (não UTC) — usar
 // toISOString().slice(0,10) direto faria o dia "virar" no horário de UTC-3
@@ -237,6 +239,49 @@ export async function cancelarRecebimento(
   if (error) throw new Error(traduzirErro(error.message))
 }
 
+// Estima quanto da taxa da maquininha, nas vendas parceladas no crédito, foi
+// bancado pela oficina em vez de repassado ao cliente:
+// - até `parcelasSemJuros` (config global de parcelamento), o cliente nunca
+//   paga juros — a taxa da maquininha nessas parcelas é 100% perda da oficina;
+// - acima disso, só sobra perda se o que foi de fato cobrado do cliente
+//   (juros_percentual daquela venda) ficar abaixo da taxa real da maquininha
+//   (ex: vendedor esqueceu de repassar, ou repassou menos que o custo real).
+// bandeira é texto livre (ver caixa_recebimento_formas.bandeira) — casa
+// contra o catálogo de bandeiras por nome (case-insensitive), e cai no grupo
+// "outros" quando não bate com nenhuma (bandeira em branco ou desconhecida).
+function calcularPerdaParcelamento(
+  formasCredito: Array<{ valor: number; parcelas: number | null; bandeira: string | null; jurosPercentual: number | null }>,
+  taxas: Array<Pick<TaxaMaquininha, 'grupoTaxa' | 'parcelas' | 'taxaPercentual'>>,
+  bandeiras: Array<{ nome: string; grupoTaxa: GrupoTaxaMaquininha }>,
+  parcelasSemJuros: number,
+): { perda: number; semTaxa: number } {
+  const grupoPorBandeira = new Map(bandeiras.map((b) => [b.nome.trim().toLowerCase(), b.grupoTaxa]))
+  const taxaPorChave = new Map(taxas.map((t) => [`${t.grupoTaxa}:${t.parcelas}`, t.taxaPercentual]))
+
+  let perda = 0
+  let semTaxa = 0
+
+  for (const forma of formasCredito) {
+    const parcelas = forma.parcelas || 1
+    const grupo = grupoPorBandeira.get((forma.bandeira ?? '').trim().toLowerCase()) ?? 'outros'
+    const taxaPercentual = taxaPorChave.get(`${grupo}:${parcelas}`)
+    if (taxaPercentual === undefined) {
+      semTaxa += 1
+      continue
+    }
+
+    const custoMaquininha = (forma.valor * taxaPercentual) / 100
+    if (parcelas <= parcelasSemJuros) {
+      perda += custoMaquininha
+    } else {
+      const jurosRepassado = (forma.valor * (forma.jurosPercentual ?? 0)) / 100
+      perda += Math.max(0, custoMaquininha - jurosRepassado)
+    }
+  }
+
+  return { perda, semTaxa }
+}
+
 // Sem argumentos, é o resumo de hoje (comportamento original). Com
 // dataInicio/dataFim (formato 'YYYY-MM-DD'), soma o período inteiro — mesmo
 // padrão já usado no filtro "recebidas_periodo" de listarCaixaLancamentos:
@@ -249,19 +294,27 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
   // Não busca custo/lucro aqui de propósito — o resumo do dia é visível pra
   // quem opera o caixa no dia a dia, e lucro só deve existir no momento do
   // fechamento (ver caixaSessaoService.buscarResumoSessao), então nem faz
-  // sentido trazer esse dado pro cliente aqui.
-  const [recebimentosResp, pendentesResp] = await Promise.all([
+  // sentido trazer esse dado pro cliente aqui. A perda com parcelamento é
+  // exceção deliberada: não é lucro da venda, é custo operacional do meio de
+  // pagamento, então cabe aqui pra quem opera o caixa já ver na hora.
+  const [recebimentosResp, pendentesResp, taxasResp, bandeirasResp, parcelamentoResp] = await Promise.all([
     supabase
       .from('caixa_recebimentos')
-      .select('id, valor_total, desconto, caixa_recebimento_formas(valor, forma_pagamento)')
+      .select('id, valor_total, desconto, caixa_recebimento_formas(valor, forma_pagamento, parcelas, bandeira, juros_percentual)')
       .eq('cancelado', false)
       .gte('created_at', inicio)
       .lte('created_at', fim),
     supabase.from('caixa_lancamentos').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
+    supabase.from('taxas_maquininha').select('grupo_taxa, tipo, parcelas, taxa_percentual').eq('tipo', 'credito'),
+    supabase.from('bandeiras_cartao').select('nome, grupo_taxa'),
+    supabase.from('configuracoes_parcelamento').select('parcelas_sem_juros').maybeSingle(),
   ])
 
   if (recebimentosResp.error) throw new Error(recebimentosResp.error.message)
   if (pendentesResp.error) throw new Error(pendentesResp.error.message)
+  if (taxasResp.error) throw new Error(taxasResp.error.message)
+  if (bandeirasResp.error) throw new Error(bandeirasResp.error.message)
+  if (parcelamentoResp.error) throw new Error(parcelamentoResp.error.message)
 
   const recebimentos = recebimentosResp.data ?? []
   const formas = recebimentos.flatMap((r: any) => r.caixa_recebimento_formas ?? [])
@@ -269,6 +322,29 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
   function somaPorForma(forma: string): number {
     return formas.filter((f: any) => f.forma_pagamento === forma).reduce((soma: number, f: any) => soma + Number(f.valor), 0)
   }
+
+  const taxas = (taxasResp.data ?? []).map((t: any) => ({
+    grupoTaxa: t.grupo_taxa as GrupoTaxaMaquininha,
+    parcelas: Number(t.parcelas),
+    taxaPercentual: Number(t.taxa_percentual ?? 0),
+  }))
+  const bandeiras = (bandeirasResp.data ?? []).map((b: any) => ({ nome: b.nome as string, grupoTaxa: b.grupo_taxa as GrupoTaxaMaquininha }))
+  const parcelasSemJuros = Number(parcelamentoResp.data?.parcelas_sem_juros ?? 6)
+
+  const formasCredito = formas
+    .filter((f: any) => f.forma_pagamento === 'credito')
+    .map((f: any) => ({
+      valor: Number(f.valor),
+      parcelas: f.parcelas === null ? null : Number(f.parcelas),
+      bandeira: f.bandeira,
+      jurosPercentual: f.juros_percentual === null ? null : Number(f.juros_percentual),
+    }))
+  const { perda: perdaParcelamentoCredito, semTaxa: vendasCreditoSemTaxaConfigurada } = calcularPerdaParcelamento(
+    formasCredito,
+    taxas,
+    bandeiras,
+    parcelasSemJuros,
+  )
 
   return {
     recebidoHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
@@ -281,6 +357,8 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
     quantidadeOs: recebimentos.length,
     totalGeral: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
     descontosHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.desconto ?? 0), 0),
+    perdaParcelamentoCredito,
+    vendasCreditoSemTaxaConfigurada,
   }
 }
 

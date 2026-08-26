@@ -1,4 +1,16 @@
 import type { FormaPagamento } from '@/features/caixa/types/caixa'
+import type { GrupoTaxaMaquininha } from '@/features/caixa/types/bandeiraCartao'
+
+export type TipoTaxaMaquininha = 'debito' | 'credito'
+
+export interface TaxaMaquininha {
+  id: string
+  oficinaId: string
+  grupoTaxa: GrupoTaxaMaquininha
+  tipo: TipoTaxaMaquininha
+  parcelas: number
+  taxaPercentual: number
+}
 
 export interface FormaPagamentoConfig {
   codigo: FormaPagamento

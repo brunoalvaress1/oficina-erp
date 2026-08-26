@@ -151,4 +151,12 @@ export interface DashboardCaixa {
   quantidadeOs: number
   totalGeral: number
   descontosHoje: number
+  // Estimativa de quanto da taxa da maquininha, no crédito parcelado, ficou
+  // por conta da oficina (não repassada ao cliente) — ver comentário em
+  // buscarDashboardCaixa/calcularPerdaParcelamento.
+  perdaParcelamentoCredito: number
+  // Vendas no crédito no período cuja bandeira/parcela não bateu com
+  // nenhuma taxa cadastrada — não entraram na conta acima, por isso a
+  // estimativa pode estar incompleta.
+  vendasCreditoSemTaxaConfigurada: number
 }

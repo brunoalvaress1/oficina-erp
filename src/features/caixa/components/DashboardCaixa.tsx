@@ -106,6 +106,16 @@ export function DashboardCaixa() {
           <div className="border-t pt-2 mt-2">
             <Linha label="Total Geral" valor={formatCurrency(data.totalGeral)} destaque cor="text-primary" />
           </div>
+          {data.perdaParcelamentoCredito > 0 && (
+            <div className="border-t pt-2 mt-2">
+              <Linha label="Perda com parcelamento (crédito)" valor={formatCurrency(data.perdaParcelamentoCredito)} cor="text-destructive" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Taxa da maquininha absorvida pela oficina em parcelas sem juros repassado ao cliente.
+                {data.vendasCreditoSemTaxaConfigurada > 0 &&
+                  ` ${data.vendasCreditoSemTaxaConfigurada} venda${data.vendasCreditoSemTaxaConfigurada === 1 ? '' : 's'} no crédito ficaram de fora dessa conta por falta de taxa cadastrada pra bandeira/parcela.`}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
