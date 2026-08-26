@@ -69,7 +69,13 @@ function AbaOsPagas() {
     return lista.filter((ordem) => dataDentroDoIntervalo(ordem.dataPagamento, filtro.dataInicio, filtro.dataFim))
   }, [ordens, filtro])
 
-  const valorTotal = ordensFiltradas.reduce((soma, ordem) => soma + ordem.valorTotal, 0)
+  // O total mostrado acompanha o modelo selecionado (Peças/Serviço) — assim
+  // bate com o que aparece na coluna Valor de cada linha, em vez de somar o
+  // valor da OS inteira (peça + serviço) misturado.
+  const valorTotal = ordensFiltradas.reduce(
+    (soma, ordem) => soma + (modeloSelecao === 'peca' ? ordem.valorPecas : ordem.valorServicos),
+    0,
+  )
 
   // Só entram na seleção em lote as OS que realmente têm aquele modelo
   // pendente — uma OS só de serviço não aparece com checkbox no modo "Peças".
@@ -176,7 +182,7 @@ function AbaOsPagas() {
               <th className="text-left font-medium px-3 py-2">OS</th>
               <th className="text-left font-medium px-3 py-2">Cliente</th>
               <th className="text-left font-medium px-3 py-2">Pago em</th>
-              <th className="text-left font-medium px-3 py-2">Valor</th>
+              <th className="text-left font-medium px-3 py-2">Valor ({modeloSelecao === 'peca' ? 'Peças' : 'Serviço'})</th>
               <th className="text-right font-medium px-3 py-2">Ações</th>
             </tr>
           </thead>
@@ -210,7 +216,10 @@ function AbaOsPagas() {
                 <td className="px-3 py-2 text-muted-foreground">
                   {ordem.dataPagamento ? new Date(ordem.dataPagamento).toLocaleDateString('pt-BR') : '-'}
                 </td>
-                <td className="px-3 py-2">{formatCurrency(ordem.valorTotal)}</td>
+                <td className="px-3 py-2">
+                  {formatCurrency(modeloSelecao === 'peca' ? ordem.valorPecas : ordem.valorServicos)}
+                  <span className="text-muted-foreground"> · Total OS: {formatCurrency(ordem.valorTotal)}</span>
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end">
                     <PermissionGate codigo="notas_fiscais.emitir">
