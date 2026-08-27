@@ -122,14 +122,13 @@ export function DashboardCaixa() {
                   cor="text-destructive"
                 />
               )}
-              <p className="text-xs text-muted-foreground mt-1">
-                Taxa da maquininha absorvida pela oficina — no débito é sempre 100% (nunca repassado ao cliente); no
-                crédito, só a parte que não virou juro cobrado do cliente.
-                {(data.vendasCreditoSemTaxaConfigurada > 0 || data.vendasDebitoSemTaxaConfigurada > 0) &&
-                  ` ${data.vendasCreditoSemTaxaConfigurada + data.vendasDebitoSemTaxaConfigurada} venda${
-                    data.vendasCreditoSemTaxaConfigurada + data.vendasDebitoSemTaxaConfigurada === 1 ? '' : 's'
-                  } ficaram de fora dessa conta por falta de taxa cadastrada pra bandeira/parcela.`}
-              </p>
+              {(data.vendasCreditoSemTaxaConfigurada > 0 || data.vendasDebitoSemTaxaConfigurada > 0) && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {data.vendasCreditoSemTaxaConfigurada + data.vendasDebitoSemTaxaConfigurada} venda
+                  {data.vendasCreditoSemTaxaConfigurada + data.vendasDebitoSemTaxaConfigurada === 1 ? '' : 's'} ficaram de fora dessa
+                  conta por falta de taxa cadastrada pra bandeira/parcela.
+                </p>
+              )}
             </div>
           )}
         </div>
