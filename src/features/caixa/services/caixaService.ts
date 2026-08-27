@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import { capturarIpPublico } from '@/utils/capturarIp'
-import type { TaxaMaquininha } from '@/features/configuracoes/types/pagamentos'
 import type {
   CaixaLancamento,
   CaixaLancamentoDetalhe,
@@ -239,6 +238,44 @@ export async function cancelarRecebimento(
   if (error) throw new Error(traduzirErro(error.message))
 }
 
+interface TaxaLookup {
+  grupoTaxa: GrupoTaxaMaquininha
+  tipo: 'debito' | 'credito'
+  parcelas: number
+  taxaPercentual: number
+}
+
+function grupoDaBandeira(bandeira: string | null, bandeiras: Array<{ nome: string; grupoTaxa: GrupoTaxaMaquininha }>): GrupoTaxaMaquininha {
+  const grupoPorBandeira = new Map(bandeiras.map((b) => [b.nome.trim().toLowerCase(), b.grupoTaxa]))
+  return grupoPorBandeira.get((bandeira ?? '').trim().toLowerCase()) ?? 'outros'
+}
+
+// Débito não tem parcela nem repasse de juros ao cliente — a taxa da
+// maquininha é sempre 100% perda da oficina, então basta somar valor × taxa
+// pra cada transação de débito no período.
+function calcularPerdaDebito(
+  formasDebito: Array<{ valor: number; bandeira: string | null }>,
+  taxas: TaxaLookup[],
+  bandeiras: Array<{ nome: string; grupoTaxa: GrupoTaxaMaquininha }>,
+): { perda: number; semTaxa: number } {
+  const taxaPorGrupo = new Map(taxas.filter((t) => t.tipo === 'debito').map((t) => [t.grupoTaxa, t.taxaPercentual]))
+
+  let perda = 0
+  let semTaxa = 0
+
+  for (const forma of formasDebito) {
+    const grupo = grupoDaBandeira(forma.bandeira, bandeiras)
+    const taxaPercentual = taxaPorGrupo.get(grupo)
+    if (taxaPercentual === undefined) {
+      semTaxa += 1
+      continue
+    }
+    perda += (forma.valor * taxaPercentual) / 100
+  }
+
+  return { perda, semTaxa }
+}
+
 // Estima quanto da taxa da maquininha, nas vendas parceladas no crédito, foi
 // bancado pela oficina em vez de repassado ao cliente:
 // - até `parcelasSemJuros` (config global de parcelamento), o cliente nunca
@@ -251,19 +288,20 @@ export async function cancelarRecebimento(
 // "outros" quando não bate com nenhuma (bandeira em branco ou desconhecida).
 function calcularPerdaParcelamento(
   formasCredito: Array<{ valor: number; parcelas: number | null; bandeira: string | null; jurosPercentual: number | null }>,
-  taxas: Array<Pick<TaxaMaquininha, 'grupoTaxa' | 'parcelas' | 'taxaPercentual'>>,
+  taxas: TaxaLookup[],
   bandeiras: Array<{ nome: string; grupoTaxa: GrupoTaxaMaquininha }>,
   parcelasSemJuros: number,
 ): { perda: number; semTaxa: number } {
-  const grupoPorBandeira = new Map(bandeiras.map((b) => [b.nome.trim().toLowerCase(), b.grupoTaxa]))
-  const taxaPorChave = new Map(taxas.map((t) => [`${t.grupoTaxa}:${t.parcelas}`, t.taxaPercentual]))
+  const taxaPorChave = new Map(
+    taxas.filter((t) => t.tipo === 'credito').map((t) => [`${t.grupoTaxa}:${t.parcelas}`, t.taxaPercentual]),
+  )
 
   let perda = 0
   let semTaxa = 0
 
   for (const forma of formasCredito) {
     const parcelas = forma.parcelas || 1
-    const grupo = grupoPorBandeira.get((forma.bandeira ?? '').trim().toLowerCase()) ?? 'outros'
+    const grupo = grupoDaBandeira(forma.bandeira, bandeiras)
     const taxaPercentual = taxaPorChave.get(`${grupo}:${parcelas}`)
     if (taxaPercentual === undefined) {
       semTaxa += 1
@@ -305,7 +343,7 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
       .gte('created_at', inicio)
       .lte('created_at', fim),
     supabase.from('caixa_lancamentos').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
-    supabase.from('taxas_maquininha').select('grupo_taxa, tipo, parcelas, taxa_percentual').eq('tipo', 'credito'),
+    supabase.from('taxas_maquininha').select('grupo_taxa, tipo, parcelas, taxa_percentual'),
     supabase.from('bandeiras_cartao').select('nome, grupo_taxa'),
     supabase.from('configuracoes_parcelamento').select('parcelas_sem_juros').maybeSingle(),
   ])
@@ -325,6 +363,7 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
 
   const taxas = (taxasResp.data ?? []).map((t: any) => ({
     grupoTaxa: t.grupo_taxa as GrupoTaxaMaquininha,
+    tipo: t.tipo as 'debito' | 'credito',
     parcelas: Number(t.parcelas),
     taxaPercentual: Number(t.taxa_percentual ?? 0),
   }))
@@ -346,6 +385,11 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
     parcelasSemJuros,
   )
 
+  const formasDebito = formas
+    .filter((f: any) => f.forma_pagamento === 'debito')
+    .map((f: any) => ({ valor: Number(f.valor), bandeira: f.bandeira }))
+  const { perda: perdaDebito, semTaxa: vendasDebitoSemTaxaConfigurada } = calcularPerdaDebito(formasDebito, taxas, bandeiras)
+
   return {
     recebidoHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
     recebidoPix: somaPorForma('pix'),
@@ -359,6 +403,8 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
     descontosHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.desconto ?? 0), 0),
     perdaParcelamentoCredito,
     vendasCreditoSemTaxaConfigurada,
+    perdaDebito,
+    vendasDebitoSemTaxaConfigurada,
   }
 }
 

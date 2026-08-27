@@ -159,4 +159,8 @@ export interface DashboardCaixa {
   // nenhuma taxa cadastrada — não entraram na conta acima, por isso a
   // estimativa pode estar incompleta.
   vendasCreditoSemTaxaConfigurada: number
+  // Débito não tem parcela nem repasse de juros ao cliente — a taxa da
+  // maquininha é sempre 100% perda da oficina (ver calcularPerdaDebito).
+  perdaDebito: number
+  vendasDebitoSemTaxaConfigurada: number
 }
