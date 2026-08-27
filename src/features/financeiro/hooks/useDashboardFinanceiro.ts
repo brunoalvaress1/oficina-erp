@@ -19,7 +19,16 @@ import type { FiltroFinanceiro } from '../types/filtroFinanceiro'
 export function useCardsDashboard(filtro: FiltroFinanceiro) {
   const { funcionario } = usePermissions()
   const query = useQuery({
-    queryKey: ['financeiro-cards', funcionario?.oficinaId, filtro.contaBancariaId, filtro.formaPagamento, filtro.categoriaId, filtro.centroCustoId],
+    queryKey: [
+      'financeiro-cards',
+      funcionario?.oficinaId,
+      filtro.contaBancariaId,
+      filtro.formaPagamento,
+      filtro.categoriaId,
+      filtro.centroCustoId,
+      filtro.dataInicio,
+      filtro.dataFim,
+    ],
     queryFn: () => buscarCardsDashboard(funcionario!.oficinaId, filtro),
     enabled: !!funcionario?.oficinaId,
   })

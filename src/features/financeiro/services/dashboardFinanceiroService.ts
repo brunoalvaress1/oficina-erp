@@ -20,6 +20,8 @@ export async function buscarCardsDashboard(oficinaId: string, filtro: FiltroFina
     p_forma_pagamento: filtro.formaPagamento,
     p_categoria_id: filtro.categoriaId,
     p_centro_custo_id: filtro.centroCustoId,
+    p_data_inicio: filtro.dataInicio || undefined,
+    p_data_fim: filtro.dataFim || undefined,
   })
   if (error) throw new Error(error.message)
   return {

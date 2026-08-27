@@ -58,6 +58,13 @@ export function DashboardFinanceiro() {
 
   const percentualMeta = meta && meta.valorMeta > 0 && cards ? Math.min(100, (cards.receitaMes / meta.valorMeta) * 100) : 0
 
+  // "Receita/Despesas no Mês" só descreve certo quando o período escolhido no
+  // filtro é de fato "Este mês" (o padrão) — pra qualquer outro período
+  // selecionado, o card mostra o mesmo dado (agora corretamente recalculado
+  // pro período), só o rótulo precisa deixar de mentir "mês".
+  const rotuloReceitaPeriodo = filtro.periodo === 'este_mes' ? 'Receita no Mês' : 'Receita no Período'
+  const rotuloDespesaPeriodo = filtro.periodo === 'este_mes' ? 'Despesas no Mês' : 'Despesas no Período'
+
   const itensTop: { nome: string; valor: number; extra?: string }[] = {
     clientes: (topClientes ?? []).map((c) => ({ nome: c.nome, valor: c.total })),
     produtos: (topProdutos ?? []).map((p) => ({ nome: p.nome, valor: p.total, extra: `${p.quantidade}x` })),
@@ -74,9 +81,9 @@ export function DashboardFinanceiro() {
         <div className="lg:col-span-3 space-y-5">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
             <CardIndicador titulo="Receita Hoje" valor={formatCurrency(cards?.receitaHoje ?? 0)} icone={<DollarSign size={16} />} destaque="positivo" />
-            <CardIndicador titulo="Receita no Mês" valor={formatCurrency(cards?.receitaMes ?? 0)} icone={<TrendingUp size={16} />} destaque="positivo" />
+            <CardIndicador titulo={rotuloReceitaPeriodo} valor={formatCurrency(cards?.receitaMes ?? 0)} icone={<TrendingUp size={16} />} destaque="positivo" />
             <CardIndicador titulo="Despesas Hoje" valor={formatCurrency(cards?.despesaHoje ?? 0)} icone={<TrendingDown size={16} />} destaque="negativo" />
-            <CardIndicador titulo="Despesas no Mês" valor={formatCurrency(cards?.despesaMes ?? 0)} icone={<TrendingDown size={16} />} destaque="negativo" />
+            <CardIndicador titulo={rotuloDespesaPeriodo} valor={formatCurrency(cards?.despesaMes ?? 0)} icone={<TrendingDown size={16} />} destaque="negativo" />
             <CardIndicador
               titulo="Lucro Líquido"
               valor={formatCurrency(cards?.lucroLiquido ?? 0)}
