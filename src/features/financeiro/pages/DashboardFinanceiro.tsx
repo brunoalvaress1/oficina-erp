@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { DollarSign, TrendingUp, TrendingDown, Wallet, Receipt, ShoppingCart, Store, AlertCircle, Target, CreditCard } from 'lucide-react'
 import { formatCurrency } from '@/utils/format'
 import { useDashboardCaixa } from '@/features/caixa/hooks/useDashboardCaixa'
+import { ResumoFormasPagamento } from '@/features/caixa/components/ResumoFormasPagamento'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { FiltroFinanceiroBar } from '../components/FiltroFinanceiroBar'
 import { CardIndicador } from '../components/CardIndicador'
@@ -34,11 +35,9 @@ export function DashboardFinanceiro() {
   const [abaTop, setAbaTop] = useState<'clientes' | 'produtos' | 'servicos'>('clientes')
 
   const { data: cards } = useCardsDashboard(filtro)
-  // Cards de Lucro acima vêm de RPC fixa em hoje/mês (não respeitam o filtro
-  // de período da barra) e não descontam taxa de maquininha. Esse aqui
-  // reaproveita o mesmo cálculo já usado no Resumo do Caixa — lucro das
-  // vendas recebidas no período filtrado, líquido da taxa da maquininha
-  // (débito sempre, crédito só a parte não repassada ao cliente).
+  // Alimenta o painel "Resumo de Pagamentos" abaixo — mesmo cálculo do
+  // Resumo do Caixa (detalhe por forma de pagamento, perda com taxa de
+  // maquininha e lucro líquido), só que pro período escolhido aqui no filtro.
   const { data: resumoCaixaPeriodo } = useDashboardCaixa(filtro.dataInicio, filtro.dataFim)
   const { data: serieDiaria, isLoading: carregandoSerie } = useSerieDiariaFinanceiro(filtro)
   const { data: porForma, isLoading: carregandoForma } = usePorFormaPagamentoFinanceiro(filtro)
@@ -91,17 +90,6 @@ export function DashboardFinanceiro() {
               destaque={(cards?.lucroLiquido ?? 0) >= 0 ? 'positivo' : 'negativo'}
             />
             <CardIndicador titulo="Lucro Bruto" valor={formatCurrency(cards?.lucroBruto ?? 0)} icone={<Wallet size={16} />} />
-            <CardIndicador
-              titulo="Lucro (Caixa) c/ taxa da maquininha"
-              valor={formatCurrency(resumoCaixaPeriodo?.lucroLiquido ?? 0)}
-              icone={<CreditCard size={16} />}
-              destaque={(resumoCaixaPeriodo?.lucroLiquido ?? 0) >= 0 ? 'positivo' : 'negativo'}
-              subtitulo={
-                resumoCaixaPeriodo
-                  ? `- ${formatCurrency(resumoCaixaPeriodo.perdaDebito + resumoCaixaPeriodo.perdaParcelamentoCredito)} em taxa, no período filtrado`
-                  : undefined
-              }
-            />
             <CardIndicador titulo="Ticket Médio" valor={formatCurrency(cards?.ticketMedio ?? 0)} icone={<Receipt size={16} />} />
             <CardIndicador titulo="Ordens Recebidas" valor={String(cards?.ordensRecebidas ?? 0)} icone={<ShoppingCart size={16} />} />
             <CardIndicador titulo="PDVs Recebidos" valor={String(cards?.pdvsRecebidos ?? 0)} icone={<Store size={16} />} />
@@ -197,6 +185,22 @@ export function DashboardFinanceiro() {
 
         <div className="space-y-5">
           <AlertasFinanceiros />
+
+          <div className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
+            <h2 className="font-medium text-sm flex items-center gap-2">
+              <CreditCard size={15} /> Resumo de Pagamentos
+            </h2>
+            {resumoCaixaPeriodo ? (
+              <ResumoFormasPagamento
+                data={resumoCaixaPeriodo}
+                rotuloRecebido="Total Recebido no Período"
+                rotuloQuantidade="Qtd. OS recebidas no período"
+                rotuloDescontos="Descontos no Período"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            )}
+          </div>
 
           <div className="rounded-lg border p-4 space-y-2">
             <h2 className="font-medium text-sm flex items-center gap-2">
