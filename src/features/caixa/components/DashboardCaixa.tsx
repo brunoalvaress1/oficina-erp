@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wallet } from 'lucide-react'
 import { useDashboardCaixa } from '../hooks/useDashboardCaixa'
+import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency } from '@/utils/format'
 import { cn } from '@/lib/utils'
 import { calcularIntervaloPeriodo, ROTULO_PERIODO_FINANCEIRO, type PeriodoFinanceiro } from '@/features/financeiro/types/filtroFinanceiro'
@@ -26,12 +27,13 @@ function filtroResumoPadrao(): FiltroPeriodoResumo {
   return { periodo: 'hoje', ...calcularIntervaloPeriodo('hoje') }
 }
 
-// Lucro não aparece aqui de propósito, nem pra quem tem permissão — só é
-// mostrado no momento do fechamento do caixa (ver FecharCaixaModal), pra não
-// ficar exposto no dia a dia.
 export function DashboardCaixa() {
   const [filtro, setFiltro] = useState<FiltroPeriodoResumo>(filtroResumoPadrao)
   const { data, isLoading } = useDashboardCaixa(filtro.dataInicio, filtro.dataFim)
+  // Mesma permissão já usada pra mostrar lucro no fechamento de caixa
+  // (FecharCaixaModal) e na OS (ItemOrdemRow/OrdemForm) — ordens.visualizar_lucro.
+  const { hasPermission } = usePermissions()
+  const podeVerLucro = hasPermission('ordens.visualizar_lucro')
 
   function handlePeriodo(periodo: PeriodoFinanceiro) {
     if (periodo === 'personalizado') {
@@ -129,6 +131,12 @@ export function DashboardCaixa() {
                   conta por falta de taxa cadastrada pra bandeira/parcela.
                 </p>
               )}
+            </div>
+          )}
+          {podeVerLucro && (
+            <div className="border-t pt-2 mt-2">
+              <Linha label="Lucro Bruto" valor={formatCurrency(data.lucroBruto)} />
+              <Linha label="Lucro Líquido (após taxa da maquininha)" valor={formatCurrency(data.lucroLiquido)} destaque cor="text-primary" />
             </div>
           )}
         </div>

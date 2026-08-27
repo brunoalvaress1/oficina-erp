@@ -163,4 +163,9 @@ export interface DashboardCaixa {
   // maquininha é sempre 100% perda da oficina (ver calcularPerdaDebito).
   perdaDebito: number
   vendasDebitoSemTaxaConfigurada: number
+  // Mesma fórmula de lucro do fechamento de caixa (receita de OS - custo de
+  // peça, serviço entra inteiro) — exibir só pra quem tem permissão
+  // ordens.visualizar_lucro. Líquido desconta a perda com maquininha acima.
+  lucroBruto: number
+  lucroLiquido: number
 }

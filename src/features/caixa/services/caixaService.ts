@@ -329,16 +329,17 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
   const { inicio } = limitesDoDiaLocal(dataInicio)
   const { fim } = limitesDoDiaLocal(dataFim ?? dataInicio)
 
-  // Não busca custo/lucro aqui de propósito — o resumo do dia é visível pra
-  // quem opera o caixa no dia a dia, e lucro só deve existir no momento do
-  // fechamento (ver caixaSessaoService.buscarResumoSessao), então nem faz
-  // sentido trazer esse dado pro cliente aqui. A perda com parcelamento é
-  // exceção deliberada: não é lucro da venda, é custo operacional do meio de
-  // pagamento, então cabe aqui pra quem opera o caixa já ver na hora.
+  // Lucro (bruto e líquido) vem junto — quem exibe decide se mostra, com base
+  // na permissão ordens.visualizar_lucro (mesmo código já usado no fechamento
+  // de caixa, ver caixaSessaoService.buscarResumoSessao/FecharCaixaModal).
   const [recebimentosResp, pendentesResp, taxasResp, bandeirasResp, parcelamentoResp] = await Promise.all([
     supabase
       .from('caixa_recebimentos')
-      .select('id, valor_total, desconto, caixa_recebimento_formas(valor, forma_pagamento, parcelas, bandeira, juros_percentual)')
+      .select(
+        `id, valor_total, desconto,
+         caixa_recebimento_formas(valor, forma_pagamento, parcelas, bandeira, juros_percentual),
+         caixa_lancamentos(ordens_servico(ordem_servico_itens(tipo, quantidade, valor_total, valor_custo)))`,
+      )
       .eq('cancelado', false)
       .gte('created_at', inicio)
       .lte('created_at', fim),
@@ -390,6 +391,19 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
     .map((f: any) => ({ valor: Number(f.valor), bandeira: f.bandeira }))
   const { perda: perdaDebito, semTaxa: vendasDebitoSemTaxaConfigurada } = calcularPerdaDebito(formasDebito, taxas, bandeiras)
 
+  // Mesma regra de lucro do fechamento de caixa (caixaSessaoService.buscarResumoSessao):
+  // serviço entra inteiro (não tem custo de peça rastreado), produto desconta
+  // valor_custo × quantidade, produto sem custo cadastrado é ignorado (nem
+  // soma nem subtrai). Lucro líquido desconta a taxa de maquininha calculada
+  // acima — é o "lucro bruto" menos o custo real do meio de pagamento.
+  const itensOrdem = recebimentos.flatMap((r: any) => r.caixa_lancamentos?.ordens_servico?.ordem_servico_itens ?? [])
+  const lucroBruto = itensOrdem.reduce((soma: number, item: any) => {
+    if (item.tipo === 'servico') return soma + Number(item.valor_total)
+    if (item.valor_custo != null) return soma + (Number(item.valor_total) - Number(item.valor_custo) * Number(item.quantidade))
+    return soma
+  }, 0)
+  const lucroLiquido = lucroBruto - (perdaDebito + perdaParcelamentoCredito)
+
   return {
     recebidoHoje: recebimentos.reduce((soma: number, r: any) => soma + Number(r.valor_total), 0),
     recebidoPix: somaPorForma('pix'),
@@ -405,6 +419,8 @@ export async function buscarDashboardCaixa(dataInicio?: string, dataFim?: string
     vendasCreditoSemTaxaConfigurada,
     perdaDebito,
     vendasDebitoSemTaxaConfigurada,
+    lucroBruto,
+    lucroLiquido,
   }
 }
 
