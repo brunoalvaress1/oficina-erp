@@ -25,7 +25,7 @@ export function useNotasFiscaisSaida(params: ListarNotasFiscaisParams = {}) {
   return query
 }
 
-export function useResumoNotasFiscais(params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'> = {}) {
+export function useResumoNotasFiscais(params: Pick<ListarNotasFiscaisParams, 'status' | 'modelo' | 'dataInicio' | 'dataFim'> = {}) {
   const query = useQuery({
     queryKey: ['notas-fiscais-saida-resumo', params],
     queryFn: () => resumoNotasFiscais(params),

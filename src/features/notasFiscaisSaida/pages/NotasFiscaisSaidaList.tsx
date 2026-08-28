@@ -85,6 +85,7 @@ function AbaOsPagas() {
   const [modeloSelecao, setModeloSelecao] = useState<ModeloNotaFiscal>('peca')
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoOsPaga; direcao: 'asc' | 'desc' } | null>(null)
+  const [buscaValor, setBuscaValor] = useState('')
   const emitirEmLote = useEmitirNotasEmLote()
 
   function alternarOrdenacao(campo: CampoOrdenacaoOsPaga) {
@@ -95,8 +96,21 @@ function AbaOsPagas() {
 
   const ordensFiltradas = useMemo(() => {
     const lista = ordens ?? []
-    const filtradas =
+    let filtradas =
       filtro.periodo === 'todas' ? lista : lista.filter((ordem) => dataDentroDoIntervalo(ordem.dataPagamento, filtro.dataInicio, filtro.dataFim))
+
+    // Mesmo padrão "contém" já usado no filtro de KM/número da OS
+    // (ilike('km_atual::text', ...)) — só que aqui é tudo em memória, porque
+    // essa aba não pagina no servidor. Busca no valor do modelo selecionado
+    // (o mesmo que aparece na coluna Valor), não no total da OS inteira.
+    const termoValor = buscaValor.trim().replace(/\D/g, '')
+    if (termoValor) {
+      filtradas = filtradas.filter((ordem) => {
+        const valor = modeloSelecao === 'peca' ? ordem.valorPecas : ordem.valorServicos
+        return Math.round(valor * 100).toString().includes(termoValor)
+      })
+    }
+
     if (!ordenacao) return filtradas
 
     // Lista inteira já vem pro front (sem paginação servidor) — ordenar aqui
@@ -106,7 +120,7 @@ function AbaOsPagas() {
       if (ordenacao.campo === 'ordemNumero') return (a.ordemNumero - b.ordemNumero) * multiplicador
       return (a.clienteNome ?? '').localeCompare(b.clienteNome ?? '') * multiplicador
     })
-  }, [ordens, filtro, ordenacao])
+  }, [ordens, filtro, ordenacao, buscaValor, modeloSelecao])
 
   // O total mostrado acompanha o modelo selecionado (Peças/Serviço) — assim
   // bate com o que aparece na coluna Valor de cada linha, em vez de somar o
@@ -178,6 +192,17 @@ function AbaOsPagas() {
     <div className="space-y-3">
       <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
 
+      <div className="relative max-w-xs">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={buscaValor}
+          onChange={(e) => setBuscaValor(e.target.value)}
+          placeholder="Buscar por valor (ex: 240)..."
+          className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 max-w-md">
         <CardIndicador titulo="OS aguardando emissão" valor={String(ordensFiltradas.length)} icone={<Hourglass size={15} />} />
         <CardIndicador titulo="Valor total" valor={formatCurrency(valorTotal)} icone={<Wallet size={15} />} />
@@ -211,7 +236,7 @@ function AbaOsPagas() {
       </div>
 
       {selecionadas.size > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border bg-primary/5 px-4 py-3">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-lg border bg-background shadow-md px-4 py-3">
           <div className="text-sm">
             <span className="font-semibold">{selecionadas.size}</span> nota{selecionadas.size === 1 ? '' : 's'} de{' '}
             <strong>{ROTULO_MODELO[modeloSelecao]}</strong> selecionada{selecionadas.size === 1 ? '' : 's'} · Valor total:{' '}
@@ -326,6 +351,10 @@ function AbaOsPagas() {
 }
 
 function AbaEmitidas() {
+  // Peça (NF-e/NFC-e, ICMS estadual) e Serviço (NFS-e, ISS municipal) são
+  // documentos fiscais diferentes — ficam sempre em listas separadas, nunca
+  // misturadas na mesma tabela.
+  const [modeloSelecao, setModeloSelecao] = useState<ModeloNotaFiscal>('peca')
   const [filtroStatus, setFiltroStatus] = useState<StatusNotaFiscal | ''>('')
   const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
   const [busca, setBusca] = useState('')
@@ -339,6 +368,7 @@ function AbaEmitidas() {
   }
 
   const params = {
+    modelo: modeloSelecao,
     status: filtroStatus || undefined,
     dataInicio: filtro.periodo === 'todas' ? undefined : filtro.dataInicio || undefined,
     dataFim: filtro.periodo === 'todas' ? undefined : filtro.dataFim || undefined,
@@ -377,6 +407,19 @@ function AbaEmitidas() {
 
   return (
     <div className="space-y-3">
+      <div className="flex gap-2">
+        {(['peca', 'servico'] as const).map((modelo) => (
+          <button
+            key={modelo}
+            type="button"
+            onClick={() => setModeloSelecao(modelo)}
+            className={`h-9 px-4 rounded-md text-sm font-medium border ${modeloSelecao === modelo ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+          >
+            {ROTULO_MODELO[modelo]}
+          </button>
+        ))}
+      </div>
+
       <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
 
       <div className="relative max-w-sm">

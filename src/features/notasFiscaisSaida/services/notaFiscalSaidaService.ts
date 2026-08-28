@@ -75,9 +75,14 @@ const COLUNA_POR_CAMPO_NOTA: Record<NonNullable<ListarNotasFiscaisParams['sortBy
   ordemNumero: 'ordem_numero',
 }
 
-function aplicarFiltrosNotasFiscais(query: any, params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'>) {
+function aplicarFiltrosNotasFiscais(
+  query: any,
+  params: Pick<ListarNotasFiscaisParams, 'status' | 'modelo' | 'dataInicio' | 'dataFim'>,
+) {
   let q = query
   if (params.status) q = q.eq('status', params.status)
+  if (params.modelo === 'peca') q = q.in('tipo', ['nfce', 'nfe'])
+  if (params.modelo === 'servico') q = q.eq('tipo', 'nfse')
   if (params.dataInicio) q = q.gte('created_at', `${params.dataInicio}T00:00:00`)
   if (params.dataFim) q = q.lte('created_at', `${params.dataFim}T23:59:59`)
   return q
@@ -115,7 +120,7 @@ export async function listarNotasFiscais(params: ListarNotasFiscaisParams = {}):
 // listagem paginada (que só traz uma página por vez) pra o card de resumo
 // nunca ficar errado quando o período tiver mais notas do que a página atual.
 export async function resumoNotasFiscais(
-  params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'> = {},
+  params: Pick<ListarNotasFiscaisParams, 'status' | 'modelo' | 'dataInicio' | 'dataFim'> = {},
 ): Promise<ResumoNotasFiscaisPeriodo> {
   const query = aplicarFiltrosNotasFiscais(
     supabase.from('notas_fiscais_saida').select('valor_total', { count: 'exact' }),

@@ -51,6 +51,10 @@ export interface ListarNotasFiscaisParams {
   page?: number
   pageSize?: number
   status?: StatusNotaFiscal
+  // Peça (nfce+nfe) x Serviço (nfse) — os dois documentos são coisas
+  // fiscalmente diferentes (ICMS estadual x ISS municipal), não fica bem
+  // misturado numa lista só.
+  modelo?: ModeloNotaFiscal
   dataInicio?: string
   dataFim?: string
   search?: string
