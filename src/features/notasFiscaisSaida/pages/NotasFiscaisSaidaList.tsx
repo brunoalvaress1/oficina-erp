@@ -76,7 +76,16 @@ function IconeOrdenacao({ ativo, direcao }: { ativo: boolean; direcao: 'asc' | '
   return direcao === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />
 }
 
-type CampoOrdenacaoOsPaga = 'ordemNumero' | 'clienteNome'
+type CampoOrdenacaoOsPaga = 'ordemNumero' | 'clienteNome' | 'valor'
+
+// Valor começa ordenando do maior pro menor no primeiro clique (mais natural
+// pra achar rápido as de maior valor) — Cliente/OS começam do menor pro
+// maior (A→Z, 1→N), como qualquer ordenação alfabética/numérica comum.
+const DIRECAO_INICIAL: Record<CampoOrdenacaoOsPaga, 'asc' | 'desc'> = {
+  ordemNumero: 'asc',
+  clienteNome: 'asc',
+  valor: 'desc',
+}
 
 function AbaOsPagas() {
   const { data: ordens, isLoading } = useOrdensPagasParaEmitir()
@@ -85,31 +94,18 @@ function AbaOsPagas() {
   const [modeloSelecao, setModeloSelecao] = useState<ModeloNotaFiscal>('peca')
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoOsPaga; direcao: 'asc' | 'desc' } | null>(null)
-  const [buscaValor, setBuscaValor] = useState('')
   const emitirEmLote = useEmitirNotasEmLote()
 
   function alternarOrdenacao(campo: CampoOrdenacaoOsPaga) {
     setOrdenacao((atual) =>
-      atual?.campo === campo ? { campo, direcao: atual.direcao === 'asc' ? 'desc' : 'asc' } : { campo, direcao: 'asc' },
+      atual?.campo === campo ? { campo, direcao: atual.direcao === 'asc' ? 'desc' : 'asc' } : { campo, direcao: DIRECAO_INICIAL[campo] },
     )
   }
 
   const ordensFiltradas = useMemo(() => {
     const lista = ordens ?? []
-    let filtradas =
+    const filtradas =
       filtro.periodo === 'todas' ? lista : lista.filter((ordem) => dataDentroDoIntervalo(ordem.dataPagamento, filtro.dataInicio, filtro.dataFim))
-
-    // Mesmo padrão "contém" já usado no filtro de KM/número da OS
-    // (ilike('km_atual::text', ...)) — só que aqui é tudo em memória, porque
-    // essa aba não pagina no servidor. Busca no valor do modelo selecionado
-    // (o mesmo que aparece na coluna Valor), não no total da OS inteira.
-    const termoValor = buscaValor.trim().replace(/\D/g, '')
-    if (termoValor) {
-      filtradas = filtradas.filter((ordem) => {
-        const valor = modeloSelecao === 'peca' ? ordem.valorPecas : ordem.valorServicos
-        return Math.round(valor * 100).toString().includes(termoValor)
-      })
-    }
 
     if (!ordenacao) return filtradas
 
@@ -118,9 +114,14 @@ function AbaOsPagas() {
     const multiplicador = ordenacao.direcao === 'asc' ? 1 : -1
     return [...filtradas].sort((a, b) => {
       if (ordenacao.campo === 'ordemNumero') return (a.ordemNumero - b.ordemNumero) * multiplicador
+      if (ordenacao.campo === 'valor') {
+        const valorA = modeloSelecao === 'peca' ? a.valorPecas : a.valorServicos
+        const valorB = modeloSelecao === 'peca' ? b.valorPecas : b.valorServicos
+        return (valorA - valorB) * multiplicador
+      }
       return (a.clienteNome ?? '').localeCompare(b.clienteNome ?? '') * multiplicador
     })
-  }, [ordens, filtro, ordenacao, buscaValor, modeloSelecao])
+  }, [ordens, filtro, ordenacao, modeloSelecao])
 
   // O total mostrado acompanha o modelo selecionado (Peças/Serviço) — assim
   // bate com o que aparece na coluna Valor de cada linha, em vez de somar o
@@ -191,17 +192,6 @@ function AbaOsPagas() {
   return (
     <div className="space-y-3">
       <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
-
-      <div className="relative max-w-xs">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          value={buscaValor}
-          onChange={(e) => setBuscaValor(e.target.value)}
-          placeholder="Buscar por valor (ex: 240)..."
-          className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
-        />
-      </div>
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
         <CardIndicador titulo="OS aguardando emissão" valor={String(ordensFiltradas.length)} icone={<Hourglass size={15} />} />
@@ -280,7 +270,11 @@ function AbaOsPagas() {
                 </button>
               </th>
               <th className="text-left font-medium px-3 py-2">Pago em</th>
-              <th className="text-left font-medium px-3 py-2">Valor ({modeloSelecao === 'peca' ? 'Peças' : 'Serviço'})</th>
+              <th className="text-left font-medium px-3 py-2">
+                <button type="button" onClick={() => alternarOrdenacao('valor')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Valor ({modeloSelecao === 'peca' ? 'Peças' : 'Serviço'}) <IconeOrdenacao ativo={ordenacao?.campo === 'valor'} direcao={ordenacao?.direcao ?? 'desc'} />
+                </button>
+              </th>
               <th className="text-right font-medium px-3 py-2">Ações</th>
             </tr>
           </thead>
