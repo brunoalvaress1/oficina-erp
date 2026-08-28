@@ -1,5 +1,19 @@
 import { useMemo, useState } from 'react'
-import { ExternalLink, FileCheck2, FileText, Hourglass, QrCode, Receipt, RefreshCw, Wallet, XCircle } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ExternalLink,
+  FileCheck2,
+  FileText,
+  Hourglass,
+  QrCode,
+  Receipt,
+  RefreshCw,
+  Search,
+  Wallet,
+  XCircle,
+} from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency } from '@/utils/format'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
@@ -20,6 +34,7 @@ import {
 } from '../hooks/useNotasFiscaisSaida'
 import {
   ROTULO_STATUS_NOTA_FISCAL,
+  type CampoOrdenacaoNotaFiscal,
   type ModeloNotaFiscal,
   type NotaFiscalSaida,
   type OrdemPagaParaEmitir,
@@ -55,19 +70,42 @@ const ROTULO_MODELO: Record<ModeloNotaFiscal, string> = {
   servico: 'Serviço (NFS-e)',
 }
 
+function IconeOrdenacao({ ativo, direcao }: { ativo: boolean; direcao: 'asc' | 'desc' }) {
+  if (!ativo) return <ArrowUpDown size={13} className="opacity-40" />
+  return direcao === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />
+}
+
+type CampoOrdenacaoOsPaga = 'ordemNumero' | 'clienteNome'
+
 function AbaOsPagas() {
   const { data: ordens, isLoading } = useOrdensPagasParaEmitir()
   const [ordemParaEmitir, setOrdemParaEmitir] = useState<OrdemPagaParaEmitir | null>(null)
   const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
   const [modeloSelecao, setModeloSelecao] = useState<ModeloNotaFiscal>('peca')
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+  const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoOsPaga; direcao: 'asc' | 'desc' } | null>(null)
   const emitirEmLote = useEmitirNotasEmLote()
+
+  function alternarOrdenacao(campo: CampoOrdenacaoOsPaga) {
+    setOrdenacao((atual) =>
+      atual?.campo === campo ? { campo, direcao: atual.direcao === 'asc' ? 'desc' : 'asc' } : { campo, direcao: 'asc' },
+    )
+  }
 
   const ordensFiltradas = useMemo(() => {
     const lista = ordens ?? []
-    if (filtro.periodo === 'todas') return lista
-    return lista.filter((ordem) => dataDentroDoIntervalo(ordem.dataPagamento, filtro.dataInicio, filtro.dataFim))
-  }, [ordens, filtro])
+    const filtradas =
+      filtro.periodo === 'todas' ? lista : lista.filter((ordem) => dataDentroDoIntervalo(ordem.dataPagamento, filtro.dataInicio, filtro.dataFim))
+    if (!ordenacao) return filtradas
+
+    // Lista inteira já vem pro front (sem paginação servidor) — ordenar aqui
+    // mesmo, sem precisar ir de novo no banco.
+    const multiplicador = ordenacao.direcao === 'asc' ? 1 : -1
+    return [...filtradas].sort((a, b) => {
+      if (ordenacao.campo === 'ordemNumero') return (a.ordemNumero - b.ordemNumero) * multiplicador
+      return (a.clienteNome ?? '').localeCompare(b.clienteNome ?? '') * multiplicador
+    })
+  }, [ordens, filtro, ordenacao])
 
   // O total mostrado acompanha o modelo selecionado (Peças/Serviço) — assim
   // bate com o que aparece na coluna Valor de cada linha, em vez de somar o
@@ -179,8 +217,16 @@ function AbaOsPagas() {
                   className="size-4"
                 />
               </th>
-              <th className="text-left font-medium px-3 py-2">OS</th>
-              <th className="text-left font-medium px-3 py-2">Cliente</th>
+              <th className="text-left font-medium px-3 py-2">
+                <button type="button" onClick={() => alternarOrdenacao('ordemNumero')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  OS <IconeOrdenacao ativo={ordenacao?.campo === 'ordemNumero'} direcao={ordenacao?.direcao ?? 'asc'} />
+                </button>
+              </th>
+              <th className="text-left font-medium px-3 py-2">
+                <button type="button" onClick={() => alternarOrdenacao('clienteNome')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Cliente <IconeOrdenacao ativo={ordenacao?.campo === 'clienteNome'} direcao={ordenacao?.direcao ?? 'asc'} />
+                </button>
+              </th>
               <th className="text-left font-medium px-3 py-2">Pago em</th>
               <th className="text-left font-medium px-3 py-2">Valor ({modeloSelecao === 'peca' ? 'Peças' : 'Serviço'})</th>
               <th className="text-right font-medium px-3 py-2">Ações</th>
@@ -255,13 +301,28 @@ function AbaOsPagas() {
 function AbaEmitidas() {
   const [filtroStatus, setFiltroStatus] = useState<StatusNotaFiscal | ''>('')
   const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
+  const [busca, setBusca] = useState('')
+  const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoNotaFiscal; direcao: 'asc' | 'desc' }>({
+    campo: 'createdAt',
+    direcao: 'desc',
+  })
+
+  function alternarOrdenacao(campo: CampoOrdenacaoNotaFiscal) {
+    setOrdenacao((atual) => (atual.campo === campo ? { campo, direcao: atual.direcao === 'asc' ? 'desc' : 'asc' } : { campo, direcao: 'asc' }))
+  }
 
   const params = {
     status: filtroStatus || undefined,
     dataInicio: filtro.periodo === 'todas' ? undefined : filtro.dataInicio || undefined,
     dataFim: filtro.periodo === 'todas' ? undefined : filtro.dataFim || undefined,
   }
-  const { data, isLoading } = useNotasFiscaisSaida({ ...params, pageSize: 50 })
+  const { data, isLoading } = useNotasFiscaisSaida({
+    ...params,
+    pageSize: 50,
+    search: busca || undefined,
+    sortBy: ordenacao.campo,
+    sortDirection: ordenacao.direcao,
+  })
   const { data: resumo } = useResumoNotasFiscais(params)
   const consultarStatus = useConsultarStatusNotaFiscal()
   const cancelar = useCancelarNotaFiscal()
@@ -280,6 +341,17 @@ function AbaEmitidas() {
   return (
     <div className="space-y-3">
       <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
+
+      <div className="relative max-w-sm">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por cliente, nº da OS, chave de acesso..."
+          className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {(['', 'processando', 'autorizada', 'rejeitada', 'cancelada', 'erro'] as const).map((status) => (
@@ -303,10 +375,22 @@ function AbaEmitidas() {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
-              <th className="text-left font-medium px-3 py-2">Data</th>
-              <th className="text-left font-medium px-3 py-2">OS</th>
+              <th className="text-left font-medium px-3 py-2">
+                <button type="button" onClick={() => alternarOrdenacao('createdAt')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Data <IconeOrdenacao ativo={ordenacao.campo === 'createdAt'} direcao={ordenacao.direcao} />
+                </button>
+              </th>
+              <th className="text-left font-medium px-3 py-2">
+                <button type="button" onClick={() => alternarOrdenacao('ordemNumero')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  OS <IconeOrdenacao ativo={ordenacao.campo === 'ordemNumero'} direcao={ordenacao.direcao} />
+                </button>
+              </th>
               <th className="text-left font-medium px-3 py-2">Tipo</th>
-              <th className="text-left font-medium px-3 py-2">Cliente</th>
+              <th className="text-left font-medium px-3 py-2">
+                <button type="button" onClick={() => alternarOrdenacao('clienteNome')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Cliente <IconeOrdenacao ativo={ordenacao.campo === 'clienteNome'} direcao={ordenacao.direcao} />
+                </button>
+              </th>
               <th className="text-left font-medium px-3 py-2">Valor</th>
               <th className="text-left font-medium px-3 py-2">Status</th>
               <th className="text-right font-medium px-3 py-2">Ações</th>

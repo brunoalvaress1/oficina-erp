@@ -37,6 +37,43 @@ function mapRow(row: any): NotaFiscalSaida {
   }
 }
 
+// Lê da view notas_fiscais_saida_lista (numero da OS e nome de quem emitiu já
+// achatados) em vez da tabela + embed usada em mapRow — ver comentário na
+// migration da view: ordenar por coluna de tabela relacionada embutida
+// (ordens_servico(numero)) não funciona no PostgREST.
+function mapRowLista(row: any): NotaFiscalSaida {
+  return {
+    id: row.id,
+    oficinaId: row.oficina_id,
+    caixaLancamentoId: row.caixa_lancamento_id,
+    ordemServicoId: row.ordem_servico_id,
+    ordemNumero: row.ordem_numero,
+    tipo: row.tipo,
+    ambiente: row.ambiente,
+    status: row.status,
+    referencia: row.referencia,
+    numero: row.numero,
+    serie: row.serie,
+    chaveAcesso: row.chave_acesso,
+    protocoloAutorizacao: row.protocolo_autorizacao,
+    urlDanfe: row.url_danfe,
+    urlXml: row.url_xml,
+    qrcodeUrl: row.qrcode_url,
+    mensagemErro: row.mensagem_erro,
+    valorTotal: Number(row.valor_total ?? 0),
+    clienteNome: row.cliente_nome,
+    criadoPorNome: row.criado_por_nome,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+const COLUNA_POR_CAMPO_NOTA: Record<NonNullable<ListarNotasFiscaisParams['sortBy']>, string> = {
+  createdAt: 'created_at',
+  clienteNome: 'cliente_nome',
+  ordemNumero: 'ordem_numero',
+}
+
 function aplicarFiltrosNotasFiscais(query: any, params: Pick<ListarNotasFiscaisParams, 'status' | 'dataInicio' | 'dataFim'>) {
   let q = query
   if (params.status) q = q.eq('status', params.status)
@@ -51,15 +88,26 @@ export async function listarNotasFiscais(params: ListarNotasFiscaisParams = {}):
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  const query = aplicarFiltrosNotasFiscais(
-    supabase.from('notas_fiscais_saida').select('*, ordens_servico(numero), funcionarios(nome)', { count: 'exact' }),
+  let query = aplicarFiltrosNotasFiscais(
+    supabase.from('notas_fiscais_saida_lista').select('*', { count: 'exact' }),
     params,
   )
 
-  const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to)
+  const termo = params.search?.trim()
+  if (termo) {
+    const escapado = termo.replace(/,/g, ' ')
+    const condicoes = [`cliente_nome.ilike.%${escapado}%`, `chave_acesso.ilike.%${escapado}%`, `referencia.ilike.%${escapado}%`]
+    if (/^\d+$/.test(escapado)) condicoes.push(`ordem_numero.eq.${escapado}`)
+    query = query.or(condicoes.join(','))
+  }
+
+  const coluna = COLUNA_POR_CAMPO_NOTA[params.sortBy ?? 'createdAt']
+  const ascendente = params.sortDirection === 'asc'
+
+  const { data, count, error } = await query.order(coluna, { ascending: ascendente }).range(from, to)
   if (error) throw new Error(error.message)
 
-  return { data: (data ?? []).map(mapRow), total: count ?? 0, page, pageSize }
+  return { data: (data ?? []).map(mapRowLista), total: count ?? 0, page, pageSize }
 }
 
 // Total de notas + valor somado do período filtrado — calculado à parte da

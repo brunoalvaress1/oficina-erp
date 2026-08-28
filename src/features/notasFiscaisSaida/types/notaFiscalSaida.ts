@@ -45,12 +45,17 @@ export interface HistoricoNotaFiscalEntry {
   createdAt: string
 }
 
+export type CampoOrdenacaoNotaFiscal = 'createdAt' | 'clienteNome' | 'ordemNumero'
+
 export interface ListarNotasFiscaisParams {
   page?: number
   pageSize?: number
   status?: StatusNotaFiscal
   dataInicio?: string
   dataFim?: string
+  search?: string
+  sortBy?: CampoOrdenacaoNotaFiscal
+  sortDirection?: 'asc' | 'desc'
 }
 
 export interface ListarNotasFiscaisResult {
