@@ -73,6 +73,15 @@ Deno.serve(async (req) => {
     if (!integracao?.status) throw new Error('NFE_NAO_CONFIGURADA: ative a integração de Nota Fiscal em Configurações antes de emitir.')
     const ambiente: AmbienteNfe = (integracao.config as any)?.ambiente === 'producao' ? 'producao' : 'homologacao'
     const impostoPadraoId: string | null = (integracao.config as any)?.impostoPadraoId ?? null
+    // Série manual da NF-e — só usada se configurada (Configurações > Nota
+    // Fiscal). Sem isso, a Focus numera sozinha (comportamento padrão, igual
+    // sempre foi). Necessário quando o CNPJ da oficina já tem NF-e emitida
+    // por outro sistema/prestador antes desse, no mesmo CNPJ+série+modelo —
+    // a Focus não sabe disso e a Sefaz rejeita com "Duplicidade de NF-e com
+    // diferença na Chave de Acesso" ao repetir um número já usado
+    // historicamente na série 1. Assumir controle com uma série nova (nunca
+    // usada por ninguém) resolve de vez, sem depender do painel da Focus.
+    const serieNfeManual: number | null = (integracao.config as any)?.serieNfe ? Number((integracao.config as any).serieNfe) : null
 
     let impostoPadrao: any = null
     if (impostoPadraoId) {
@@ -296,6 +305,10 @@ Deno.serve(async (req) => {
       } else {
         payload.indicador_ie_destinatario = '2'
       }
+      if (serieNfeManual) {
+        payload.serie = serieNfeManual
+        payload.numero = await proximoNumeroNfe(admin, lancamento.oficina_id, serieNfeManual)
+      }
     }
 
     // 4. Envia pra Focus. A emissão de NFC-e é SÍNCRONA (a doc oficial da Focus
@@ -381,3 +394,19 @@ Deno.serve(async (req) => {
     })
   }
 })
+
+// Conta só dentro da mesma série manual configurada, e ignora tentativas com
+// status "erro" (nunca chegaram a ser enviadas de verdade pra Sefaz — um erro
+// de formato/validação antes de sequer tentar autorizar não deveria gastar
+// número real). "rejeitada"/"processando"/"autorizada" contam, porque essas
+// já foram de fato submetidas à Sefaz com aquele número.
+async function proximoNumeroNfe(admin: ReturnType<typeof criarClienteAdmin>, oficinaId: string, serie: number): Promise<number> {
+  const { count } = await admin
+    .from('notas_fiscais_saida')
+    .select('id', { count: 'exact', head: true })
+    .eq('oficina_id', oficinaId)
+    .eq('tipo', 'nfe')
+    .eq('payload_enviado->>serie', String(serie))
+    .neq('status', 'erro')
+  return (count ?? 0) + 1
+}

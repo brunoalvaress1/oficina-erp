@@ -14,6 +14,7 @@ export function NotaFiscal() {
   const [codigoNbs, setCodigoNbs] = useState('')
   const [codigoIndicadorOperacao, setCodigoIndicadorOperacao] = useState('')
   const [serieNfse, setSerieNfse] = useState('')
+  const [serieNfe, setSerieNfe] = useState('')
 
   useEffect(() => {
     if (integracaoNfe) {
@@ -24,6 +25,7 @@ export function NotaFiscal() {
       setCodigoNbs(config?.codigoNbs ?? '')
       setCodigoIndicadorOperacao(config?.codigoIndicadorOperacao ?? '')
       setSerieNfse(config?.serieNfse ? String(config.serieNfse) : '')
+      setSerieNfe(config?.serieNfe ? String(config.serieNfe) : '')
     }
   }, [integracaoNfe])
 
@@ -34,6 +36,7 @@ export function NotaFiscal() {
     codigoNbs?: string
     codigoIndicadorOperacao?: string
     serieNfse?: string
+    serieNfe?: string
   }) {
     if (!integracaoNfe) return
     const novoAmbiente = alteracoes.ambiente ?? ambiente
@@ -43,12 +46,14 @@ export function NotaFiscal() {
     const novoCodigoIndicadorOperacao =
       alteracoes.codigoIndicadorOperacao !== undefined ? alteracoes.codigoIndicadorOperacao : codigoIndicadorOperacao
     const novoSerieNfse = alteracoes.serieNfse !== undefined ? alteracoes.serieNfse : serieNfse
+    const novoSerieNfe = alteracoes.serieNfe !== undefined ? alteracoes.serieNfe : serieNfe
     if (alteracoes.ambiente !== undefined) setAmbiente(alteracoes.ambiente)
     if (alteracoes.impostoPadraoId !== undefined) setImpostoPadraoId(alteracoes.impostoPadraoId)
     if (alteracoes.codigoTributacaoIss !== undefined) setCodigoTributacaoIss(alteracoes.codigoTributacaoIss)
     if (alteracoes.codigoNbs !== undefined) setCodigoNbs(alteracoes.codigoNbs)
     if (alteracoes.codigoIndicadorOperacao !== undefined) setCodigoIndicadorOperacao(alteracoes.codigoIndicadorOperacao)
     if (alteracoes.serieNfse !== undefined) setSerieNfse(alteracoes.serieNfse)
+    if (alteracoes.serieNfe !== undefined) setSerieNfe(alteracoes.serieNfe)
     atualizar.mutate({
       id: integracaoNfe.id,
       alteracoes: {
@@ -59,6 +64,7 @@ export function NotaFiscal() {
           codigoNbs: novoCodigoNbs || null,
           codigoIndicadorOperacao: novoCodigoIndicadorOperacao || null,
           serieNfse: novoSerieNfse ? Number(novoSerieNfse) : null,
+          serieNfe: novoSerieNfe ? Number(novoSerieNfe) : null,
         },
       },
     })
@@ -199,10 +205,10 @@ export function NotaFiscal() {
       <div className="rounded-lg border p-4 space-y-3">
         <h2 className="font-medium text-sm">NFS-e — Série da DPS</h2>
         <p className="text-xs text-muted-foreground">
-          Diferente da numeração de NF-e (controlada pela Focus), aqui é o próprio sistema que escolhe o número — se a
-          oficina já emitiu NFS-e por outro sistema/prestador antes desse (mesmo município e CNPJ), a série 1 pode colidir
-          com um número já usado historicamente ("Conjunto de Série, Número... já existe"). Troque pra uma série nova
-          (ex: 2) se isso acontecer. Em branco usa "1" como padrão.
+          Número/série da NFS-e é o próprio sistema que escolhe (a Focus não numera sozinha aqui) — se a oficina já emitiu
+          NFS-e por outro sistema/prestador antes desse (mesmo município e CNPJ), a série 1 pode colidir com um número já
+          usado historicamente ("Conjunto de Série, Número... já existe"). Troque pra uma série nova (ex: 2) se isso
+          acontecer. Em branco usa "1" como padrão.
         </p>
         <input
           type="number"
@@ -212,6 +218,27 @@ export function NotaFiscal() {
           onBlur={() => salvarConfig({ serieNfse })}
           disabled={!integracaoNfe || atualizar.isPending}
           placeholder="1"
+          className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+        />
+      </div>
+
+      <div className="rounded-lg border p-4 space-y-3">
+        <h2 className="font-medium text-sm">NF-e (Peças) — Série Manual</h2>
+        <p className="text-xs text-muted-foreground">
+          Por padrão a própria Focus numera a NF-e automaticamente (deixe em branco pra manter assim). Só preencha se a
+          oficina já tem NF-e emitida por outro sistema/prestador antes desse (mesmo CNPJ), porque aí o número que a Focus
+          escolhe sozinha pode colidir com um já usado historicamente ("Duplicidade de NF-e com diferença na Chave de
+          Acesso"). Preenchendo aqui, o próprio sistema passa a controlar a numeração, numa série nova que não tem esse
+          histórico.
+        </p>
+        <input
+          type="number"
+          min={1}
+          value={serieNfe}
+          onChange={(e) => setSerieNfe(e.target.value)}
+          onBlur={() => salvarConfig({ serieNfe })}
+          disabled={!integracaoNfe || atualizar.isPending}
+          placeholder="Automático (Focus numera)"
           className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
         />
       </div>
