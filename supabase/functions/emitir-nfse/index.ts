@@ -76,6 +76,13 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (!integracao?.status) throw new Error('NFE_NAO_CONFIGURADA: ative a integração de Nota Fiscal em Configurações antes de emitir.')
     const ambiente: AmbienteNfe = (integracao.config as any)?.ambiente === 'producao' ? 'producao' : 'homologacao'
+    // Série da DPS/NFS-e — diferente da numeração de NF-e (que a Focus
+    // controla sozinha), aqui somos NÓS que escolhemos livremente. Configurável
+    // em Configurações → Nota Fiscal porque uma oficina que já teve NFS-e
+    // emitida por outro sistema/prestador antes desse (mesmo município+CNPJ)
+    // pode colidir com número já usado historicamente na série 1 — troque pra
+    // uma série nova se acontecer "Conjunto de Série, Número... já existe".
+    const serieDps = Number((integracao.config as any)?.serieNfse) || 1
     const codigoTributacaoIss: string = (integracao.config as any)?.codigoTributacaoIss || '140101'
     // Código NBS, obrigatório sempre que a nota informar IBS/CBS (Reforma
     // Tributária). Valor conferido linha a linha na planilha oficial
@@ -137,13 +144,13 @@ Deno.serve(async (req) => {
     const dataEmissao = dataEmissaoBrasilia()
     const payload = {
       data_emissao: dataEmissao,
-      serie_dps: 1,
+      serie_dps: serieDps,
       // Número da DPS precisa ser único por prestador+série+município — na
       // ausência de um contador dedicado, usamos a contagem de NFS-e já
       // emitidas por essa oficina +1. Se uma nota for excluída do histórico
       // manualmente isso pode colidir; o erro da Focus nesse caso é claro
       // (E0014) e a emissão pode ser refeita com uma nova referência.
-      numero_dps: await proximoNumeroDps(admin, lancamento.oficina_id),
+      numero_dps: await proximoNumeroDps(admin, lancamento.oficina_id, serieDps),
       data_competencia: dataEmissao.slice(0, 10),
       emitente_dps: 1, // 1 = prestador emite a própria DPS (caso normal)
       codigo_municipio_emissora: codigoMunicipio,
@@ -283,11 +290,18 @@ function cepTomadorValido(cep: string | null | undefined): string | undefined {
   return limpo.length === 8 ? limpo : undefined
 }
 
-async function proximoNumeroDps(admin: ReturnType<typeof criarClienteAdmin>, oficinaId: string): Promise<number> {
+async function proximoNumeroDps(admin: ReturnType<typeof criarClienteAdmin>, oficinaId: string, serieDps: number): Promise<number> {
+  // Conta só dentro da mesma série (mudar de série pra fugir de colisão com
+  // numeração histórica externa não faz sentido se continuarmos contando
+  // junto com a série antiga) — e ignora tentativas com status "erro" (nunca
+  // chegaram a ser enviadas de verdade pra Sefaz, ex: config de ambiente
+  // nacional faltando, então não "gastaram" nenhum número real).
   const { count } = await admin
     .from('notas_fiscais_saida')
     .select('id', { count: 'exact', head: true })
     .eq('oficina_id', oficinaId)
     .eq('tipo', 'nfse')
+    .eq('payload_enviado->>serie_dps', String(serieDps))
+    .neq('status', 'erro')
   return (count ?? 0) + 1
 }
