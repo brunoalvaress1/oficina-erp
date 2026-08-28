@@ -6,6 +6,7 @@ import type {
   ModeloNotaFiscal,
   NotaFiscalSaida,
   OrdemPagaParaEmitir,
+  ResultadoConsultaEmLote,
   ResultadoEmissaoEmLote,
   ResumoNotasFiscaisPeriodo,
 } from '../types/notaFiscalSaida'
@@ -237,6 +238,23 @@ export async function emitirNotasEmLote(
       resultados.push({ ordemNumero: item.ordemNumero, sucesso: true })
     } catch (error) {
       resultados.push({ ordemNumero: item.ordemNumero, sucesso: false, erro: error instanceof Error ? error.message : String(error) })
+    }
+  }
+  return resultados
+}
+
+// Mesmo padrão de emitirNotasEmLote: sequencial (não em paralelo) e segue
+// mesmo se uma consulta falhar, devolvendo o resultado de cada uma pro
+// chamador montar UM resumo em vez de um toast por nota — importante aqui
+// porque "processando" facilmente chega a dezenas de notas de uma vez.
+export async function consultarStatusEmLote(notaIds: string[]): Promise<ResultadoConsultaEmLote[]> {
+  const resultados: ResultadoConsultaEmLote[] = []
+  for (const id of notaIds) {
+    try {
+      const nota = await consultarStatusNotaFiscal(id)
+      resultados.push({ notaId: id, sucesso: true, status: nota.status })
+    } catch (error) {
+      resultados.push({ notaId: id, sucesso: false, erro: error instanceof Error ? error.message : String(error) })
     }
   }
   return resultados

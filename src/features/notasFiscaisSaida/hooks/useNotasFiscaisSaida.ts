@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useRealtimeInvalidacao } from '@/hooks/useRealtimeInvalidacao'
 import {
   cancelarNotaFiscal,
+  consultarStatusEmLote,
   consultarStatusNotaFiscal,
   emitirNfse,
   emitirNotaFiscal,
@@ -124,6 +125,29 @@ export function useConsultarStatusNotaFiscal() {
       toast.success('Status atualizado')
     },
     onError: (error: Error) => toast.error('Erro ao consultar status', { description: error.message }),
+  })
+}
+
+export function useConsultarStatusEmLote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (notaIds: string[]) => consultarStatusEmLote(notaIds),
+    onSuccess: (resultados) => {
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida-resumo'] })
+      queryClient.invalidateQueries({ queryKey: ['nota-fiscal-por-lancamento'] })
+
+      const sucesso = resultados.filter((r) => r.sucesso)
+      const falhas = resultados.filter((r) => !r.sucesso)
+      if (falhas.length === 0) {
+        toast.success(`Status atualizado de ${sucesso.length} nota${sucesso.length === 1 ? '' : 's'}`)
+      } else {
+        toast.warning(`${sucesso.length} atualizada(s), ${falhas.length} com erro na consulta`, {
+          description: falhas.map((f) => f.erro).join(' · '),
+        })
+      }
+    },
+    onError: (error: Error) => toast.error('Erro ao processar notas', { description: error.message }),
   })
 }
 

@@ -85,6 +85,13 @@ export interface OrdemPagaParaEmitir {
 
 export type ModeloNotaFiscal = 'peca' | 'servico'
 
+export interface ResultadoConsultaEmLote {
+  notaId: string
+  sucesso: boolean
+  status?: StatusNotaFiscal
+  erro?: string
+}
+
 export interface ResultadoEmissaoEmLote {
   ordemNumero: number
   sucesso: boolean

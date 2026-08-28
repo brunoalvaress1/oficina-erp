@@ -26,6 +26,7 @@ import { PermissionGate } from '../components/PermissionGate'
 import { EmitirNotaFiscalModal } from '../components/EmitirNotaFiscalModal'
 import {
   useCancelarNotaFiscal,
+  useConsultarStatusEmLote,
   useConsultarStatusNotaFiscal,
   useEmitirNotasEmLote,
   useNotasFiscaisSaida,
@@ -351,6 +352,7 @@ function AbaEmitidas() {
   })
   const { data: resumo } = useResumoNotasFiscais(params)
   const consultarStatus = useConsultarStatusNotaFiscal()
+  const consultarStatusEmLote = useConsultarStatusEmLote()
   const cancelar = useCancelarNotaFiscal()
 
   const [notaParaCancelar, setNotaParaCancelar] = useState<NotaFiscalSaida | null>(null)
@@ -362,6 +364,15 @@ function AbaEmitidas() {
       { notaFiscalId: notaParaCancelar.id, justificativa },
       { onSuccess: () => { setNotaParaCancelar(null); setJustificativa('') } },
     )
+  }
+
+  // Só as que estão nessa página (a lista é paginada, 50 por vez) — se tiver
+  // mais que isso "processando", precisa passar de página ou filtrar mais.
+  const notasProcessando = (data?.data ?? []).filter((n) => n.status === 'processando' || n.status === 'pendente')
+
+  function handleProcessarTodas() {
+    if (notasProcessando.length === 0) return
+    consultarStatusEmLote.mutate(notasProcessando.map((n) => n.id))
   }
 
   return (
@@ -379,17 +390,30 @@ function AbaEmitidas() {
         />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {(['', 'processando', 'autorizada', 'rejeitada', 'cancelada', 'erro'] as const).map((status) => (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {(['', 'processando', 'autorizada', 'rejeitada', 'cancelada', 'erro'] as const).map((status) => (
+            <button
+              key={status || 'todas'}
+              type="button"
+              onClick={() => setFiltroStatus(status)}
+              className={`h-8 px-3 rounded-md text-sm font-medium border ${filtroStatus === status ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+            >
+              {status ? ROTULO_STATUS_NOTA_FISCAL[status] : 'Todos os status'}
+            </button>
+          ))}
+        </div>
+        {notasProcessando.length > 0 && (
           <button
-            key={status || 'todas'}
             type="button"
-            onClick={() => setFiltroStatus(status)}
-            className={`h-8 px-3 rounded-md text-sm font-medium border ${filtroStatus === status ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+            onClick={handleProcessarTodas}
+            disabled={consultarStatusEmLote.isPending}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-medium disabled:opacity-50"
           >
-            {status ? ROTULO_STATUS_NOTA_FISCAL[status] : 'Todos os status'}
+            <RefreshCw size={13} />
+            {consultarStatusEmLote.isPending ? 'Processando...' : `Processar Todas (${notasProcessando.length})`}
           </button>
-        ))}
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
