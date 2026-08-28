@@ -160,6 +160,19 @@ function AbaOsPagas() {
     )
   }
 
+  // Emite todas as pendentes do modelo selecionado de uma vez, sem precisar
+  // marcar cada checkbox — mesma emissão em lote de sempre (uma por vez,
+  // sequencial, pra não estourar limite de taxa da Focus), só que já parte
+  // com a lista inteira pré-selecionada.
+  function handleEmitirTodas() {
+    if (ordensSelecionaveis.length === 0) return
+    if (!confirm(`Emitir nota de ${ROTULO_MODELO[modeloSelecao]} para todas as ${ordensSelecionaveis.length} OS's pendentes?`)) return
+    emitirEmLote.mutate({
+      itens: ordensSelecionaveis.map((o) => ({ caixaLancamentoId: o.caixaLancamentoId, ordemNumero: o.ordemNumero })),
+      modelo: modeloSelecao,
+    })
+  }
+
   return (
     <div className="space-y-3">
       <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
@@ -169,18 +182,31 @@ function AbaOsPagas() {
         <CardIndicador titulo="Valor total" valor={formatCurrency(valorTotal)} icone={<Wallet size={15} />} />
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Selecionar modelo para emitir em lote:</span>
-        {(['peca', 'servico'] as const).map((modelo) => (
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Selecionar modelo para emitir em lote:</span>
+          {(['peca', 'servico'] as const).map((modelo) => (
+            <button
+              key={modelo}
+              type="button"
+              onClick={() => alternarModelo(modelo)}
+              className={`h-8 px-3 rounded-md text-xs font-medium border ${modeloSelecao === modelo ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+            >
+              {ROTULO_MODELO[modelo]}
+            </button>
+          ))}
+        </div>
+        <PermissionGate codigo="notas_fiscais.emitir">
           <button
-            key={modelo}
             type="button"
-            onClick={() => alternarModelo(modelo)}
-            className={`h-8 px-3 rounded-md text-xs font-medium border ${modeloSelecao === modelo ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'}`}
+            onClick={handleEmitirTodas}
+            disabled={ordensSelecionaveis.length === 0 || emitirEmLote.isPending}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-medium disabled:opacity-50"
           >
-            {ROTULO_MODELO[modelo]}
+            <Receipt size={13} />
+            {emitirEmLote.isPending ? 'Emitindo...' : `Emitir Todas (${ordensSelecionaveis.length})`}
           </button>
-        ))}
+        </PermissionGate>
       </div>
 
       {selecionadas.size > 0 && (
