@@ -83,6 +83,23 @@ Deno.serve(async (req) => {
     // pode colidir com número já usado historicamente na série 1 — troque pra
     // uma série nova se acontecer "Conjunto de Série, Número... já existe".
     const serieDps = Number((integracao.config as any)?.serieNfse) || 1
+    // Número da DPS vem de um CONTADOR PERSISTENTE em integracoes.config (não
+    // de contar/olhar o maior número já usado em notas_fiscais_saida) —
+    // incrementado aqui, na hora, ANTES de sequer tentar emitir, e nunca
+    // volta atrás. Isso importa porque o histórico de notas é apagável (ex:
+    // "apague as que deram erro/rejeitada", já usado várias vezes) — se o
+    // número dependesse de reconstruir a partir das linhas existentes, apagar
+    // uma tentativa rejeitada por duplicidade fazia o sistema "esquecer" que
+    // aquele número já tinha sido queimado e tentar de novo o mesmo número
+    // (foi exatamente isso que causou uma nova rodada de "já existe" depois
+    // de uma limpeza). Com o contador, o número avança sempre pra frente,
+    // não importa o que aconteça com as linhas de notas_fiscais_saida depois.
+    const numeroDps: number = Number((integracao.config as any)?.proximoNumeroDps) || 1
+    await admin
+      .from('integracoes')
+      .update({ config: { ...(integracao.config as any), proximoNumeroDps: numeroDps + 1 } })
+      .eq('oficina_id', lancamento.oficina_id)
+      .eq('codigo', 'nfe')
     const codigoTributacaoIss: string = (integracao.config as any)?.codigoTributacaoIss || '140101'
     // Código NBS, obrigatório sempre que a nota informar IBS/CBS (Reforma
     // Tributária). Valor conferido linha a linha na planilha oficial
@@ -150,7 +167,7 @@ Deno.serve(async (req) => {
       // emitidas por essa oficina +1. Se uma nota for excluída do histórico
       // manualmente isso pode colidir; o erro da Focus nesse caso é claro
       // (E0014) e a emissão pode ser refeita com uma nova referência.
-      numero_dps: await proximoNumeroDps(admin, lancamento.oficina_id, serieDps),
+      numero_dps: numeroDps,
       data_competencia: dataEmissao.slice(0, 10),
       emitente_dps: 1, // 1 = prestador emite a própria DPS (caso normal)
       codigo_municipio_emissora: codigoMunicipio,
@@ -254,6 +271,11 @@ Deno.serve(async (req) => {
         ambiente,
         status: statusInicial,
         referencia,
+        // Grava numero/serie da PRÓPRIA DPS enviada — a que a Focus/Sefaz
+        // eventualmente confirma de volta só chega depois (NFS-e nacional é
+        // sempre assíncrona), então é só isso que temos disponível aqui.
+        numero: payload.numero_dps,
+        serie: serieDps,
         valor_total: valorServico,
         cliente_nome: cliente.nome,
         mensagem_erro: mensagemFocusLegivel,
@@ -288,20 +310,4 @@ Deno.serve(async (req) => {
 function cepTomadorValido(cep: string | null | undefined): string | undefined {
   const limpo = (cep || '').replace(/\D/g, '')
   return limpo.length === 8 ? limpo : undefined
-}
-
-async function proximoNumeroDps(admin: ReturnType<typeof criarClienteAdmin>, oficinaId: string, serieDps: number): Promise<number> {
-  // Conta só dentro da mesma série (mudar de série pra fugir de colisão com
-  // numeração histórica externa não faz sentido se continuarmos contando
-  // junto com a série antiga) — e ignora tentativas com status "erro" (nunca
-  // chegaram a ser enviadas de verdade pra Sefaz, ex: config de ambiente
-  // nacional faltando, então não "gastaram" nenhum número real).
-  const { count } = await admin
-    .from('notas_fiscais_saida')
-    .select('id', { count: 'exact', head: true })
-    .eq('oficina_id', oficinaId)
-    .eq('tipo', 'nfse')
-    .eq('payload_enviado->>serie_dps', String(serieDps))
-    .neq('status', 'erro')
-  return (count ?? 0) + 1
 }

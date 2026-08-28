@@ -307,7 +307,20 @@ Deno.serve(async (req) => {
       }
       if (serieNfeManual) {
         payload.serie = serieNfeManual
-        payload.numero = await proximoNumeroNfe(admin, lancamento.oficina_id, serieNfeManual)
+        // Número vem de um CONTADOR PERSISTENTE em integracoes.config (não de
+        // olhar o maior número já usado em notas_fiscais_saida) —
+        // incrementado aqui, na hora, e nunca volta atrás. O histórico de
+        // notas é apagável (ex: "apague as que deram erro/rejeitada"), e se o
+        // número dependesse de reconstruir a partir das linhas existentes,
+        // apagar uma tentativa rejeitada por duplicidade faria o sistema
+        // esquecer que aquele número já foi queimado e tentar de novo o
+        // mesmo — mesma armadilha já vista e corrigida na NFS-e/DPS.
+        payload.numero = Number((integracao.config as any)?.proximoNumeroNfe) || 1
+        await admin
+          .from('integracoes')
+          .update({ config: { ...(integracao.config as any), proximoNumeroNfe: (payload.numero as number) + 1 } })
+          .eq('oficina_id', lancamento.oficina_id)
+          .eq('codigo', 'nfe')
       }
     }
 
@@ -349,8 +362,13 @@ Deno.serve(async (req) => {
         ambiente,
         status: statusInicial,
         referencia,
-        numero: respostaFocus?.numero ?? null,
-        serie: respostaFocus?.serie ?? null,
+        // Com série manual (serieNfeManual), numero/serie são OS QUE A GENTE
+        // MESMO escolheu (payload.numero/payload.serie) — não dá pra confiar
+        // só no que a Focus ecoa de volta porque a NF-e pode vir assíncrona
+        // ("processando_autorizacao"), e nesse caso respostaFocus.numero
+        // ainda não existe.
+        numero: serieNfeManual ? (payload.numero as number) : (respostaFocus?.numero ?? null),
+        serie: serieNfeManual ? serieNfeManual : (respostaFocus?.serie ?? null),
         chave_acesso: respostaFocus?.chave_nfe ?? null,
         protocolo_autorizacao: respostaFocus?.numero_protocolo ?? respostaFocus?.protocolo ?? null,
         url_danfe: resolverCaminhoFocus(ambiente, respostaFocus?.caminho_danfe),
@@ -395,18 +413,3 @@ Deno.serve(async (req) => {
   }
 })
 
-// Conta só dentro da mesma série manual configurada, e ignora tentativas com
-// status "erro" (nunca chegaram a ser enviadas de verdade pra Sefaz — um erro
-// de formato/validação antes de sequer tentar autorizar não deveria gastar
-// número real). "rejeitada"/"processando"/"autorizada" contam, porque essas
-// já foram de fato submetidas à Sefaz com aquele número.
-async function proximoNumeroNfe(admin: ReturnType<typeof criarClienteAdmin>, oficinaId: string, serie: number): Promise<number> {
-  const { count } = await admin
-    .from('notas_fiscais_saida')
-    .select('id', { count: 'exact', head: true })
-    .eq('oficina_id', oficinaId)
-    .eq('tipo', 'nfe')
-    .eq('payload_enviado->>serie', String(serie))
-    .neq('status', 'erro')
-  return (count ?? 0) + 1
-}

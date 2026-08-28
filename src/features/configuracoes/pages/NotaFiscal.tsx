@@ -15,6 +15,8 @@ export function NotaFiscal() {
   const [codigoIndicadorOperacao, setCodigoIndicadorOperacao] = useState('')
   const [serieNfse, setSerieNfse] = useState('')
   const [serieNfe, setSerieNfe] = useState('')
+  const [proximoNumeroDps, setProximoNumeroDps] = useState('')
+  const [proximoNumeroNfe, setProximoNumeroNfe] = useState('')
 
   useEffect(() => {
     if (integracaoNfe) {
@@ -26,6 +28,8 @@ export function NotaFiscal() {
       setCodigoIndicadorOperacao(config?.codigoIndicadorOperacao ?? '')
       setSerieNfse(config?.serieNfse ? String(config.serieNfse) : '')
       setSerieNfe(config?.serieNfe ? String(config.serieNfe) : '')
+      setProximoNumeroDps(config?.proximoNumeroDps ? String(config.proximoNumeroDps) : '')
+      setProximoNumeroNfe(config?.proximoNumeroNfe ? String(config.proximoNumeroNfe) : '')
     }
   }, [integracaoNfe])
 
@@ -37,6 +41,8 @@ export function NotaFiscal() {
     codigoIndicadorOperacao?: string
     serieNfse?: string
     serieNfe?: string
+    proximoNumeroDps?: string
+    proximoNumeroNfe?: string
   }) {
     if (!integracaoNfe) return
     const novoAmbiente = alteracoes.ambiente ?? ambiente
@@ -47,6 +53,8 @@ export function NotaFiscal() {
       alteracoes.codigoIndicadorOperacao !== undefined ? alteracoes.codigoIndicadorOperacao : codigoIndicadorOperacao
     const novoSerieNfse = alteracoes.serieNfse !== undefined ? alteracoes.serieNfse : serieNfse
     const novoSerieNfe = alteracoes.serieNfe !== undefined ? alteracoes.serieNfe : serieNfe
+    const novoProximoNumeroDps = alteracoes.proximoNumeroDps !== undefined ? alteracoes.proximoNumeroDps : proximoNumeroDps
+    const novoProximoNumeroNfe = alteracoes.proximoNumeroNfe !== undefined ? alteracoes.proximoNumeroNfe : proximoNumeroNfe
     if (alteracoes.ambiente !== undefined) setAmbiente(alteracoes.ambiente)
     if (alteracoes.impostoPadraoId !== undefined) setImpostoPadraoId(alteracoes.impostoPadraoId)
     if (alteracoes.codigoTributacaoIss !== undefined) setCodigoTributacaoIss(alteracoes.codigoTributacaoIss)
@@ -54,6 +62,8 @@ export function NotaFiscal() {
     if (alteracoes.codigoIndicadorOperacao !== undefined) setCodigoIndicadorOperacao(alteracoes.codigoIndicadorOperacao)
     if (alteracoes.serieNfse !== undefined) setSerieNfse(alteracoes.serieNfse)
     if (alteracoes.serieNfe !== undefined) setSerieNfe(alteracoes.serieNfe)
+    if (alteracoes.proximoNumeroDps !== undefined) setProximoNumeroDps(alteracoes.proximoNumeroDps)
+    if (alteracoes.proximoNumeroNfe !== undefined) setProximoNumeroNfe(alteracoes.proximoNumeroNfe)
     atualizar.mutate({
       id: integracaoNfe.id,
       alteracoes: {
@@ -65,6 +75,8 @@ export function NotaFiscal() {
           codigoIndicadorOperacao: novoCodigoIndicadorOperacao || null,
           serieNfse: novoSerieNfse ? Number(novoSerieNfse) : null,
           serieNfe: novoSerieNfe ? Number(novoSerieNfe) : null,
+          proximoNumeroDps: novoProximoNumeroDps ? Number(novoProximoNumeroDps) : null,
+          proximoNumeroNfe: novoProximoNumeroNfe ? Number(novoProximoNumeroNfe) : null,
         },
       },
     })
@@ -210,16 +222,38 @@ export function NotaFiscal() {
           usado historicamente ("Conjunto de Série, Número... já existe"). Troque pra uma série nova (ex: 2) se isso
           acontecer. Em branco usa "1" como padrão.
         </p>
-        <input
-          type="number"
-          min={1}
-          value={serieNfse}
-          onChange={(e) => setSerieNfse(e.target.value)}
-          onBlur={() => salvarConfig({ serieNfse })}
-          disabled={!integracaoNfe || atualizar.isPending}
-          placeholder="1"
-          className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
-        />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Série</label>
+            <input
+              type="number"
+              min={1}
+              value={serieNfse}
+              onChange={(e) => setSerieNfse(e.target.value)}
+              onBlur={() => salvarConfig({ serieNfse })}
+              disabled={!integracaoNfe || atualizar.isPending}
+              placeholder="1"
+              className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Próximo número</label>
+            <input
+              type="number"
+              min={1}
+              value={proximoNumeroDps}
+              onChange={(e) => setProximoNumeroDps(e.target.value)}
+              onBlur={() => salvarConfig({ proximoNumeroDps })}
+              disabled={!integracaoNfe || atualizar.isPending}
+              placeholder="1"
+              className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          O sistema avança esse número sozinho a cada emissão (mesmo que dê erro) e nunca reaproveita um já usado — só
+          mexa aqui se acontecer "já existe" de novo e precisar pular pra um número mais alto.
+        </p>
       </div>
 
       <div className="rounded-lg border p-4 space-y-3">
@@ -231,16 +265,42 @@ export function NotaFiscal() {
           Acesso"). Preenchendo aqui, o próprio sistema passa a controlar a numeração, numa série nova que não tem esse
           histórico.
         </p>
-        <input
-          type="number"
-          min={1}
-          value={serieNfe}
-          onChange={(e) => setSerieNfe(e.target.value)}
-          onBlur={() => salvarConfig({ serieNfe })}
-          disabled={!integracaoNfe || atualizar.isPending}
-          placeholder="Automático (Focus numera)"
-          className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
-        />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Série</label>
+            <input
+              type="number"
+              min={1}
+              value={serieNfe}
+              onChange={(e) => setSerieNfe(e.target.value)}
+              onBlur={() => salvarConfig({ serieNfe })}
+              disabled={!integracaoNfe || atualizar.isPending}
+              placeholder="Automático (Focus numera)"
+              className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+            />
+          </div>
+          {serieNfe && (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Próximo número</label>
+              <input
+                type="number"
+                min={1}
+                value={proximoNumeroNfe}
+                onChange={(e) => setProximoNumeroNfe(e.target.value)}
+                onBlur={() => salvarConfig({ proximoNumeroNfe })}
+                disabled={!integracaoNfe || atualizar.isPending}
+                placeholder="1"
+                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+              />
+            </div>
+          )}
+        </div>
+        {serieNfe && (
+          <p className="text-xs text-muted-foreground">
+            O sistema avança esse número sozinho a cada emissão (mesmo que dê erro) e nunca reaproveita um já usado — só
+            mexa aqui se acontecer "Duplicidade" de novo e precisar pular pra um número mais alto.
+          </p>
+        )}
       </div>
     </div>
   )
