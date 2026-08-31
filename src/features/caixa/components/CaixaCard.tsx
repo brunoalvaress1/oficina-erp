@@ -241,7 +241,14 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
           {ROTULO_STATUS[lancamento.status]}
         </span>
       </td>
-      <td className="px-3 py-2 text-right font-medium">{formatCurrency(lancamento.valorTotal)}</td>
+      <td className="px-3 py-2 text-right font-medium">
+        {formatCurrency(lancamento.valorTotal - lancamento.valorRecebidoAcumulado)}
+        {lancamento.valorRecebidoAcumulado > 0 && (
+          <span className="block text-xs font-normal text-muted-foreground">
+            de {formatCurrency(lancamento.valorTotal)} · {formatCurrency(lancamento.valorRecebidoAcumulado)} já recebido
+          </span>
+        )}
+      </td>
       <td className="px-3 py-2 text-right text-muted-foreground">
         {lancamento.descontoRecebimento > 0 ? `-${formatCurrency(lancamento.descontoRecebimento)}` : '-'}
       </td>

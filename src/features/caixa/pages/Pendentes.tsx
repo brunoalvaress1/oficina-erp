@@ -94,7 +94,14 @@ export function Pendentes() {
                 <td className="px-3 py-2">{lancamento.clienteTelefone ?? '-'}</td>
                 <td className="px-3 py-2">{lancamento.veiculoModelo ?? '-'}</td>
                 <td className="px-3 py-2">{lancamento.veiculoPlaca ?? '-'}</td>
-                <td className="px-3 py-2 text-right font-medium">{formatCurrency(lancamento.valorTotal)}</td>
+                <td className="px-3 py-2 text-right font-medium">
+                  {formatCurrency(lancamento.valorTotal - lancamento.valorRecebidoAcumulado)}
+                  {lancamento.valorRecebidoAcumulado > 0 && (
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      de {formatCurrency(lancamento.valorTotal)} · {formatCurrency(lancamento.valorRecebidoAcumulado)} já recebido
+                    </span>
+                  )}
+                </td>
                 <td className="px-3 py-2">{formatDate(lancamento.dataAbertura)}</td>
                 <td className="px-3 py-2">{diasEmAtraso(lancamento.updatedAt)} dia(s)</td>
                 <td className="px-3 py-2">{lancamento.responsavelNome ?? '-'}</td>

@@ -10,6 +10,10 @@ export type FormaPagamento =
   | 'crediario'
   | 'boleto'
   | 'outros'
+  // Não é dinheiro de verdade — marca que aquele pedaço do valor fica em
+  // aberto (some do "falta pagar" da OS, mas não entra no caixa nem nos
+  // dashboards). O lançamento continua/volta pra Pendentes com esse valor.
+  | 'pendente'
 
 export const ROTULO_FORMA_PAGAMENTO: Record<FormaPagamento, string> = {
   dinheiro: 'Dinheiro',
@@ -21,6 +25,7 @@ export const ROTULO_FORMA_PAGAMENTO: Record<FormaPagamento, string> = {
   crediario: 'Crediário',
   boleto: 'Boleto',
   outros: 'Outros',
+  pendente: 'Deixar Pendente',
 }
 
 export interface CaixaLancamento {
@@ -43,6 +48,11 @@ export interface CaixaLancamento {
   valorTotal: number
   valorDesconto: number
   descontoRecebimento: number
+  // Soma de dinheiro de verdade (formas != 'pendente') já recebido em
+  // rodadas anteriores não canceladas — só existe > 0 quando esse
+  // lançamento já teve um recebimento parcial (ex: pagou metade e deixou o
+  // resto pendente). O modal de Receber usa isso pra cobrar só o que falta.
+  valorRecebidoAcumulado: number
   dataAbertura: string
 }
 

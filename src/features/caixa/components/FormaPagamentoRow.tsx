@@ -60,6 +60,7 @@ export function FormaPagamentoRow({ forma, onChange, onRemover, podeRemover }: F
 
   const ehCartao = forma.formaPagamento === 'debito' || forma.formaPagamento === 'credito'
   const ehDinheiro = forma.formaPagamento === 'dinheiro'
+  const ehPendente = forma.formaPagamento === 'pendente'
   // "Automático" é o que a regra de Configurações aplicaria sozinha — usado
   // só como dica no placeholder do campo de juros manual. "juros" é o que
   // realmente vale pro cálculo (considera a sobrescrita, se houver).
@@ -98,20 +99,22 @@ export function FormaPagamentoRow({ forma, onChange, onRemover, podeRemover }: F
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Conta Bancária</label>
-            <Combobox<ContaBancaria>
-              value={forma.contaBancaria}
-              onSelect={(conta) => atualizar({ contaBancaria: conta })}
-              onSearch={setTermoContaBancaria}
-              items={contasEncontradas}
-              getKey={(c) => c.id}
-              getLabel={(c) => c.nome}
-              placeholder="Selecionar conta..."
-              onCriarNovo={handleCriarConta}
-              criarNovoLabel={(termo) => `Criar conta "${termo}"`}
-            />
-          </div>
+          {!ehPendente && (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Conta Bancária</label>
+              <Combobox<ContaBancaria>
+                value={forma.contaBancaria}
+                onSelect={(conta) => atualizar({ contaBancaria: conta })}
+                onSearch={setTermoContaBancaria}
+                items={contasEncontradas}
+                getKey={(c) => c.id}
+                getLabel={(c) => c.nome}
+                placeholder="Selecionar conta..."
+                onCriarNovo={handleCriarConta}
+                criarNovoLabel={(termo) => `Criar conta "${termo}"`}
+              />
+            </div>
+          )}
 
           {ehDinheiro && (
             <div className="space-y-1">
@@ -200,6 +203,11 @@ export function FormaPagamentoRow({ forma, onChange, onRemover, podeRemover }: F
         )}
       </div>
 
+      {ehPendente && (
+        <p className="text-xs text-amber-600">
+          Esse valor não entra no caixa agora — fica em aberto e o lançamento continua em Pendentes até ser cobrado.
+        </p>
+      )}
       {ehDinheiro && troco > 0 && (
         <p className="text-xs text-green-600">Troco: {formatCurrency(troco)}</p>
       )}

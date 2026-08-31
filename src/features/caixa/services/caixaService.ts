@@ -33,7 +33,7 @@ const SELECT_LANCAMENTO = `
     veiculos (placa, modelo),
     responsavel:funcionarios!ordens_servico_responsavel_id_fkey (nome)
   ),
-  caixa_recebimentos (desconto, cancelado)
+  caixa_recebimentos (desconto, cancelado, caixa_recebimento_formas(forma_pagamento, valor))
 `
 
 function mapLancamento(row: any): CaixaLancamento {
@@ -59,6 +59,11 @@ function mapLancamento(row: any): CaixaLancamento {
     descontoRecebimento: (row.caixa_recebimentos ?? [])
       .filter((r: any) => !r.cancelado)
       .reduce((soma: number, r: any) => soma + Number(r.desconto ?? 0), 0),
+    valorRecebidoAcumulado: (row.caixa_recebimentos ?? [])
+      .filter((r: any) => !r.cancelado)
+      .flatMap((r: any) => r.caixa_recebimento_formas ?? [])
+      .filter((f: any) => f.forma_pagamento !== 'pendente')
+      .reduce((soma: number, f: any) => soma + Number(f.valor ?? 0), 0),
     dataAbertura: ordem?.data_abertura,
   }
 }

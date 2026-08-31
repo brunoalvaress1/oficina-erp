@@ -7,17 +7,21 @@ interface ReciboSucessoProps {
   onImprimir: () => void
   onFechar: () => void
   imprimindo?: boolean
+  valorPendente?: number
 }
 
-export function ReciboSucesso({ numeroOrdem, valorTotal, onImprimir, onFechar, imprimindo }: ReciboSucessoProps) {
+export function ReciboSucesso({ numeroOrdem, valorTotal, onImprimir, onFechar, imprimindo, valorPendente = 0 }: ReciboSucessoProps) {
   return (
     <div className="space-y-4 text-center py-4">
       <CheckCircle2 size={48} className="mx-auto text-green-600" />
       <div>
-        <p className="text-lg font-semibold">Pagamento realizado com sucesso</p>
+        <p className="text-lg font-semibold">{valorPendente > 0 ? 'Pagamento parcial recebido' : 'Pagamento realizado com sucesso'}</p>
         <p className="text-sm text-muted-foreground">
           OS nº {numeroOrdem} · {formatCurrency(valorTotal)}
         </p>
+        {valorPendente > 0 && (
+          <p className="text-sm text-amber-600">{formatCurrency(valorPendente)} ficou pendente — a OS continua em Pendentes.</p>
+        )}
       </div>
       <div className="flex gap-2 justify-center">
         <button

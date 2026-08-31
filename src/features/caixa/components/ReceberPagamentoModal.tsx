@@ -37,10 +37,17 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
       ? Math.round(((lancamento.valorTotal * (Number(descontoInput) || 0)) / 100) * 100) / 100
       : Math.round((Number(descontoInput) || 0) * 100) / 100
   // Nunca deixa o desconto zerar ou passar do total — evita "pagar" um valor
-  // negativo se alguém digitar um desconto maior que a própria OS.
-  const valorAPagar = Math.max(0, Math.round((lancamento.valorTotal - descontoValor) * 100) / 100)
+  // negativo se alguém digitar um desconto maior que a própria OS. Também
+  // desconta o que já foi recebido de verdade numa rodada anterior (caso de
+  // reabrir um lançamento que ficou com parte pendente) — só cobra o que
+  // ainda falta, não a OS inteira de novo.
+  const valorAPagar = Math.max(
+    0,
+    Math.round((lancamento.valorTotal - descontoValor - lancamento.valorRecebidoAcumulado) * 100) / 100,
+  )
 
   const somaFormas = formas.reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
+  const somaPendente = formas.filter((f) => f.formaPagamento === 'pendente').reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
   const diferenca = Math.round((valorAPagar - somaFormas) * 100) / 100
 
   function handleAtualizarForma(chave: string, novaForma: FormaPagamentoForm) {
@@ -63,6 +70,24 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
 
   function handleRemoverForma(chave: string) {
     setFormas((prev) => (prev.length > 1 ? prev.filter((f) => f.chave !== chave) : prev))
+  }
+
+  // Fecha a diferença que falta com uma forma "pendente" — não é dinheiro
+  // recebido, só marca que aquele pedaço fica em aberto pra cobrar depois
+  // (o lançamento continua/volta pra Pendentes com esse valor).
+  function handleDeixarRestantePendente() {
+    setFormas((prev) => {
+      const somaAtual = prev.reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
+      const restante = Math.round((valorAPagar - somaAtual) * 100) / 100
+      if (restante <= 0) return prev
+      const ultimaVazia = [...prev].reverse().find((f) => !Number(f.valor))
+      if (ultimaVazia) {
+        return prev.map((f) => (f.chave === ultimaVazia.chave ? { ...f, formaPagamento: 'pendente', valor: restante.toFixed(2) } : f))
+      }
+      const novaForma = criarFormaPagamentoVazia('pendente')
+      novaForma.valor = restante.toFixed(2)
+      return [...prev, novaForma]
+    })
   }
 
   function handleReceber() {
@@ -114,7 +139,8 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
         {mostrarSucesso ? (
           <ReciboSucesso
             numeroOrdem={lancamento.ordemNumero}
-            valorTotal={valorAPagar}
+            valorTotal={somaFormas - somaPendente}
+            valorPendente={somaPendente}
             onImprimir={handleImprimir}
             onFechar={handleFecharTudo}
           />
@@ -133,6 +159,12 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
                 <Campo label="Data" valor={formatDate(lancamento.dataAbertura)} />
                 <Campo label="Desconto (itens)" valor={formatCurrency(lancamento.valorDesconto)} />
                 <Campo label="Valor Total" valor={formatCurrency(lancamento.valorTotal)} destaque />
+                {lancamento.valorRecebidoAcumulado > 0 && (
+                  <>
+                    <Campo label="Já recebido" valor={formatCurrency(lancamento.valorRecebidoAcumulado)} />
+                    <Campo label="Falta receber" valor={formatCurrency(valorAPagar)} destaque />
+                  </>
+                )}
               </div>
 
               <div className="rounded-lg border p-3 space-y-2">
@@ -213,12 +245,22 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
               <div className="rounded-lg border p-3 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   Total informado {descontoValor > 0 ? `(de ${formatCurrency(valorAPagar)} a pagar)` : ''}
+                  {somaPendente > 0 && ` · ${formatCurrency(somaPendente)} ficará pendente`}
                 </span>
                 <span className="text-base font-semibold">{formatCurrency(somaFormas)}</span>
               </div>
 
               {diferenca > 0 && (
-                <p className="text-sm text-amber-600">Ainda falta {formatCurrency(diferenca)} para completar o pagamento.</p>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-sm text-amber-600">Ainda falta {formatCurrency(diferenca)} para completar o pagamento.</p>
+                  <button
+                    type="button"
+                    onClick={handleDeixarRestantePendente}
+                    className="h-8 px-3 rounded-md border text-xs font-medium text-amber-700 border-amber-300 hover:bg-amber-50"
+                  >
+                    Deixar {formatCurrency(diferenca)} pendente
+                  </button>
+                </div>
               )}
               {diferenca < 0 && (
                 <p className="text-sm text-destructive">O valor informado ultrapassa o valor da ordem em {formatCurrency(-diferenca)}.</p>
@@ -230,7 +272,11 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
                 disabled={diferenca !== 0 || receberMutation.isPending}
                 className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
               >
-                {receberMutation.isPending ? 'Recebendo...' : 'Receber'}
+                {receberMutation.isPending
+                  ? 'Recebendo...'
+                  : somaPendente > 0
+                    ? `Receber ${formatCurrency(somaFormas - somaPendente)} e Deixar Restante Pendente`
+                    : 'Receber'}
               </button>
 
               {lancamento.status === 'aguardando' && (
