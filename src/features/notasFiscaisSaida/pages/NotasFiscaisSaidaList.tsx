@@ -21,6 +21,7 @@ import { formatCurrency } from '@/utils/format'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
 import {
   FiltroPeriodoOpcional,
+  filtroPeriodoOpcionalEsteMes,
   filtroPeriodoOpcionalPadrao,
   type FiltroPeriodoOpcionalState,
 } from '@/components/ui/FiltroPeriodoOpcional'
@@ -34,6 +35,7 @@ import {
   useNotasFiscaisSaida,
   useOrdensPagasParaEmitir,
   useResumoNotasFiscais,
+  useVerificarProcessandoAutomatico,
 } from '../hooks/useNotasFiscaisSaida'
 import {
   ROTULO_STATUS_NOTA_FISCAL,
@@ -181,7 +183,9 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
   const tema = TEMA_MODELO[modelo]
   const { data: ordens, isLoading } = useOrdensPagasParaEmitir()
   const [ordemParaEmitir, setOrdemParaEmitir] = useState<OrdemPagaParaEmitir | null>(null)
-  const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
+  // Começa filtrado no mês atual — "Todas" de cara misturava OS pagas de
+  // meses antigos já resolvidas de outro jeito com as realmente urgentes.
+  const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalEsteMes())
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoOsPaga; direcao: 'asc' | 'desc' } | null>(null)
   const emitirEmLote = useEmitirNotasEmLote()
@@ -270,7 +274,8 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-card p-3 flex flex-wrap items-center justify-end gap-3">
+      <div className="rounded-lg border bg-card p-3 flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium text-muted-foreground shrink-0">Período</span>
         <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
       </div>
 
@@ -420,7 +425,9 @@ const OPCOES_STATUS = ['', 'processando', 'autorizada', 'rejeitada', 'cancelada'
 
 function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
   const tema = TEMA_MODELO[modelo]
-  const [filtroStatus, setFiltroStatus] = useState<StatusNotaFiscal | ''>('')
+  // Abre já filtrado em "Autorizada" — é o que interessa olhar de cara (nota
+  // válida, já saiu); pra ver rejeitadas/erros/processando é só trocar o chip.
+  const [filtroStatus, setFiltroStatus] = useState<StatusNotaFiscal | ''>('autorizada')
   const [filtro, setFiltro] = useState<FiltroPeriodoOpcionalState>(filtroPeriodoOpcionalPadrao())
   const [busca, setBusca] = useState('')
   const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoNotaFiscal; direcao: 'asc' | 'desc' }>({
@@ -428,16 +435,20 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
     direcao: 'desc',
   })
 
+  // Reconsulta sozinho, em segundo plano, as notas ainda "processando" desse
+  // modelo — independe do filtro de status escolhido acima, então continua
+  // funcionando mesmo com a tela aberta em "Autorizada".
+  useVerificarProcessandoAutomatico(modelo)
+
   function alternarOrdenacao(campo: CampoOrdenacaoNotaFiscal) {
     setOrdenacao((atual) => (atual.campo === campo ? { campo, direcao: atual.direcao === 'asc' ? 'desc' : 'asc' } : { campo, direcao: 'asc' }))
   }
 
-  const params = {
-    modelo,
-    status: filtroStatus || undefined,
+  const periodoParams = {
     dataInicio: filtro.periodo === 'todas' ? undefined : filtro.dataInicio || undefined,
     dataFim: filtro.periodo === 'todas' ? undefined : filtro.dataFim || undefined,
   }
+  const params = { modelo, status: filtroStatus || undefined, ...periodoParams }
   const { data, isLoading } = useNotasFiscaisSaida({
     ...params,
     pageSize: 50,
@@ -446,6 +457,9 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
     sortDirection: ordenacao.direcao,
   })
   const { data: resumo } = useResumoNotasFiscais(params)
+  // Sempre "autorizada", independente do chip de status selecionado — é o
+  // card fixo de "quanto já autorizei de verdade nesse período".
+  const { data: resumoAutorizadas } = useResumoNotasFiscais({ modelo, status: 'autorizada', ...periodoParams })
   const consultarStatus = useConsultarStatusNotaFiscal()
   const consultarStatusEmLote = useConsultarStatusEmLote()
   const cancelar = useCancelarNotaFiscal()
@@ -472,23 +486,28 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
 
   return (
     <div className="space-y-4">
-      {/* Barra de filtros — período, busca e status juntos num só bloco */}
+      {/* Barra de filtros — período, busca e status sempre na mesma ordem, cada linha com seu rótulo */}
       <div className="rounded-lg border bg-card p-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">Período</span>
           <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="h-px bg-border" />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">Buscar</span>
           <div className="relative w-full sm:w-72 shrink-0">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por cliente, nº da OS, chave de acesso..."
-              className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Cliente, nº da OS, chave de acesso..."
+              className="w-full h-8 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
+          <span className="text-xs font-medium text-muted-foreground shrink-0 sm:ml-2">Status</span>
           <div className="flex flex-wrap gap-1.5">
             {OPCOES_STATUS.map((status) => (
               <button
@@ -506,9 +525,16 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 max-w-md">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl">
         <CardIndicador titulo="Notas no filtro" valor={String(resumo?.quantidade ?? 0)} icone={<FileCheck2 size={15} />} />
-        <CardIndicador titulo="Valor total" valor={formatCurrency(resumo?.valorTotal ?? 0)} icone={<Wallet size={15} />} />
+        <CardIndicador titulo="Valor total no filtro" valor={formatCurrency(resumo?.valorTotal ?? 0)} icone={<Wallet size={15} />} />
+        <CardIndicador
+          titulo="Notas autorizadas"
+          valor={String(resumoAutorizadas?.quantidade ?? 0)}
+          subtitulo={formatCurrency(resumoAutorizadas?.valorTotal ?? 0)}
+          icone={<FileCheck2 size={15} />}
+          destaque="positivo"
+        />
       </div>
 
       <div className="border rounded-lg overflow-hidden">

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useRealtimeInvalidacao } from '@/hooks/useRealtimeInvalidacao'
@@ -9,6 +10,7 @@ import {
   emitirNotaFiscal,
   emitirNotasEmLote,
   listarHistoricoNotaFiscal,
+  listarNotasEmProcessamento,
   listarNotasFiscais,
   listarNotasFiscaisPorLancamento,
   listarOrdensPagasParaEmitir,
@@ -149,6 +151,48 @@ export function useConsultarStatusEmLote() {
     },
     onError: (error: Error) => toast.error('Erro ao processar notas', { description: error.message }),
   })
+}
+
+// Reconsulta sozinho, em segundo plano, o status das notas ainda
+// "processando"/"pendente" desse modelo — assim que a aba abre, sem
+// precisar que o usuário filtre por "Processando" e clique em "Processar
+// Todas" pra descobrir se já autorizou. Roda uma vez ao montar e depois
+// segue rechecando a cada 20s enquanto ainda houver alguma pendente.
+// Silencioso de propósito (sem toast) — é um processo de fundo, não uma
+// ação que o usuário pediu; "Processar Todas" continua ali pra forçar na
+// hora, se quiser.
+export function useVerificarProcessandoAutomatico(modelo: ModeloNotaFiscal) {
+  const queryClient = useQueryClient()
+  const emAndamento = useRef(false)
+
+  useEffect(() => {
+    let cancelado = false
+
+    async function verificar() {
+      if (emAndamento.current) return
+      emAndamento.current = true
+      try {
+        const ids = await listarNotasEmProcessamento(modelo)
+        if (cancelado || ids.length === 0) return
+        await consultarStatusEmLote(ids)
+        if (!cancelado) {
+          queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
+          queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida-resumo'] })
+        }
+      } catch {
+        // silencioso — próxima rodada tenta de novo sozinha
+      } finally {
+        emAndamento.current = false
+      }
+    }
+
+    verificar()
+    const intervalo = setInterval(verificar, 20000)
+    return () => {
+      cancelado = true
+      clearInterval(intervalo)
+    }
+  }, [modelo, queryClient])
 }
 
 export function useCancelarNotaFiscal() {

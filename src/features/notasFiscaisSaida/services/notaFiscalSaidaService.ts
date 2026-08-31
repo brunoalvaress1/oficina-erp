@@ -132,6 +132,20 @@ export async function resumoNotasFiscais(
   return { quantidade: count ?? 0, valorTotal }
 }
 
+// Ids das notas ainda aguardando a Sefaz (processando) ou nem enviadas
+// (pendente) — usado pra reconsultar o status sozinho, em segundo plano,
+// assim que a aba "Notas Emitidas" abre (ver useVerificarProcessandoAutomatico),
+// sem precisar do usuário filtrar por "Processando" e clicar em nada. De
+// propósito ignora o filtro de período/status escolhido na tela: uma nota
+// "processando" de qualquer período precisa ser reconsultada.
+export async function listarNotasEmProcessamento(modelo: ModeloNotaFiscal): Promise<string[]> {
+  let query = supabase.from('notas_fiscais_saida').select('id').in('status', ['processando', 'pendente'])
+  query = modelo === 'peca' ? query.in('tipo', ['nfce', 'nfe']) : query.eq('tipo', 'nfse')
+  const { data, error } = await query.limit(100)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row: any) => row.id)
+}
+
 // Peça (NFC-e/NF-e) e serviço (NFS-e) são documentos independentes — um
 // mesmo lançamento pode ter uma nota válida de cada tipo ao mesmo tempo, por
 // isso isso retorna uma lista (não dá mais pra usar .maybeSingle() aqui).
