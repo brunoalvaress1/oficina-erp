@@ -85,6 +85,12 @@ export interface OrdemPagaParaEmitir {
   servicoPendente: boolean
   valorPecas: number
   valorServicos: number
+  // Campos do cadastro do cliente que faltam pra essa nota não ser rejeitada
+  // pela Sefaz/Focus — vazio quando está tudo certo. Calculado no mesmo
+  // formato que os edge functions emitir-nota-fiscal/emitir-nfse já exigem,
+  // pra avisar ANTES de tentar emitir (ver validarClienteParaNota).
+  problemasPeca: string[]
+  problemasServico: string[]
 }
 
 export type ModeloNotaFiscal = 'peca' | 'servico'

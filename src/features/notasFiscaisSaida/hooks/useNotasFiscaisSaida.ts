@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useRealtimeInvalidacao } from '@/hooks/useRealtimeInvalidacao'
 import {
+  buscarDadosFiscaisCliente,
+  buscarUltimasTentativasPorLancamento,
   cancelarNotaFiscal,
   consultarStatusEmLote,
   consultarStatusNotaFiscal,
@@ -57,6 +59,28 @@ export function useNotasFiscaisPorLancamento(caixaLancamentoId: string | undefin
   })
 }
 
+// Última tentativa de cada grupo (peça/serviço) desse lançamento, SEJA QUAL
+// FOR o status — diferente de useNotasFiscaisPorLancamento (que só traz nota
+// válida). Usado no modal de emissão pra detectar "isso já falhou antes" e
+// avisar em vez de deixar tentar de novo sem saber por quê.
+export function useUltimasTentativasPorLancamento(caixaLancamentoId: string | undefined) {
+  return useQuery({
+    queryKey: ['notas-fiscais-ultimas-tentativas', caixaLancamentoId],
+    queryFn: () => buscarUltimasTentativasPorLancamento(caixaLancamentoId!),
+    enabled: !!caixaLancamentoId,
+  })
+}
+
+// Dados do cliente relevantes pra saber se dá pra emitir nota sem a Sefaz
+// rejeitar por cadastro incompleto — ver validarClienteParaNota.
+export function useDadosFiscaisCliente(clienteId: string | undefined) {
+  return useQuery({
+    queryKey: ['cliente-dados-fiscais', clienteId],
+    queryFn: () => buscarDadosFiscaisCliente(clienteId!),
+    enabled: !!clienteId,
+  })
+}
+
 export function useHistoricoNotaFiscal(notaFiscalId: string | undefined) {
   return useQuery({
     queryKey: ['nota-fiscal-historico', notaFiscalId],
@@ -71,11 +95,19 @@ export function useEmitirNotaFiscal() {
     mutationFn: ({ caixaLancamentoId, tipo }: { caixaLancamentoId: string; tipo?: 'nfce' | 'nfe' }) =>
       emitirNotaFiscal(caixaLancamentoId, tipo),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
-      queryClient.invalidateQueries({ queryKey: ['nota-fiscal-por-lancamento'] })
       toast.success('Nota enviada — aguardando autorização da Sefaz')
     },
     onError: (error: Error) => toast.error('Erro ao emitir nota fiscal', { description: error.message }),
+    // Roda tanto no sucesso quanto no erro — uma rejeição da Sefaz também
+    // grava uma linha nova em notas_fiscais_saida (status "rejeitada"), então
+    // o modal precisa saber disso pra mostrar o aviso "já tentou e falhou"
+    // mesmo quando a promise deu erro (ver useUltimasTentativasPorLancamento).
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-por-lancamento'] })
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-ultimas-tentativas', variables.caixaLancamentoId] })
+      queryClient.invalidateQueries({ queryKey: ['ordens-pagas-para-emitir'] })
+    },
   })
 }
 
@@ -84,11 +116,17 @@ export function useEmitirNfse() {
   return useMutation({
     mutationFn: (caixaLancamentoId: string) => emitirNfse(caixaLancamentoId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
-      queryClient.invalidateQueries({ queryKey: ['nota-fiscal-por-lancamento'] })
       toast.success('NFS-e enviada — aguardando autorização')
     },
     onError: (error: Error) => toast.error('Erro ao emitir NFS-e', { description: error.message }),
+    // Ver comentário em useEmitirNotaFiscal — precisa atualizar mesmo quando
+    // deu erro, porque uma rejeição também grava a tentativa no banco.
+    onSettled: (_data, _error, caixaLancamentoId) => {
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-saida'] })
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-por-lancamento'] })
+      queryClient.invalidateQueries({ queryKey: ['notas-fiscais-ultimas-tentativas', caixaLancamentoId] })
+      queryClient.invalidateQueries({ queryKey: ['ordens-pagas-para-emitir'] })
+    },
   })
 }
 

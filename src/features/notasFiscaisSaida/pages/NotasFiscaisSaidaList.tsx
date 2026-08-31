@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -222,13 +223,24 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
   // valor da OS inteira (peça + serviço) misturado.
   const valorTotal = ordensFiltradas.reduce((soma, ordem) => soma + (modelo === 'peca' ? ordem.valorPecas : ordem.valorServicos), 0)
 
+  function problemasDe(ordem: OrdemPagaParaEmitir): string[] {
+    return modelo === 'peca' ? ordem.problemasPeca : ordem.problemasServico
+  }
+
   // Só entram na seleção em lote as OS que realmente têm aquele modelo
   // pendente — uma OS só de serviço não aparece com checkbox no modo "Peças".
+  // OS com cadastro de cliente incompleto ficam de fora da seleção/"Emitir
+  // Todas" — emitir em lote ia só gerar mais uma tentativa fadada a rejeitar
+  // (ver aviso na própria linha e no modal individual).
   const ordensSelecionaveis = useMemo(
-    () => ordensFiltradas.filter((ordem) => (modelo === 'peca' ? ordem.pecaPendente : ordem.servicoPendente)),
+    () => ordensFiltradas.filter((ordem) => (modelo === 'peca' ? ordem.pecaPendente : ordem.servicoPendente) && problemasDe(ordem).length === 0),
     [ordensFiltradas, modelo],
   )
   const idsSelecionaveis = useMemo(() => new Set(ordensSelecionaveis.map((o) => o.ordemServicoId)), [ordensSelecionaveis])
+  const ordensComProblema = useMemo(
+    () => ordensFiltradas.filter((ordem) => (modelo === 'peca' ? ordem.pecaPendente : ordem.servicoPendente) && problemasDe(ordem).length > 0),
+    [ordensFiltradas, modelo],
+  )
 
   function alternarSelecao(ordemServicoId: string) {
     setSelecionadas((atual) => {
@@ -279,9 +291,18 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
         <FiltroPeriodoOpcional valor={filtro} onChange={setFiltro} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 max-w-md">
+      <div className={`grid grid-cols-2 ${ordensComProblema.length > 0 ? 'sm:grid-cols-3' : ''} gap-3 max-w-2xl`}>
         <CardIndicador titulo="OS aguardando emissão" valor={String(ordensFiltradas.length)} icone={<Hourglass size={15} />} />
         <CardIndicador titulo={`Valor total · ${tema.rotuloCurto}`} valor={formatCurrency(valorTotal)} icone={<Wallet size={15} />} />
+        {ordensComProblema.length > 0 && (
+          <CardIndicador
+            titulo="Precisam de atenção"
+            valor={String(ordensComProblema.length)}
+            subtitulo="Cadastro incompleto ou já falhou — fora do lote"
+            icone={<AlertTriangle size={15} />}
+            destaque="negativo"
+          />
+        )}
       </div>
 
       {/* Barra de seleção — só some do lugar quando tem algo marcado, fica grudada no topo pra continuar visível ao rolar a lista */}
@@ -381,7 +402,19 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
                   )}
                 </td>
                 <td className="px-3 py-2 font-medium">OS {ordem.ordemNumero}</td>
-                <td className="px-3 py-2">{ordem.clienteNome ?? '-'}</td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex items-center gap-1.5">
+                    {ordem.clienteNome ?? '-'}
+                    {problemasDe(ordem).length > 0 && (
+                      <AlertTriangle
+                        size={13}
+                        className="text-amber-600 shrink-0"
+                        aria-label="Não vai emitir sem resolver"
+                        title={problemasDe(ordem).join(' · ')}
+                      />
+                    )}
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">
                   {ordem.dataPagamento ? new Date(ordem.dataPagamento).toLocaleDateString('pt-BR') : '-'}
                 </td>
@@ -392,13 +425,24 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
                 <td className="px-3 py-2">
                   <div className="flex justify-end">
                     <PermissionGate codigo="notas_fiscais.emitir">
-                      <button
-                        type="button"
-                        onClick={() => setOrdemParaEmitir(ordem)}
-                        className="flex items-center gap-1 h-8 px-3 rounded-md border text-xs font-medium"
-                      >
-                        <Receipt size={13} /> Emitir Nota Fiscal
-                      </button>
+                      {problemasDe(ordem).length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setOrdemParaEmitir(ordem)}
+                          title={problemasDe(ordem).join(' · ')}
+                          className="flex items-center gap-1 h-8 px-3 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs font-medium"
+                        >
+                          <AlertTriangle size={13} /> Ver Pendência
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setOrdemParaEmitir(ordem)}
+                          className="flex items-center gap-1 h-8 px-3 rounded-md border text-xs font-medium"
+                        >
+                          <Receipt size={13} /> Emitir Nota Fiscal
+                        </button>
+                      )}
                     </PermissionGate>
                   </div>
                 </td>

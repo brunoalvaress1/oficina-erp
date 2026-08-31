@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { validarClienteParaNota, type DadosFiscaisCliente } from '../utils/validacaoDadosFiscais'
 import type {
   HistoricoNotaFiscalEntry,
   ListarNotasFiscaisParams,
@@ -132,6 +133,25 @@ export async function resumoNotasFiscais(
   return { quantidade: count ?? 0, valorTotal }
 }
 
+// Dados mínimos do cliente pra validar se dá pra emitir nota fiscal — usado
+// no modal de emissão pra avisar de cadastro incompleto ANTES de tentar
+// (ver validarClienteParaNota).
+export async function buscarDadosFiscaisCliente(clienteId: string): Promise<DadosFiscaisCliente> {
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('cpf_cnpj, endereco, bairro, codigo_cidade, cep')
+    .eq('id', clienteId)
+    .single()
+  if (error) throw new Error(error.message)
+  return {
+    cpfCnpj: data.cpf_cnpj,
+    endereco: data.endereco,
+    bairro: data.bairro,
+    codigoCidade: data.codigo_cidade,
+    cep: data.cep,
+  }
+}
+
 // Ids das notas ainda aguardando a Sefaz (processando) ou nem enviadas
 // (pendente) — usado pra reconsultar o status sozinho, em segundo plano,
 // assim que a aba "Notas Emitidas" abre (ver useVerificarProcessandoAutomatico),
@@ -159,6 +179,29 @@ export async function listarNotasFiscaisPorLancamento(caixaLancamentoId: string)
   return (data ?? []).map(mapRow)
 }
 
+// Diferente da função acima (que só traz nota "válida", excluindo
+// rejeitada/erro), essa traz a ÚLTIMA tentativa de cada grupo (peça x
+// serviço) SEJA QUAL FOR o status — inclusive rejeitada/erro. Usado no modal
+// de emissão pra mostrar "essa OS já tentou e deu erro X" em vez de deixar o
+// vendedor clicar em "Emitir" de novo às cegas, sem saber que é a mesma nota
+// com o mesmo problema de antes.
+export async function buscarUltimasTentativasPorLancamento(
+  caixaLancamentoId: string,
+): Promise<{ peca: NotaFiscalSaida | null; servico: NotaFiscalSaida | null }> {
+  const { data, error } = await supabase
+    .from('notas_fiscais_saida')
+    .select('*, ordens_servico(numero), funcionarios(nome)')
+    .eq('caixa_lancamento_id', caixaLancamentoId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+
+  const notas = (data ?? []).map(mapRow)
+  return {
+    peca: notas.find((n) => n.tipo === 'nfce' || n.tipo === 'nfe') ?? null,
+    servico: notas.find((n) => n.tipo === 'nfse') ?? null,
+  }
+}
+
 // OS com status "paga" que ainda não têm nenhuma nota emitida (ou em
 // processamento) — usado na aba "OS pagas p/ emitir" da tela de Notas Fiscais,
 // pra não depender só do menu de cada OS/lançamento individualmente.
@@ -175,7 +218,9 @@ function extrairDadosLancamento(caixaLancamentos: unknown): { id: string | null;
 export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir[]> {
   const { data: ordens, error: erroOrdens } = await supabase
     .from('ordens_servico')
-    .select('id, numero, valor_total, clientes(nome), caixa_lancamentos(id, updated_at), ordem_servico_itens(tipo, valor_total)')
+    .select(
+      'id, numero, valor_total, clientes(nome, cpf_cnpj, endereco, bairro, codigo_cidade, cep), caixa_lancamentos(id, updated_at), ordem_servico_itens(tipo, valor_total)',
+    )
     .eq('status', 'paga')
     .order('numero', { ascending: false })
   if (erroOrdens) throw new Error(erroOrdens.message)
@@ -201,40 +246,78 @@ export async function listarOrdensPagasParaEmitir(): Promise<OrdemPagaParaEmitir
 
   // Peça (NFC-e/NF-e) e serviço (NFS-e) são documentos independentes — uma OS
   // só sai dessa lista quando TODOS os tipos que ela realmente tem itens já
-  // tiverem nota válida emitida.
-  const { data: notasExistentes, error: erroNotas } = await supabase
+  // tiverem nota válida emitida. Busca TODAS as tentativas (não só as
+  // válidas) pra também saber, de cada uma que ainda está pendente, se a
+  // ÚLTIMA tentativa já falhou — e por quê (ver problemasPeca/problemasServico
+  // abaixo, que usam isso pra tirar do lote OS que já sabidamente vão
+  // rejeitar de novo, em vez de deixar tentar às cegas outra vez).
+  const { data: todasTentativas, error: erroNotas } = await supabase
     .from('notas_fiscais_saida')
-    .select('caixa_lancamento_id, tipo')
+    .select('caixa_lancamento_id, tipo, status, mensagem_erro, created_at')
     .in('caixa_lancamento_id', caixaLancamentoIds)
-    .not('status', 'in', '(cancelada,erro,rejeitada)')
+    .order('created_at', { ascending: false })
   if (erroNotas) throw new Error(erroNotas.message)
 
-  const pecaEmitidaPorLancamento = new Set(
-    (notasExistentes ?? []).filter((n) => n.tipo === 'nfce' || n.tipo === 'nfe').map((n) => n.caixa_lancamento_id),
+  const tentativas = todasTentativas ?? []
+  const grupoDoTipo = (tipo: string) => (tipo === 'nfce' || tipo === 'nfe' ? 'peca' : 'servico')
+  const validaPorLancamento = new Set(
+    tentativas.filter((n) => !['cancelada', 'erro', 'rejeitada'].includes(n.status)).map((n) => `${n.caixa_lancamento_id}:${grupoDoTipo(n.tipo)}`),
   )
-  const servicoEmitidoPorLancamento = new Set(
-    (notasExistentes ?? []).filter((n) => n.tipo === 'nfse').map((n) => n.caixa_lancamento_id),
-  )
+  // tentativas já vem ordenado do mais novo pro mais velho, então o primeiro
+  // encontrado por chave É o mais recente.
+  const ultimaTentativaPorGrupo = new Map<string, { status: string; mensagemErro: string | null }>()
+  for (const n of tentativas) {
+    const chave = `${n.caixa_lancamento_id}:${grupoDoTipo(n.tipo)}`
+    if (!ultimaTentativaPorGrupo.has(chave)) ultimaTentativaPorGrupo.set(chave, { status: n.status, mensagemErro: n.mensagem_erro })
+  }
 
   return ordensComLancamento
     .map((o) => ({
       ...o,
-      pecaPendente: o.temPeca && !pecaEmitidaPorLancamento.has(o.caixaLancamentoId),
-      servicoPendente: o.temServico && !servicoEmitidoPorLancamento.has(o.caixaLancamentoId),
+      pecaPendente: o.temPeca && !validaPorLancamento.has(`${o.caixaLancamentoId}:peca`),
+      servicoPendente: o.temServico && !validaPorLancamento.has(`${o.caixaLancamentoId}:servico`),
     }))
     .filter((o) => o.caixaLancamentoId && (o.pecaPendente || o.servicoPendente))
-    .map((o) => ({
-      ordemServicoId: o.id,
-      ordemNumero: o.numero,
-      clienteNome: o.clientes?.nome ?? null,
-      valorTotal: Number(o.valor_total ?? 0),
-      caixaLancamentoId: o.caixaLancamentoId!,
-      dataPagamento: o.dataPagamento,
-      pecaPendente: o.pecaPendente,
-      servicoPendente: o.servicoPendente,
-      valorPecas: o.valorPecas,
-      valorServicos: o.valorServicos,
-    }))
+    .map((o) => {
+      const dadosCliente: DadosFiscaisCliente = {
+        cpfCnpj: o.clientes?.cpf_cnpj ?? null,
+        endereco: o.clientes?.endereco ?? null,
+        bairro: o.clientes?.bairro ?? null,
+        codigoCidade: o.clientes?.codigo_cidade ?? null,
+        cep: o.clientes?.cep ?? null,
+      }
+      // Se está pendente (nenhuma nota válida), a última tentativa daquele
+      // grupo — se existir — só pode ter dado errado (senão não estaria
+      // pendente). Mostra esse motivo junto do cadastro incompleto, se houver.
+      const ultimaFalhaPeca = ultimaTentativaPorGrupo.get(`${o.caixaLancamentoId}:peca`)
+      const ultimaFalhaServico = ultimaTentativaPorGrupo.get(`${o.caixaLancamentoId}:servico`)
+      const problemasCadastroPeca = o.pecaPendente ? validarClienteParaNota(dadosCliente, 'peca') : []
+      const problemasCadastroServico = o.servicoPendente ? validarClienteParaNota(dadosCliente, 'servico') : []
+      return {
+        ordemServicoId: o.id,
+        ordemNumero: o.numero,
+        clienteNome: o.clientes?.nome ?? null,
+        valorTotal: Number(o.valor_total ?? 0),
+        caixaLancamentoId: o.caixaLancamentoId!,
+        dataPagamento: o.dataPagamento,
+        pecaPendente: o.pecaPendente,
+        servicoPendente: o.servicoPendente,
+        valorPecas: o.valorPecas,
+        valorServicos: o.valorServicos,
+        problemasPeca:
+          problemasCadastroPeca.length > 0
+            ? problemasCadastroPeca
+            : ultimaFalhaPeca && ultimaFalhaPeca.mensagemErro
+              ? [`tentativa anterior falhou: ${ultimaFalhaPeca.mensagemErro}`]
+              : [],
+        problemasServico:
+          problemasCadastroServico.length > 0
+            ? problemasCadastroServico
+            : ultimaFalhaServico && ultimaFalhaServico.mensagemErro
+              ? [`tentativa anterior falhou: ${ultimaFalhaServico.mensagemErro}`]
+              : [],
+      }
+    })
 }
 
 // Emite uma por uma (sequencial, não em paralelo) pra não estourar limite de
