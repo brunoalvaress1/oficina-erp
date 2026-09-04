@@ -18,7 +18,13 @@ export function WhatsApp() {
   const [instanceName, setInstanceName] = useState('')
   const [siteUrl, setSiteUrl] = useState('')
   const temInstancia = !!(integracaoWhatsapp?.config as any)?.instanceName
-  const { data: estadoConexao, isFetching: consultandoStatus, refetch: reconsultarStatus } = useStatusWhatsapp(temInstancia)
+  const {
+    data: estadoConexao,
+    isFetching: consultandoStatus,
+    refetch: reconsultarStatus,
+    isError: erroStatus,
+    error: erroStatusDetalhe,
+  } = useStatusWhatsapp(temInstancia)
   const gerarQrCode = useGerarQrCodeWhatsapp()
   const desconectar = useDesconectarWhatsapp()
 
@@ -119,6 +125,11 @@ export function WhatsApp() {
           <div className="flex items-center justify-between">
             <h2 className="font-medium text-sm">Conexão do número</h2>
             <div className="flex items-center gap-2">
+              {erroStatus && (
+                <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-red-500/10 text-red-600 border-red-500/30">
+                  Erro ao verificar
+                </span>
+              )}
               {estadoConexao && (
                 <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ROTULO_ESTADO[estadoConexao]?.cor ?? 'bg-muted text-muted-foreground'}`}>
                   {ROTULO_ESTADO[estadoConexao]?.texto ?? estadoConexao}
@@ -147,11 +158,17 @@ export function WhatsApp() {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            A sessão do WhatsApp Web pode cair de tempos em tempos — quando isso acontecer, o status aqui fica
-            "Desconectado" e você precisa escanear um novo QR code, sem precisar entrar no painel da Evolution API. Use o
-            botão de desconectar (ícone vermelho) se quiser trocar o número conectado.
-          </p>
+          {erroStatus ? (
+            <p className="text-xs text-destructive">
+              {erroStatusDetalhe instanceof Error ? erroStatusDetalhe.message : 'Não foi possível verificar o status da conexão.'}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              A sessão do WhatsApp Web pode cair de tempos em tempos — quando isso acontecer, o status aqui fica
+              "Desconectado" e você precisa escanear um novo QR code, sem precisar entrar no painel da Evolution API. Use o
+              botão de desconectar (ícone vermelho) se quiser trocar o número conectado.
+            </p>
+          )}
 
           {estadoConexao !== 'open' && (
             <div className="space-y-3">

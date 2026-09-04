@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Search } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { veiculoSchema, type VeiculoFormValues } from '../schemas/veiculoSchema'
 import type { Veiculo } from '../types/veiculo'
@@ -82,6 +83,7 @@ export function VeiculoForm({
         if (!valoresAtuais.motor && dados.motor) setValue('motor', dados.motor)
         if (!valoresAtuais.combustivel && dados.combustivel) setValue('combustivel', dados.combustivel)
       },
+      onError: (error: Error) => toast.error('Não foi possível buscar os dados dessa placa', { description: error.message }),
     })
   }
 

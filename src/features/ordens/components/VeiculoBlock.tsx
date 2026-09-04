@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Car, Loader2, Search, UserCog } from 'lucide-react'
+import { toast } from 'sonner'
 import { buscarVeiculoPorPlaca } from '@/features/veiculos/services/veiculoService'
 import { useConsultaPlaca } from '@/features/veiculos/hooks/useConsultaPlaca'
 import { useUpdateVeiculo } from '@/features/veiculos/hooks/useVeiculoMutations'
@@ -130,6 +131,9 @@ export function VeiculoBlock({
           opcionais: '',
         })
       },
+      // Sem isso, uma falha (token não configurado, API fora do ar, etc.)
+      // ficava muda — o formulário só não preenchia nada, sem pista do motivo.
+      onError: (error: Error) => toast.error('Não foi possível buscar os dados dessa placa', { description: error.message }),
     })
   }
 

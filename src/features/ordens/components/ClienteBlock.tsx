@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, User } from 'lucide-react'
+import { toast } from 'sonner'
 import { useDebouncedCallback } from 'use-debounce'
 import { buscarClientePorCpfCnpj, buscarClientePorId } from '@/features/clientes/services/clienteService'
 import { useConsultaCpf } from '@/features/clientes/hooks/useConsultaCpf'
@@ -107,6 +108,10 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
               sexo: dados.sexo || '',
             })
           },
+          // Sem isso, uma falha (token não configurado, API fora do ar, etc.)
+          // ficava completamente muda — o formulário só não preenchia nada e
+          // parecia que não tinha feito nada, sem pista nenhuma do motivo.
+          onError: (error: Error) => toast.error('Não foi possível buscar os dados desse CPF', { description: error.message }),
         })
         return
       }
@@ -134,6 +139,7 @@ export function ClienteBlock({ value, onChange, tentouSalvar, disabled, permitir
             codigoCidade: enderecoPorCep?.codigoCidade || '',
           })
         },
+        onError: (error: Error) => toast.error('Não foi possível buscar os dados desse CNPJ', { description: error.message }),
       })
     } finally {
       setBuscandoNoBanco(false)
