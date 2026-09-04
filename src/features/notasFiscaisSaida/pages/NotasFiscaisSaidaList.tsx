@@ -406,12 +406,9 @@ function AbaOsPagas({ modelo }: { modelo: ModeloNotaFiscal }) {
                   <span className="inline-flex items-center gap-1.5">
                     {ordem.clienteNome ?? '-'}
                     {problemasDe(ordem).length > 0 && (
-                      <AlertTriangle
-                        size={13}
-                        className="text-amber-600 shrink-0"
-                        aria-label="Não vai emitir sem resolver"
-                        title={problemasDe(ordem).join(' · ')}
-                      />
+                      <span title={problemasDe(ordem).join(' · ')} aria-label="Não vai emitir sem resolver">
+                        <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                      </span>
                     )}
                   </span>
                 </td>
