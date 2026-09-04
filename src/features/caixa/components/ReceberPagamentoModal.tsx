@@ -38,12 +38,14 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
       : Math.round((Number(descontoInput) || 0) * 100) / 100
   // Nunca deixa o desconto zerar ou passar do total — evita "pagar" um valor
   // negativo se alguém digitar um desconto maior que a própria OS. Também
-  // desconta o que já foi recebido de verdade numa rodada anterior (caso de
-  // reabrir um lançamento que ficou com parte pendente) — só cobra o que
-  // ainda falta, não a OS inteira de novo.
+  // desconta o que já foi recebido de verdade E o desconto já dado numa
+  // rodada anterior (caso de reabrir um lançamento que ficou com parte
+  // pendente) — só cobra o que ainda falta, não a OS inteira de novo. Sem o
+  // desconto anterior aqui, um desconto novo nessa rodada duplicava o que já
+  // tinha sido abatido antes (o backend então recusava por "valor não confere").
   const valorAPagar = Math.max(
     0,
-    Math.round((lancamento.valorTotal - descontoValor - lancamento.valorRecebidoAcumulado) * 100) / 100,
+    Math.round((lancamento.valorTotal - descontoValor - lancamento.valorRecebidoAcumulado - lancamento.descontoRecebimento) * 100) / 100,
   )
 
   const somaFormas = formas.reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
