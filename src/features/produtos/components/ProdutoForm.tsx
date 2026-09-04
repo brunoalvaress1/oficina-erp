@@ -1,6 +1,7 @@
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { useImpostos } from '@/features/configuracoes/hooks/useImpostos'
 import { produtoSchema, type ProdutoFormValues } from '../schemas/produtoSchema'
 import type { Produto } from '../types/produto'
@@ -15,6 +16,7 @@ export function ProdutoForm({ produtoExistente, onSubmit, isSubmitting }: Produt
   const { data: impostos } = useImpostos()
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<ProdutoFormValues>({
@@ -106,21 +108,33 @@ export function ProdutoForm({ produtoExistente, onSubmit, isSubmitting }: Produt
 
         <div className="space-y-1">
           <label className="text-sm font-medium">Valor Custo</label>
-          <input
-            {...register('valorCusto')}
-            type="number"
-            step="0.01"
-            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary"
+          <Controller
+            name="valorCusto"
+            control={control}
+            render={({ field }) => (
+              <CampoMoeda
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            )}
           />
         </div>
 
         <div className="space-y-1">
           <label className="text-sm font-medium">Valor O.S.</label>
-          <input
-            {...register('valorOs')}
-            type="number"
-            step="0.01"
-            className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary"
+          <Controller
+            name="valorOs"
+            control={control}
+            render={({ field }) => (
+              <CampoMoeda
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            )}
           />
         </div>
 
