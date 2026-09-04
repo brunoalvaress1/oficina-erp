@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useNotaFiscalDetalhe, useAdicionarItemNota, useRemoverItemNota } from '../hooks/useNotasFiscais'
 import { useProdutosBusca } from '@/features/produtos/hooks/useProdutosBusca'
 import { Combobox } from '@/components/ui/Combobox'
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { PermissionGate } from '../components/PermissionGate'
 import { formatCurrency, formatDate } from '@/utils/format'
 import type { Produto } from '@/features/produtos/types/produto'
@@ -182,11 +183,9 @@ export function EditarNotaFiscal() {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Valor Custo</label>
-              <input
-                type="number"
-                step="0.01"
+              <CampoMoeda
                 value={valorCustoAtual}
-                onChange={(e) => setValorCustoAtual(e.target.value)}
+                onChange={setValorCustoAtual}
                 className="w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>

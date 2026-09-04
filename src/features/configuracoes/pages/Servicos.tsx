@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { formatCurrency } from '@/utils/format'
 import { PermissionGate } from '../components/PermissionGate'
 import { useCatalogo } from '../hooks/useCatalogo'
@@ -84,11 +85,9 @@ export function Servicos() {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Valor Padrão</label>
-              <input
-                type="number"
-                step="0.01"
-                value={novo.valorPadrao ?? 0}
-                onChange={(e) => setNovo((f) => ({ ...f, valorPadrao: Number(e.target.value) || 0 }))}
+              <CampoMoeda
+                value={String(novo.valorPadrao ?? '')}
+                onChange={(v) => setNovo((f) => ({ ...f, valorPadrao: Number(v) || 0 }))}
                 className="w-full h-9 rounded-md border bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
               />
             </div>
@@ -178,11 +177,9 @@ export function Servicos() {
                         </select>
                       </td>
                       <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={edicao.valorPadrao ?? 0}
-                          onChange={(e) => setEdicao((f) => ({ ...f, valorPadrao: Number(e.target.value) || 0 }))}
+                        <CampoMoeda
+                          value={String(edicao.valorPadrao ?? '')}
+                          onChange={(v) => setEdicao((f) => ({ ...f, valorPadrao: Number(v) || 0 }))}
                           className="h-8 w-24 px-2 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
                         />
                       </td>

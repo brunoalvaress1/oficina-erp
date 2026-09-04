@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Copy, Trash2 } from 'lucide-react'
 import { Combobox } from '@/components/ui/Combobox'
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { useProdutosBusca } from '@/features/produtos/hooks/useProdutosBusca'
 import { formatCurrency } from '@/utils/format'
 import { calcularCustoMedio, calcularMargem, criarItemVazio, itemEstaCompleto, type ItemEstoqueForm } from '../types/itemForm'
@@ -121,11 +122,9 @@ export function ItemNotaCard({ item, indice, tentouSalvar, podeVerLucro, onChang
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Valor Custo Atual *</label>
-              <input
-                type="number"
-                step="0.01"
+              <CampoMoeda
                 value={item.valorCustoAtual}
-                onChange={(e) => atualizar('valorCustoAtual', e.target.value)}
+                onChange={(v) => atualizar('valorCustoAtual', v)}
                 className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
                   tentouSalvar && !(Number(item.valorCustoAtual) > 0) ? erroDestaque : okClasse
                 }`}
@@ -134,11 +133,9 @@ export function ItemNotaCard({ item, indice, tentouSalvar, podeVerLucro, onChang
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Valor Venda (O.S.) *</label>
-              <input
-                type="number"
-                step="0.01"
+              <CampoMoeda
                 value={item.valorVendaOs}
-                onChange={(e) => atualizar('valorVendaOs', e.target.value)}
+                onChange={(v) => atualizar('valorVendaOs', v)}
                 className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 ${
                   tentouSalvar && !(Number(item.valorVendaOs) > 0) ? erroDestaque : okClasse
                 }`}

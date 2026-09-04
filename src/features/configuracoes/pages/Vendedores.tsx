@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Pencil, Check, X } from 'lucide-react'
+import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { useFuncionarios } from '@/features/funcionarios/hooks/useFuncionarios'
 import { useAtualizarFuncionario } from '@/features/funcionarios/hooks/useFuncionarioMutations'
 import { formatCurrency } from '@/utils/format'
@@ -60,11 +61,9 @@ export function Vendedores() {
                   <td className="px-3 py-2 font-medium">{funcionario.nome}</td>
                   <td className="px-3 py-2">
                     {editando ? (
-                      <input
-                        type="number"
-                        step="0.01"
+                      <CampoMoeda
                         value={metaMensal}
-                        onChange={(e) => setMetaMensal(e.target.value)}
+                        onChange={setMetaMensal}
                         className="h-8 w-32 px-2 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     ) : funcionario.metaMensal != null ? (
