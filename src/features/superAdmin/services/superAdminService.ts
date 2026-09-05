@@ -44,3 +44,12 @@ export async function atualizarValorMensalidadeOficinaAdmin(oficinaId: string, v
   const { error } = await supabase.functions.invoke('admin-atualizar-status-oficina', { body: { oficinaId, valorMensalidade } })
   if (error) throw new Error(await extrairMensagemErro(error))
 }
+
+// Chave PIX de cobrança da plataforma — diferente das ações acima, essa
+// escreve direto na tabela (protegida por RLS pra só super admin) em vez de
+// passar por uma edge function: é só um texto de configuração, não uma ação
+// sensível que precise de auditoria/efeito colateral em outra tabela.
+export async function atualizarChavePixPlataforma(chavePix: string): Promise<void> {
+  const { error } = await supabase.from('configuracoes_plataforma').update({ chave_pix: chavePix || null }).eq('id', 'global')
+  if (error) throw new Error(error.message)
+}

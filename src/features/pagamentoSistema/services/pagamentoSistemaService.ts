@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { InfoPagamentoSistema } from '../types/pagamentoSistema'
+import type { ConfigPlataforma, InfoPagamentoSistema } from '../types/pagamentoSistema'
 
 // RLS de `oficinas` deixa o funcionário ler a própria oficina mesmo quando
 // bloqueada (mesma regra usada em ProtectedRoute pra mostrar a tela de
@@ -19,4 +19,17 @@ export async function buscarInfoPagamentoSistema(): Promise<InfoPagamentoSistema
     statusAssinatura: data.status_assinatura,
     bloqueadaMotivo: data.bloqueada_motivo,
   }
+}
+
+// Chave PIX/mensagem de cobrança, configuráveis pelo super admin — lida por
+// qualquer oficina (RLS libera leitura pra todo autenticado, mesmo bloqueado).
+export async function buscarConfigPlataforma(): Promise<ConfigPlataforma | null> {
+  const { data, error } = await supabase
+    .from('configuracoes_plataforma')
+    .select('chave_pix, mensagem_urgencia')
+    .eq('id', 'global')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return null
+  return { chavePix: data.chave_pix, mensagemUrgencia: data.mensagem_urgencia }
 }

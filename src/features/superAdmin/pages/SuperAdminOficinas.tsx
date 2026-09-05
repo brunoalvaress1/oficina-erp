@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, Ban, CheckCircle2, Plus, TriangleAlert } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Ban, CheckCircle2, KeyRound, Plus, TriangleAlert } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
+import { useConfigPlataforma } from '@/features/pagamentoSistema/hooks/usePagamentoSistema'
 import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '@/features/pagamentoSistema/utils'
 import {
+  useAtualizarChavePixPlataforma,
   useAtualizarStatusOficinaAdmin,
   useAtualizarValorMensalidadeOficinaAdmin,
   useAtualizarVencimentoOficinaAdmin,
@@ -204,6 +206,56 @@ function ModalBloquear({ oficina, onOpenChange }: { oficina: OficinaAdmin | null
   )
 }
 
+// Chave PIX que aparece pra TODA oficina em "Pagamento do Sistema" (mesmo
+// bloqueada) — antes ficava fixa no código-fonte, agora é configurável aqui.
+function CardChavePix() {
+  const { data: config, isLoading } = useConfigPlataforma()
+  const atualizar = useAtualizarChavePixPlataforma()
+  const [chavePix, setChavePix] = useState('')
+
+  // Só sincroniza do servidor pro campo enquanto ele não tiver sido editado
+  // na tela ainda (evita sobrescrever o que a pessoa acabou de digitar caso
+  // a query refaça o fetch em segundo plano).
+  useEffect(() => {
+    if (config?.chavePix != null) setChavePix((atual) => (atual === '' ? config.chavePix ?? '' : atual))
+  }, [config?.chavePix])
+
+  const alterado = chavePix.trim() !== (config?.chavePix ?? '').trim()
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary shrink-0">
+          <KeyRound size={16} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold">Chave PIX de cobrança</h2>
+          <p className="text-xs text-muted-foreground">
+            É essa chave que aparece pra toda oficina pagar a mensalidade do sistema (tela "Pagamento do Sistema").
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 max-w-md">
+        <input
+          value={chavePix}
+          onChange={(e) => setChavePix(e.target.value)}
+          disabled={isLoading}
+          placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"
+          className="flex-1 h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+        />
+        <button
+          type="button"
+          disabled={!alterado || !chavePix.trim() || atualizar.isPending}
+          onClick={() => atualizar.mutate(chavePix.trim())}
+          className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 shrink-0"
+        >
+          {atualizar.isPending ? 'Salvando...' : 'Salvar'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function SuperAdminOficinas() {
   const { data: oficinasCarregadas, isLoading } = useOficinasAdmin()
   const atualizar = useAtualizarStatusOficinaAdmin()
@@ -238,6 +290,8 @@ export function SuperAdminOficinas() {
           <Plus size={14} /> Nova Oficina
         </button>
       </div>
+
+      <CardChavePix />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <CardIndicador titulo="Total de Oficinas" valor={String(oficinas.length)} />

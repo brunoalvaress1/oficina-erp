@@ -1,16 +1,22 @@
 import { useState } from 'react'
 import { AlertTriangle, Calendar, Check, Copy, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/utils/format'
-import { usePagamentoSistema } from '../hooks/usePagamentoSistema'
+import { useConfigPlataforma, usePagamentoSistema } from '../hooks/usePagamentoSistema'
 import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '../utils'
 import { CHAVE_PIX_SISTEMA, MENSAGEM_URGENCIA_SISTEMA } from '../constants'
 
 export function PagamentoSistema() {
   const { data: info, isLoading } = usePagamentoSistema()
+  // As constantes ficam só como fallback (nunca deveriam ser usadas de
+  // verdade) — a chave/mensagem reais agora são configuradas pelo super
+  // admin e vêm do banco, editáveis sem precisar mexer em código.
+  const { data: config } = useConfigPlataforma()
+  const chavePix = config?.chavePix || CHAVE_PIX_SISTEMA
+  const mensagemUrgencia = config?.mensagemUrgencia || MENSAGEM_URGENCIA_SISTEMA
   const [copiado, setCopiado] = useState(false)
 
   function copiarChavePix() {
-    navigator.clipboard.writeText(CHAVE_PIX_SISTEMA.replace(/\D/g, ''))
+    navigator.clipboard.writeText(chavePix.replace(/\D/g, ''))
     setCopiado(true)
     setTimeout(() => setCopiado(false), 2000)
   }
@@ -105,7 +111,7 @@ export function PagamentoSistema() {
         <div className="border-t pt-4 space-y-2">
           <p className="text-xs text-muted-foreground">Pague via PIX com a chave abaixo</p>
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-11 rounded-md border bg-muted/30 px-3 flex items-center font-mono text-sm">{CHAVE_PIX_SISTEMA}</div>
+            <div className="flex-1 h-11 rounded-md border bg-muted/30 px-3 flex items-center font-mono text-sm">{chavePix}</div>
             <button
               type="button"
               onClick={copiarChavePix}
@@ -120,7 +126,7 @@ export function PagamentoSistema() {
       </div>
 
       <div className={`rounded-lg p-4 text-center font-semibold ${urgente ? 'bg-red-600 text-white' : 'bg-muted text-muted-foreground'}`}>
-        {MENSAGEM_URGENCIA_SISTEMA}
+        {mensagemUrgencia}
       </div>
     </div>
   )

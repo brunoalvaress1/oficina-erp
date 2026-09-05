@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '@/providers/AuthProvider'
 import {
+  atualizarChavePixPlataforma,
   atualizarStatusOficinaAdmin,
   atualizarValorMensalidadeOficinaAdmin,
   atualizarVencimentoOficinaAdmin,
@@ -81,5 +82,17 @@ export function useAtualizarValorMensalidadeOficinaAdmin() {
       toast.success('Valor da mensalidade atualizado')
     },
     onError: (error: Error) => toast.error('Erro ao atualizar valor', { description: error.message }),
+  })
+}
+
+export function useAtualizarChavePixPlataforma() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (chavePix: string) => atualizarChavePixPlataforma(chavePix),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config-plataforma'] })
+      toast.success('Chave PIX atualizada — já aparece pra todas as oficinas')
+    },
+    onError: (error: Error) => toast.error('Erro ao atualizar chave PIX', { description: error.message }),
   })
 }
