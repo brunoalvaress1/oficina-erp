@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   ExternalLink,
+  FileArchive,
   FileCheck2,
   FileText,
   Hourglass,
@@ -33,6 +34,7 @@ import {
   useConsultarStatusEmLote,
   useConsultarStatusNotaFiscal,
   useEmitirNotasEmLote,
+  useExportarXmlsNotas,
   useNotasFiscaisSaida,
   useOrdensPagasParaEmitir,
   useResumoNotasFiscais,
@@ -503,6 +505,7 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
   const { data: resumoAutorizadas } = useResumoNotasFiscais({ modelo, status: 'autorizada', ...periodoParams })
   const consultarStatus = useConsultarStatusNotaFiscal()
   const consultarStatusEmLote = useConsultarStatusEmLote()
+  const exportarXmls = useExportarXmlsNotas()
   const cancelar = useCancelarNotaFiscal()
 
   const [notaParaCancelar, setNotaParaCancelar] = useState<NotaFiscalSaida | null>(null)
@@ -524,6 +527,14 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
     if (notasProcessando.length === 0) return
     consultarStatusEmLote.mutate(notasProcessando.map((n) => n.id))
   }
+
+  // Baixa um ZIP com o XML de TODAS as notas do filtro atual (respeita
+  // período, status, busca e o modelo Peças/Serviço) — pra mandar a pasta
+  // do mês pro contador de uma vez, em vez de nota por nota.
+  function handleBaixarXmls() {
+    exportarXmls.mutate({ ...params, search: busca || undefined })
+  }
+  const totalNoFiltro = resumo?.quantidade ?? 0
 
   return (
     <div className="space-y-4">
@@ -583,17 +594,29 @@ function AbaEmitidas({ modelo }: { modelo: ModeloNotaFiscal }) {
           titulo={`Notas emitidas · ${tema.rotulo}`}
           tema={tema}
           acao={
-            notasProcessando.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {notasProcessando.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleProcessarTodas}
+                  disabled={consultarStatusEmLote.isPending}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-md border bg-background text-xs font-medium disabled:opacity-50"
+                >
+                  <RefreshCw size={13} />
+                  {consultarStatusEmLote.isPending ? 'Processando...' : `Processar Todas (${notasProcessando.length})`}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleProcessarTodas}
-                disabled={consultarStatusEmLote.isPending}
+                onClick={handleBaixarXmls}
+                disabled={exportarXmls.isPending || totalNoFiltro === 0}
+                title="Baixa um ZIP com o XML de todas as notas do filtro atual — pra mandar pro contador"
                 className="flex items-center gap-1.5 h-8 px-3 rounded-md border bg-background text-xs font-medium disabled:opacity-50"
               >
-                <RefreshCw size={13} />
-                {consultarStatusEmLote.isPending ? 'Processando...' : `Processar Todas (${notasProcessando.length})`}
+                <FileArchive size={13} />
+                {exportarXmls.isPending ? 'Gerando ZIP...' : `Baixar XMLs (${totalNoFiltro})`}
               </button>
-            )
+            </div>
           }
         />
         <table className="w-full text-sm">

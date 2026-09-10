@@ -436,3 +436,38 @@ export async function cancelarNotaFiscal(notaFiscalId: string, justificativa: st
   if (error) throw new Error(traduzirErroFunction(await extrairMensagemErro(error)))
   return mapRow(data.nota)
 }
+
+export interface ResultadoExportacaoXmls {
+  blob: Blob
+  nomeArquivo: string
+  totalXmls: number
+  totalFalhas: number
+}
+
+// Baixa, num ZIP só, os XMLs de todas as notas que batem com o filtro atual
+// da aba "Notas Emitidas" (não só a página visível). O ZIP é montado no
+// servidor (edge function exportar-xmls-notas) porque os XMLs ficam no
+// servidor da Focus, que bloqueia leitura via CORS pelo navegador.
+export async function exportarXmlsNotas(
+  params: Pick<ListarNotasFiscaisParams, 'modelo' | 'status' | 'dataInicio' | 'dataFim' | 'search'>,
+): Promise<ResultadoExportacaoXmls> {
+  const { data, error, response } = await supabase.functions.invoke('exportar-xmls-notas', { body: params })
+  if (error) {
+    const mensagem = await extrairMensagemErro(error)
+    if (mensagem.includes('SEM_XMLS')) {
+      throw new Error('Nenhuma nota com XML disponível nesse filtro — ajuste o período/status e tente de novo.')
+    }
+    throw new Error(traduzirErroFunction(mensagem))
+  }
+
+  const blob = data as Blob
+  const disposicao = response?.headers.get('Content-Disposition') ?? ''
+  const nomeArquivo = /filename="([^"]+)"/.exec(disposicao)?.[1] ?? 'xmls-notas-fiscais.zip'
+
+  return {
+    blob,
+    nomeArquivo,
+    totalXmls: Number(response?.headers.get('X-Total-Xmls') ?? 0),
+    totalFalhas: Number(response?.headers.get('X-Total-Falhas') ?? 0),
+  }
+}

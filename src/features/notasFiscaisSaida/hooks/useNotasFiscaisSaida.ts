@@ -11,6 +11,7 @@ import {
   emitirNfse,
   emitirNotaFiscal,
   emitirNotasEmLote,
+  exportarXmlsNotas,
   listarHistoricoNotaFiscal,
   listarNotasEmProcessamento,
   listarNotasFiscais,
@@ -231,6 +232,33 @@ export function useVerificarProcessandoAutomatico(modelo: ModeloNotaFiscal) {
       clearInterval(intervalo)
     }
   }, [modelo, queryClient])
+}
+
+// Baixa um ZIP com os XMLs de TODAS as notas do filtro atual (não só a
+// página) — pra oficina mandar pro contador no WhatsApp a pasta do mês.
+export function useExportarXmlsNotas() {
+  return useMutation({
+    mutationFn: (params: Parameters<typeof exportarXmlsNotas>[0]) => exportarXmlsNotas(params),
+    onSuccess: ({ blob, nomeArquivo, totalXmls, totalFalhas }) => {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = nomeArquivo
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+      if (totalFalhas > 0) {
+        toast.warning(`ZIP gerado com ${totalXmls} XML${totalXmls === 1 ? '' : 's'}`, {
+          description: `${totalFalhas} não pôde(ram) ser baixado(s) da Focus e ficaram de fora.`,
+        })
+      } else {
+        toast.success(`ZIP com ${totalXmls} XML${totalXmls === 1 ? '' : 's'} baixado`)
+      }
+    },
+    onError: (error: Error) => toast.error('Erro ao exportar XMLs', { description: error.message }),
+  })
 }
 
 export function useCancelarNotaFiscal() {
