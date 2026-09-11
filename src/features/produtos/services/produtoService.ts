@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { removerAcentos } from '@/utils/format'
 import type {
   CampoOrdenacaoProduto,
   ListarProdutosParams,
@@ -54,10 +55,10 @@ export async function listarProdutos(params: ListarProdutosParams = {}): Promise
   let query = supabase.from('produtos').select('*, impostos(nome)', { count: 'exact' })
 
   if (search) {
-    const termo = search.replace(/,/g, ' ')
-    query = query.or(
-      `nome.ilike.%${termo}%,ncm.ilike.%${termo}%,categoria.ilike.%${termo}%,subcategoria.ilike.%${termo}%,marca.ilike.%${termo}%,codigo_fabricante.ilike.%${termo}%,codigo_interno.ilike.%${termo}%`,
-    )
+    // busca_normalizada = mesmos campos, sem acento e minúsculo — pra
+    // "oleo" achar "Óleo" mesmo sem digitar o acento (ver removerAcentos).
+    const termo = removerAcentos(search).replace(/,/g, ' ')
+    query = query.ilike('busca_normalizada', `%${termo}%`)
   }
 
   const coluna = COLUNA_POR_CAMPO[params.sortBy ?? 'nome']
@@ -150,13 +151,14 @@ export async function buscarProdutosParaEstoque(termo: string): Promise<Produto[
     return (data ?? []).map(mapRow)
   }
 
-  const escapado = texto.replace(/,/g, ' ')
+  // busca_normalizada é uma coluna gerada (nome+categoria+marca+códigos, sem
+  // acento e minúsculo) — comparando o termo já sem acento contra ela, achar
+  // "óleo" digitando "oleo" funciona igual (ver removerAcentos).
+  const escapado = removerAcentos(texto).replace(/,/g, ' ')
   const { data, error } = await supabase
     .from('produtos')
     .select('*')
-    .or(
-      `nome.ilike.%${escapado}%,codigo_fabricante.ilike.%${escapado}%,codigo_interno.ilike.%${escapado}%,codigo_barras.ilike.%${escapado}%`,
-    )
+    .ilike('busca_normalizada', `%${escapado}%`)
     .order('nome')
     .limit(20)
 

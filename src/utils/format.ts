@@ -58,6 +58,14 @@ export function parseMoedaBr(valor: string): number {
 // Padroniza descrições de itens (peça, produto, serviço) que hoje aparecem
 // misturadas — TUDO MAIÚSCULO, tudo minúsculo, Misto — deixando a primeira
 // letra de cada palavra maiúscula e o resto minúsculo.
+// Tira acentos/til/cedilha ("óleo" -> "oleo") pra casar com a coluna
+// gerada `busca_normalizada` no banco (produtos) — o ilike já ignora
+// maiúscula/minúscula sozinho, mas não ignora acento, então quem digita
+// "oleo" sem o acento não achava nada mesmo o produto se chamando "Óleo".
+export function removerAcentos(texto: string): string {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
 export function capitalizarPalavras(texto: string): string {
   return texto
     .toLowerCase()
