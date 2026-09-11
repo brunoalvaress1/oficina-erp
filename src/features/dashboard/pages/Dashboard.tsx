@@ -5,8 +5,9 @@ import { formatCurrency } from '@/utils/format'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
 import { AlertasFinanceiros } from '@/features/financeiro/components/AlertasFinanceiros'
 import { useCardsDashboard } from '@/features/financeiro/hooks/useDashboardFinanceiro'
-import { criarFiltroFinanceiroPadrao } from '@/features/financeiro/types/filtroFinanceiro'
+import { calcularIntervaloPeriodo, criarFiltroFinanceiroPadrao } from '@/features/financeiro/types/filtroFinanceiro'
 import { DashboardCaixa } from '@/features/caixa/components/DashboardCaixa'
+import { useDashboardCaixa } from '@/features/caixa/hooks/useDashboardCaixa'
 import { useOrdensPagasParaEmitir } from '@/features/notasFiscaisSaida/hooks/useNotasFiscaisSaida'
 
 // Cada painel que busca dado próprio vira um componente à parte, montado só
@@ -16,6 +17,12 @@ import { useOrdensPagasParaEmitir } from '@/features/notasFiscaisSaida/hooks/use
 
 function PainelFinanceiro({ podeVerLucro }: { podeVerLucro: boolean }) {
   const { data: cards } = useCardsDashboard(criarFiltroFinanceiroPadrao())
+  // Lucro Líquido do mês vem do mesmo cálculo do Resumo de Pagamentos/Caixa
+  // (não do RPC financeiro_dashboard_cards) — ver comentário equivalente em
+  // DashboardFinanceiro.tsx: o RPC não descontava a perda com taxa de
+  // maquininha, então o valor batia diferente do resto do sistema.
+  const { dataInicio, dataFim } = calcularIntervaloPeriodo('este_mes')
+  const { data: resumoCaixaMes } = useDashboardCaixa(dataInicio, dataFim)
   if (!cards) return null
 
   return (
@@ -32,8 +39,8 @@ function PainelFinanceiro({ podeVerLucro }: { podeVerLucro: boolean }) {
       {podeVerLucro && (
         <CardIndicador
           titulo="Lucro Líquido (mês)"
-          valor={formatCurrency(cards.lucroLiquido)}
-          destaque={cards.lucroLiquido >= 0 ? 'positivo' : 'negativo'}
+          valor={formatCurrency(resumoCaixaMes?.lucroLiquido ?? 0)}
+          destaque={(resumoCaixaMes?.lucroLiquido ?? 0) >= 0 ? 'positivo' : 'negativo'}
         />
       )}
     </div>

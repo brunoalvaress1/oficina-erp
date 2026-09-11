@@ -38,6 +38,12 @@ export function DashboardFinanceiro() {
   // Alimenta o painel "Resumo de Pagamentos" abaixo — mesmo cálculo do
   // Resumo do Caixa (detalhe por forma de pagamento, perda com taxa de
   // maquininha e lucro líquido), só que pro período escolhido aqui no filtro.
+  // Os cards de "Lucro Bruto"/"Lucro Líquido" acima também usam esse mesmo
+  // resultado (em vez do RPC financeiro_dashboard_cards) de propósito: o RPC
+  // reconhece receita pela data em que o lançamento ficou "recebido" e nunca
+  // descontava a perda com taxa de maquininha do líquido, então batia
+  // diferente do Resumo de Pagamentos — usando a mesma fonte aqui, os dois
+  // painéis nunca mais podem discordar entre si.
   const { data: resumoCaixaPeriodo } = useDashboardCaixa(filtro.dataInicio, filtro.dataFim)
   const { data: serieDiaria, isLoading: carregandoSerie } = useSerieDiariaFinanceiro(filtro)
   const { data: porForma, isLoading: carregandoForma } = usePorFormaPagamentoFinanceiro(filtro)
@@ -85,11 +91,11 @@ export function DashboardFinanceiro() {
             <CardIndicador titulo={rotuloDespesaPeriodo} valor={formatCurrency(cards?.despesaMes ?? 0)} icone={<TrendingDown size={16} />} destaque="negativo" />
             <CardIndicador
               titulo="Lucro Líquido"
-              valor={formatCurrency(cards?.lucroLiquido ?? 0)}
+              valor={formatCurrency(resumoCaixaPeriodo?.lucroLiquido ?? 0)}
               icone={<Wallet size={16} />}
-              destaque={(cards?.lucroLiquido ?? 0) >= 0 ? 'positivo' : 'negativo'}
+              destaque={(resumoCaixaPeriodo?.lucroLiquido ?? 0) >= 0 ? 'positivo' : 'negativo'}
             />
-            <CardIndicador titulo="Lucro Bruto" valor={formatCurrency(cards?.lucroBruto ?? 0)} icone={<Wallet size={16} />} />
+            <CardIndicador titulo="Lucro Bruto" valor={formatCurrency(resumoCaixaPeriodo?.lucroBruto ?? 0)} icone={<Wallet size={16} />} />
             <CardIndicador titulo="Ticket Médio" valor={formatCurrency(cards?.ticketMedio ?? 0)} icone={<Receipt size={16} />} />
             <CardIndicador titulo="Ordens Recebidas" valor={String(cards?.ordensRecebidas ?? 0)} icone={<ShoppingCart size={16} />} />
             <CardIndicador titulo="PDVs Recebidos" valor={String(cards?.pdvsRecebidos ?? 0)} icone={<Store size={16} />} />
