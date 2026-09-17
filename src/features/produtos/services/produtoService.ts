@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import { removerAcentos } from '@/utils/format'
 import type {
   CampoOrdenacaoProduto,
   ListarProdutosParams,
@@ -52,14 +51,30 @@ export async function listarProdutos(params: ListarProdutosParams = {}): Promise
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  let query = supabase.from('produtos').select('*, impostos(nome)', { count: 'exact' })
-
+  // Com termo de busca, usa a mesma RPC produtos_buscar do seletor de
+  // produto (pg_trgm) — acha mesmo com erro de digitação/acento faltando, e
+  // já vem rankeada por relevância, então ignora o sortBy escolhido (faz
+  // sentido só quando está navegando o catálogo, não procurando algo
+  // específico). Sem termo, mantém a consulta simples de sempre com
+  // ordenação por coluna.
   if (search) {
-    // busca_normalizada = mesmos campos, sem acento e minúsculo — pra
-    // "oleo" achar "Óleo" mesmo sem digitar o acento (ver removerAcentos).
-    const termo = removerAcentos(search).replace(/,/g, ' ')
-    query = query.ilike('busca_normalizada', `%${termo}%`)
+    // p_limit/p_offset da RPC ficam nos valores padrão (um teto de
+    // segurança, não a página) — quem corta a página de verdade é o
+    // .range() aqui embaixo, senão a contagem total (pro "X de Y") saía
+    // sempre travada no tamanho da página.
+    const { data, count, error } = await supabase.rpc('produtos_buscar', { p_termo: search }, { count: 'exact' }).range(from, to)
+
+    if (error) throw new Error(error.message)
+
+    return {
+      data: (data ?? []).map(mapRow),
+      total: count ?? 0,
+      page,
+      pageSize,
+    }
   }
+
+  const query = supabase.from('produtos').select('*, impostos(nome)', { count: 'exact' })
 
   const coluna = COLUNA_POR_CAMPO[params.sortBy ?? 'nome']
   const ascendente = params.sortDirection !== 'desc'
@@ -138,30 +153,15 @@ export async function excluirProduto(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-// Busca "inteligente" para o seletor de produto do Lançar Estoque: nome,
-// código interno/fabricante ou código de barras. Sem termo, devolve os
-// primeiros produtos por nome (mesma lista que aparece na tela de Produtos)
+// Busca "inteligente" para o seletor de produto (Ordem de Serviço, Lançar
+// Estoque, Movimento de Estoque): nome, categoria, marca ou código — e
+// TOLERA erro de digitação (letra faltando/trocada), não só falta de acento.
+// Usa a RPC produtos_buscar (pg_trgm) em vez de ilike puro: ela mesma rankeia
+// quem bateu certinho primeiro e só desce pra "parecido" depois. Sem termo,
+// devolve os primeiros produtos por nome (mesma lista da tela de Produtos)
 // em vez de ficar vazio até o usuário digitar algo.
 export async function buscarProdutosParaEstoque(termo: string): Promise<Produto[]> {
-  const texto = termo.trim()
-
-  if (!texto) {
-    const { data, error } = await supabase.from('produtos').select('*').order('nome').limit(20)
-    if (error) throw new Error(error.message)
-    return (data ?? []).map(mapRow)
-  }
-
-  // busca_normalizada é uma coluna gerada (nome+categoria+marca+códigos, sem
-  // acento e minúsculo) — comparando o termo já sem acento contra ela, achar
-  // "óleo" digitando "oleo" funciona igual (ver removerAcentos).
-  const escapado = removerAcentos(texto).replace(/,/g, ' ')
-  const { data, error } = await supabase
-    .from('produtos')
-    .select('*')
-    .ilike('busca_normalizada', `%${escapado}%`)
-    .order('nome')
-    .limit(20)
-
+  const { data, error } = await supabase.rpc('produtos_buscar', { p_termo: termo.trim(), p_limit: 20 })
   if (error) throw new Error(error.message)
   return (data ?? []).map(mapRow)
 }

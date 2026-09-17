@@ -151,6 +151,7 @@ export function VeiculoBlock({
   // campo quando a placa é preenchida (não dá pra ter só um pedaço do
   // veículo cadastrado).
   const veiculoInformado = Boolean(value.placa.trim())
+  const kmVazio = veiculoInformado && !kmAtual.trim()
 
   return (
     <div className="rounded-lg border bg-card shadow-sm p-4 space-y-4">
@@ -244,16 +245,22 @@ export function VeiculoBlock({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">Quilometragem Atual{veiculoInformado ? ' *' : ''}</label>
+          <label className={`text-sm font-medium ${kmVazio ? 'text-destructive' : ''}`}>
+            Quilometragem Atual{veiculoInformado ? ' *' : ''}
+          </label>
           <input
             value={kmAtual}
             onChange={(e) => onChangeKmAtual(e.target.value.replace(/\D/g, ''))}
             inputMode="numeric"
             disabled={disabled}
+            // Destacado assim que o campo estiver vazio, não só depois de
+            // tentar salvar e dar erro — esse campo é fácil de esquecer de
+            // preencher ao editar uma OS que já tinha veículo cadastrado.
             className={`w-full h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 disabled:opacity-50 ${
-              tentouSalvar && veiculoInformado && !kmAtual.trim() ? 'border-destructive focus:ring-destructive/40' : 'focus:ring-primary/30'
+              kmVazio ? 'border-destructive bg-destructive/5 focus:ring-destructive/40' : 'focus:ring-primary/30'
             }`}
           />
+          {kmVazio && <p className="text-xs text-destructive">Preencha a quilometragem atual do veículo.</p>}
           {kmAnterior != null && (
             <p className="text-xs text-muted-foreground">KM anterior: {kmAnterior.toLocaleString('pt-BR')}</p>
           )}

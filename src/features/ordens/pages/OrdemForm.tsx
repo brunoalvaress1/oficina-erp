@@ -394,15 +394,21 @@ export function OrdemForm() {
       clienteBlockValue.clienteExistente && clienteBlockValue.clienteExistente.id !== ordem?.clienteId,
     )
 
-    atualizarCabecalhoMutation.mutate({
-      numeroPrisma: numeroPrisma || undefined,
-      mecanicoId: mecanicoId || undefined,
-      kmAtual: kmAtual ? Number(kmAtual) : undefined,
-      defeitosRelatados: defeitosRelatados || undefined,
-      observacoesInternas: observacoesInternas || undefined,
-      dataEntrada,
-      clienteId: clienteMudou ? clienteBlockValue.clienteExistente!.id : undefined,
-    })
+    atualizarCabecalhoMutation.mutate(
+      {
+        numeroPrisma: numeroPrisma || undefined,
+        mecanicoId: mecanicoId || undefined,
+        kmAtual: kmAtual ? Number(kmAtual) : undefined,
+        defeitosRelatados: defeitosRelatados || undefined,
+        observacoesInternas: observacoesInternas || undefined,
+        dataEntrada,
+        clienteId: clienteMudou ? clienteBlockValue.clienteExistente!.id : undefined,
+      },
+      // Só o botão "Salvar Alterações" volta pra lista — handleMudarStatus
+      // usa essa mesma mutation sem esse callback, então continuar na tela
+      // depois de mudar status (ex: "pronta") não é afetado.
+      { onSuccess: () => navigate('/ordens') },
+    )
   }
 
   function handleMudarStatus(novoStatus: StatusOrdemServico) {
