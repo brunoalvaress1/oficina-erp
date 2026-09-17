@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDebouncedCallback } from 'use-debounce'
-import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
+import { ChevronDown, ChevronUp, FileText, Plus, Search } from 'lucide-react'
 import { useOrdens } from '../hooks/useOrdens'
 import { useSemaforoItens } from '../hooks/useSemaforoItens'
 import { OrdemCard } from '../components/OrdemCard'
@@ -97,43 +97,52 @@ export function OrdensList() {
         </PermissionGate>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div className="p-3 border-b bg-muted/20 space-y-2">
-          <div className="flex flex-col md:flex-row gap-2">
+      <div className="rounded-lg border bg-card p-3 space-y-3">
+        <div className="flex flex-col md:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={busca}
               onChange={(e) => handleBuscaChange(e.target.value)}
               placeholder="Buscar por número da OS, Prisma, placa, modelo, cliente, CPF/CNPJ ou telefone..."
-              className="flex-1 h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
+          </div>
+          <div className="relative md:w-72 shrink-0">
+            <FileText size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={numeroNota}
               onChange={(e) => handleNumeroNotaChange(e.target.value)}
-              placeholder="Filtrar por nº da Nota Fiscal do fornecedor..."
-              className="md:w-72 h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Nº da Nota Fiscal do fornecedor..."
+              className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {FILTROS_STATUS.map((filtro) => (
-              <button
-                key={filtro.rotulo}
-                type="button"
-                onClick={() => {
-                  setStatus(filtro.valor)
-                  setPage(1)
-                }}
-                className={`h-7 px-3 rounded-full text-xs font-medium border ${
-                  mesmoFiltroStatus(status, filtro.valor) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background'
-                }`}
-              >
-                {filtro.rotulo}
-              </button>
-            ))}
-          </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">Status</span>
+          {FILTROS_STATUS.map((filtro) => (
+            <button
+              key={filtro.rotulo}
+              type="button"
+              onClick={() => {
+                setStatus(filtro.valor)
+                setPage(1)
+              }}
+              className={`h-8 px-3 rounded-full text-xs font-medium border transition-colors ${
+                mesmoFiltroStatus(status, filtro.valor)
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background hover:bg-muted'
+              }`}
+            >
+              {filtro.rotulo}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react'
 import { useClientes } from '../hooks/useClientes'
 import { useDeleteCliente } from '../hooks/useClienteMutations'
 import { ClienteModal } from '../components/ClienteModal'
 import { PermissionGate } from '../components/PermissionGate'
 import { formatCpfCnpj as showCpfCnpj } from '@/utils/format'
 import { Pagination } from '@/components/ui/Pagination'
+import { ColunasDropdown } from '@/components/ui/ColunasDropdown'
 import type { CampoOrdenacaoCliente, Cliente, ListarClientesResult } from '../types/cliente'
 
 export function ClientesList() {
@@ -44,7 +45,6 @@ export function ClientesList() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [clienteEditando, setClienteEditando] = useState<Cliente | undefined>()
-  const [colunasOpen, setColunasOpen] = useState(false)
   const [colunasVisiveis, setColunasVisiveis] = useState({
     cpfCnpj: true,
     telefone: true,
@@ -105,91 +105,36 @@ export function ClientesList() {
         </PermissionGate>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div className="p-3 border-b bg-muted/20">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={busca}
-              onChange={(event) => {
-                setBusca(event.target.value)
-                setPage(1)
-              }}
-              placeholder="Buscar por nome, CPF/CNPJ, email, endereço ou CEP..."
-              className="w-full h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setColunasOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-background text-sm"
-              >
-                Colunas <ChevronDown size={14} />
-              </button>
-
-              {colunasOpen && (
-                <div className="absolute right-0 mt-1 w-56 rounded-md border bg-background shadow-md p-2 z-10 space-y-1 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.cpfCnpj}
-                      onChange={() => alternarColuna('cpfCnpj')}
-                    />
-                    CPF/CNPJ
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.telefone}
-                      onChange={() => alternarColuna('telefone')}
-                    />
-                    Telefone
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.cidade}
-                      onChange={() => alternarColuna('cidade')}
-                    />
-                    Cidade
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.email}
-                      onChange={() => alternarColuna('email')}
-                    />
-                    Email
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.endereco}
-                      onChange={() => alternarColuna('endereco')}
-                    />
-                    Endereço
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.cep}
-                      onChange={() => alternarColuna('cep')}
-                    />
-                    CEP
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.codigoCidade}
-                      onChange={() => alternarColuna('codigoCidade')}
-                    />
-                    Código Cidade (IBGE)
-                  </label>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="rounded-lg border bg-card p-3 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(event) => {
+              setBusca(event.target.value)
+              setPage(1)
+            }}
+            placeholder="Buscar por nome, CPF/CNPJ, email, endereço ou CEP..."
+            className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+          />
         </div>
+        <ColunasDropdown
+          opcoes={[
+            { chave: 'cpfCnpj', label: 'CPF/CNPJ' },
+            { chave: 'telefone', label: 'Telefone' },
+            { chave: 'cidade', label: 'Cidade' },
+            { chave: 'email', label: 'Email' },
+            { chave: 'endereco', label: 'Endereço' },
+            { chave: 'cep', label: 'CEP' },
+            { chave: 'codigoCidade', label: 'Código Cidade (IBGE)' },
+          ]}
+          visivel={colunasVisiveis}
+          onAlternar={(chave) => alternarColuna(chave as keyof typeof colunasVisiveis)}
+        />
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>

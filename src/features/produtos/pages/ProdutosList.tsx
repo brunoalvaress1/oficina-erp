@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, Copy } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, Copy, Search } from 'lucide-react'
 import { useProdutos } from '../hooks/useProdutos'
 import { useDeleteProduto } from '../hooks/useProdutoMutations'
 import { ProdutoModal } from '../components/ProdutoModal'
 import { ImportarProdutosModal } from '../components/ImportarProdutosModal'
 import { PermissionGate } from '../components/PermissionGate'
 import { Pagination } from '@/components/ui/Pagination'
+import { ColunasDropdown } from '@/components/ui/ColunasDropdown'
 import { formatCurrency } from '@/utils/format'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { CampoOrdenacaoProduto, ListarProdutosResult, Produto } from '../types/produto'
@@ -41,7 +42,6 @@ export function ProdutosList() {
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [produtoEditando, setProdutoEditando] = useState<Produto | undefined>()
   const [produtoParaClonar, setProdutoParaClonar] = useState<Produto | undefined>()
-  const [colunasOpen, setColunasOpen] = useState(false)
   const [colunasVisiveis, setColunasVisiveis] = useState({
     categoria: true,
     marca: true,
@@ -132,85 +132,35 @@ export function ProdutosList() {
         </PermissionGate>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div className="p-3 border-b bg-muted/20">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={busca}
-              onChange={(event) => {
-                setBusca(event.target.value)
-                setPage(1)
-              }}
-              placeholder="Buscar por nome, categoria, marca, NCM ou código..."
-              className="w-full h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setColunasOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-background text-sm"
-              >
-                Colunas <ChevronDown size={14} />
-              </button>
-
-              {colunasOpen && (
-                <div className="absolute right-0 mt-1 w-56 rounded-md border bg-background shadow-md p-2 z-10 space-y-1 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.categoria}
-                      onChange={() => alternarColuna('categoria')}
-                    />
-                    Categoria
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.marca}
-                      onChange={() => alternarColuna('marca')}
-                    />
-                    Marca
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.valorCusto}
-                      onChange={() => alternarColuna('valorCusto')}
-                    />
-                    Valor Custo
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.valorOs}
-                      onChange={() => alternarColuna('valorOs')}
-                    />
-                    Valor O.S.
-                  </label>
-                  {podeVerLucro && (
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={colunasVisiveis.margem}
-                        onChange={() => alternarColuna('margem')}
-                      />
-                      Margem
-                    </label>
-                  )}
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={colunasVisiveis.estoqueFisico}
-                      onChange={() => alternarColuna('estoqueFisico')}
-                    />
-                    Estoque Físico
-                  </label>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="rounded-lg border bg-card p-3 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(event) => {
+              setBusca(event.target.value)
+              setPage(1)
+            }}
+            placeholder="Buscar por nome, categoria, marca, NCM ou código..."
+            className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+          />
         </div>
+        <ColunasDropdown
+          opcoes={[
+            { chave: 'categoria', label: 'Categoria' },
+            { chave: 'marca', label: 'Marca' },
+            { chave: 'valorCusto', label: 'Valor Custo' },
+            { chave: 'valorOs', label: 'Valor O.S.' },
+            ...(podeVerLucro ? [{ chave: 'margem', label: 'Margem' }] : []),
+            { chave: 'estoqueFisico', label: 'Estoque Físico' },
+          ]}
+          visivel={colunasVisiveis}
+          onAlternar={(chave) => alternarColuna(chave as keyof typeof colunasVisiveis)}
+        />
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>

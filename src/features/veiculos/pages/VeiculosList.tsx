@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react'
 import { useVeiculos } from '../hooks/useVeiculos'
 import { useDeleteVeiculo } from '../hooks/useVeiculoMutations'
 import { VeiculoModal } from '../components/VeiculoModal'
@@ -85,8 +85,9 @@ export function VeiculosList() {
         </PermissionGate>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div className="p-3 border-b bg-muted/20">
+      <div className="rounded-lg border bg-card p-3">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={busca}
@@ -95,9 +96,12 @@ export function VeiculosList() {
               setPage(1)
             }}
             placeholder="Buscar por placa, modelo ou marca..."
-            className="w-full h-9 px-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
