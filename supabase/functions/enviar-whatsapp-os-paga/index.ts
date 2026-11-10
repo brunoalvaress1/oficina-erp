@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     const { data: lancamento, error: erroLancamento } = await admin
       .from('caixa_lancamentos')
-      .select('id, oficina_id, ordem_servico_id')
+      .select('id, oficina_id, ordem_servico_id, status')
       .eq('id', caixaLancamentoId)
       .single()
     if (erroLancamento || !lancamento) throw new Error('LANCAMENTO_NAO_ENCONTRADO')
@@ -29,6 +29,27 @@ Deno.serve(async (req) => {
       .eq('id', lancamento.ordem_servico_id)
       .single()
     if (erroOrdem || !ordem) throw new Error('ORDEM_NAO_ENCONTRADA')
+
+    // Pode ter sido um recebimento PARCIAL (sobra fica como "pendente" no
+    // mesmo lançamento, ver migration 20260831140000) — nesse caso a mensagem
+    // não pode dizer que o pagamento foi concluído. Soma todas as rodadas de
+    // recebimento não canceladas (dinheiro de verdade + desconto já dado) pra
+    // saber quanto ainda falta, e usa a rodada mais recente (a que acabou de
+    // disparar esse envio) pra dizer quanto entrou agora.
+    const { data: recebimentos, error: erroRecebimentos } = await admin
+      .from('caixa_recebimentos')
+      .select('valor_total, desconto, created_at')
+      .eq('caixa_lancamento_id', caixaLancamentoId)
+      .eq('cancelado', false)
+      .order('created_at', { ascending: true })
+    if (erroRecebimentos) throw new Error(erroRecebimentos.message)
+
+    const rodadas = recebimentos ?? []
+    const valorRecebidoAcumulado = rodadas.reduce((soma, r) => soma + Number(r.valor_total ?? 0) + Number(r.desconto ?? 0), 0)
+    const ultimaRodada = rodadas[rodadas.length - 1]
+    const valorRecebidoAgora = ultimaRodada ? Number(ultimaRodada.valor_total ?? 0) + Number(ultimaRodada.desconto ?? 0) : 0
+    const valorFaltando = Math.max(0, Math.round((Number(ordem.valor_total ?? 0) - valorRecebidoAcumulado) * 100) / 100)
+    const pagamentoParcial = lancamento.status === 'pendente' && valorFaltando > 0
 
     const { data: integracao } = await admin
       .from('integracoes')
@@ -55,18 +76,30 @@ Deno.serve(async (req) => {
     const { data: oficina } = await admin.from('oficinas').select('nome_fantasia, razao_social').eq('id', lancamento.oficina_id).single()
     const nomeOficina = oficina?.nome_fantasia || oficina?.razao_social || 'Oficina'
 
-    const valorFormatado = Number(ordem.valor_total ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    const formatarMoeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
     const telefone = normalizarTelefoneWhatsapp(cliente.telefone)
     const link = `${siteUrl.replace(/\/$/, '')}/os/${ordem.id}`
-    const texto = [
-      `Olá ${cliente.nome}!`,
-      '',
-      `Recebemos o pagamento da sua Ordem de Serviço nº ${ordem.numero} (${valorFormatado}).`,
-      '',
-      `Acesse os detalhes aqui: ${link}`,
-      '',
-      `Obrigado pela preferência! Equipe ${nomeOficina}.`,
-    ].join('\n')
+    const texto = pagamentoParcial
+      ? [
+          `Olá ${cliente.nome}!`,
+          '',
+          `Recebemos ${formatarMoeda(valorRecebidoAgora)} da sua Ordem de Serviço nº ${ordem.numero} (valor total ${formatarMoeda(Number(ordem.valor_total ?? 0))}).`,
+          '',
+          `Ainda falta ${formatarMoeda(valorFaltando)}, que fica em aberto para pagamento posterior.`,
+          '',
+          `Acesse os detalhes aqui: ${link}`,
+          '',
+          `Obrigado pela preferência! Equipe ${nomeOficina}.`,
+        ].join('\n')
+      : [
+          `Olá ${cliente.nome}!`,
+          '',
+          `Recebemos o pagamento da sua Ordem de Serviço nº ${ordem.numero} (${formatarMoeda(Number(ordem.valor_total ?? 0))}).`,
+          '',
+          `Acesse os detalhes aqui: ${link}`,
+          '',
+          `Obrigado pela preferência! Equipe ${nomeOficina}.`,
+        ].join('\n')
 
     const { status, data: respostaEvolution } = await enviarTextoWhatsapp(instanceName, telefone, texto)
     const sucesso = status >= 200 && status < 300 && !respostaEvolution?.error
@@ -77,7 +110,7 @@ Deno.serve(async (req) => {
       ordem_servico_id: ordem.id,
       cliente_id: ordem.cliente_id,
       telefone,
-      template_nome: 'texto_livre_os_paga',
+      template_nome: pagamentoParcial ? 'texto_livre_os_paga_parcial' : 'texto_livre_os_paga',
       status: sucesso ? 'enviada' : 'erro',
       mensagem_erro: mensagemErro,
       payload_enviado: { instanceName, telefone, texto },

@@ -1,8 +1,12 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { DollarSign, Lock } from 'lucide-react'
+import { DollarSign, History, Lock } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCaixaLancamentos } from '../hooks/useCaixaLancamentos'
+import { useCaixaLancamentoDetalhe } from '../hooks/useCaixaLancamentoDetalhe'
 import { ReceberPagamentoModal } from '../components/ReceberPagamentoModal'
+import { HistoricoLancamento } from '../components/HistoricoLancamento'
 import { PermissionGate } from '../components/PermissionGate'
 import { useSessaoCaixaAberta } from '../hooks/useCaixaSessao'
 import { Pagination } from '@/components/ui/Pagination'
@@ -12,6 +16,71 @@ import type { CaixaLancamento } from '../types/caixa'
 function diasEmAtraso(dataAtualizacao: string): number {
   const diffMs = Date.now() - new Date(dataAtualizacao).getTime()
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+}
+
+// Linha própria (em vez de inline no .map) pra poder ter o modal de
+// Histórico com estado próprio por OS — mostra as datas detalhadas (abertura
+// da OS, quando foi pra pendente, cada recebimento parcial) que hoje só
+// davam pra ver na tela de Caixa, não aqui em Pendentes.
+function LinhaPendente({ lancamento, onReceber }: { lancamento: CaixaLancamento; onReceber: (lancamento: CaixaLancamento) => void }) {
+  const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false)
+  const { data: detalhe } = useCaixaLancamentoDetalhe(modalHistoricoAberto ? lancamento.id : undefined)
+
+  return (
+    <tr className="border-t hover:bg-muted/20">
+      <td className="px-3 py-2 font-medium">OS {lancamento.ordemNumero}</td>
+      <td className="px-3 py-2">{lancamento.clienteNome ?? '-'}</td>
+      <td className="px-3 py-2">{lancamento.clienteTelefone ?? '-'}</td>
+      <td className="px-3 py-2">{lancamento.veiculoModelo ?? '-'}</td>
+      <td className="px-3 py-2">{lancamento.veiculoPlaca ?? '-'}</td>
+      <td className="px-3 py-2 text-right font-medium">
+        {formatCurrency(lancamento.valorTotal - lancamento.valorRecebidoAcumulado)}
+        {lancamento.valorRecebidoAcumulado > 0 && (
+          <span className="block text-xs font-normal text-muted-foreground">
+            de {formatCurrency(lancamento.valorTotal)} · {formatCurrency(lancamento.valorRecebidoAcumulado)} já recebido
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2">{formatDate(lancamento.dataAbertura)}</td>
+      <td className="px-3 py-2">{diasEmAtraso(lancamento.updatedAt)} dia(s)</td>
+      <td className="px-3 py-2">{lancamento.responsavelNome ?? '-'}</td>
+      <td className="px-3 py-2">{lancamento.observacoes ?? '-'}</td>
+      <td className="px-3 py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => setModalHistoricoAberto(true)}
+            title="Histórico"
+            className="h-8 w-8 flex items-center justify-center rounded-md border text-muted-foreground"
+          >
+            <History size={14} />
+          </button>
+          <PermissionGate codigo="caixa.receber">
+            <button
+              type="button"
+              onClick={() => onReceber(lancamento)}
+              className="flex items-center gap-1 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium"
+            >
+              <DollarSign size={13} /> Receber
+            </button>
+          </PermissionGate>
+        </div>
+      </td>
+
+      {/* Dialog precisa ir via portal — <tr> não pode ter <div> como filho direto. */}
+      {createPortal(
+        <Dialog open={modalHistoricoAberto} onOpenChange={setModalHistoricoAberto}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Histórico — OS nº {lancamento.ordemNumero}</DialogTitle>
+            </DialogHeader>
+            <HistoricoLancamento historico={detalhe?.historico ?? []} dataAberturaOs={lancamento.dataAbertura} />
+          </DialogContent>
+        </Dialog>,
+        document.body,
+      )}
+    </tr>
+  )
 }
 
 export function Pendentes() {
@@ -88,36 +157,7 @@ export function Pendentes() {
               </tr>
             )}
             {lancamentos.map((lancamento) => (
-              <tr key={lancamento.id} className="border-t hover:bg-muted/20">
-                <td className="px-3 py-2 font-medium">OS {lancamento.ordemNumero}</td>
-                <td className="px-3 py-2">{lancamento.clienteNome ?? '-'}</td>
-                <td className="px-3 py-2">{lancamento.clienteTelefone ?? '-'}</td>
-                <td className="px-3 py-2">{lancamento.veiculoModelo ?? '-'}</td>
-                <td className="px-3 py-2">{lancamento.veiculoPlaca ?? '-'}</td>
-                <td className="px-3 py-2 text-right font-medium">
-                  {formatCurrency(lancamento.valorTotal - lancamento.valorRecebidoAcumulado)}
-                  {lancamento.valorRecebidoAcumulado > 0 && (
-                    <span className="block text-xs font-normal text-muted-foreground">
-                      de {formatCurrency(lancamento.valorTotal)} · {formatCurrency(lancamento.valorRecebidoAcumulado)} já recebido
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2">{formatDate(lancamento.dataAbertura)}</td>
-                <td className="px-3 py-2">{diasEmAtraso(lancamento.updatedAt)} dia(s)</td>
-                <td className="px-3 py-2">{lancamento.responsavelNome ?? '-'}</td>
-                <td className="px-3 py-2">{lancamento.observacoes ?? '-'}</td>
-                <td className="px-3 py-2 text-right">
-                  <PermissionGate codigo="caixa.receber">
-                    <button
-                      type="button"
-                      onClick={() => setLancamentoParaReceber(lancamento)}
-                      className="flex items-center gap-1 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium ml-auto"
-                    >
-                      <DollarSign size={13} /> Receber
-                    </button>
-                  </PermissionGate>
-                </td>
-              </tr>
+              <LinhaPendente key={lancamento.id} lancamento={lancamento} onReceber={setLancamentoParaReceber} />
             ))}
           </tbody>
         </table>

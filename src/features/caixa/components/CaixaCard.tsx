@@ -271,7 +271,7 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
               <DialogHeader>
                 <DialogTitle>Histórico — OS nº {lancamento.ordemNumero}</DialogTitle>
               </DialogHeader>
-              <HistoricoLancamento historico={detalhe?.historico ?? []} />
+              <HistoricoLancamento historico={detalhe?.historico ?? []} dataAberturaOs={lancamento.dataAbertura} />
             </DialogContent>
           </Dialog>
         </>,
