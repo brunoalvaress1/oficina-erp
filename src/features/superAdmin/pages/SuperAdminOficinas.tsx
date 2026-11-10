@@ -4,18 +4,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
 import { useConfigPlataforma } from '@/features/pagamentoSistema/hooks/usePagamentoSistema'
-import type { FuncionalidadePlataforma } from '@/features/pagamentoSistema/types/pagamentoSistema'
 import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '@/features/pagamentoSistema/utils'
 import {
   useAtualizarChavePixPlataforma,
-  useAtualizarFuncionalidadesPlataforma,
+  useAtualizarFuncionalidadesOficinaAdmin,
   useAtualizarStatusOficinaAdmin,
   useAtualizarValorMensalidadeOficinaAdmin,
   useAtualizarVencimentoOficinaAdmin,
   useCriarOficinaAdmin,
   useOficinasAdmin,
 } from '../hooks/useSuperAdmin'
-import type { CriarOficinaInput, OficinaAdmin } from '../types/oficinaAdmin'
+import type { CriarOficinaInput, FuncionalidadeOficina, OficinaAdmin } from '../types/oficinaAdmin'
 
 function estaVencida(vencimento: string | null): boolean {
   const dias = diasParaVencimento(vencimento)
@@ -258,10 +257,9 @@ function CardChavePix() {
   )
 }
 
-// Funções que dependem de API externa e podem ser desligadas pra TODAS as
-// oficinas de uma vez — cada uma tem seu próprio on/off e sua própria
-// mensagem (escolhida pelo super admin) pra aparecer pra oficina enquanto
-// estiver desativada.
+// Funções que dependem de API externa e podem ser desligadas por oficina —
+// cada uma tem seu próprio on/off e sua própria mensagem (escolhida pelo
+// super admin) pra aparecer pra ESSA oficina enquanto estiver desativada.
 const FUNCIONALIDADES_DISPONIVEIS: Array<{ codigo: string; nome: string; mensagemPadrao: string }> = [
   { codigo: 'puxar_placa', nome: 'Buscar dados do veículo pela placa', mensagemPadrao: 'Consulta de placa temporariamente indisponível. Fale com o suporte.' },
   { codigo: 'puxar_cep', nome: 'Buscar endereço pelo CEP', mensagemPadrao: 'Busca de CEP temporariamente indisponível. Fale com o suporte.' },
@@ -275,26 +273,24 @@ function LinhaFuncionalidade({
   nome,
   mensagemPadrao,
   valorSalvo,
+  oficinaId,
   funcionalidades,
 }: {
   codigo: string
   nome: string
   mensagemPadrao: string
-  valorSalvo?: FuncionalidadePlataforma
-  funcionalidades: Record<string, FuncionalidadePlataforma>
+  valorSalvo?: FuncionalidadeOficina
+  oficinaId: string
+  funcionalidades: Record<string, FuncionalidadeOficina>
 }) {
-  const atualizar = useAtualizarFuncionalidadesPlataforma()
+  const atualizar = useAtualizarFuncionalidadesOficinaAdmin()
   const ativo = valorSalvo?.ativo ?? true
   const [mensagem, setMensagem] = useState(valorSalvo?.mensagem ?? mensagemPadrao)
 
-  useEffect(() => {
-    if (valorSalvo?.mensagem != null) setMensagem((atual) => (atual === '' ? valorSalvo.mensagem : atual))
-  }, [valorSalvo?.mensagem])
-
-  function salvar(novosValores: Partial<FuncionalidadePlataforma>) {
+  function salvar(novosValores: Partial<FuncionalidadeOficina>) {
     atualizar.mutate({
-      ...funcionalidades,
-      [codigo]: { ativo, mensagem, ...novosValores },
+      oficinaId,
+      funcionalidades: { ...funcionalidades, [codigo]: { ativo, mensagem, ...novosValores } },
     })
   }
 
@@ -314,7 +310,7 @@ function LinhaFuncionalidade({
         </button>
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground">Mensagem exibida pra oficina quando desativada</label>
+        <label className="text-xs font-medium text-muted-foreground">Mensagem exibida pra essa oficina quando desativada</label>
         <div className="flex items-center gap-2">
           <input
             value={mensagem}
@@ -335,33 +331,29 @@ function LinhaFuncionalidade({
   )
 }
 
-function CardFuncionalidades() {
-  const { data: config, isLoading } = useConfigPlataforma()
-  const funcionalidades = config?.funcionalidades ?? {}
+function ModalFuncionalidades({ oficina, onOpenChange }: { oficina: OficinaAdmin | null; onOpenChange: (open: boolean) => void }) {
+  const funcionalidades = oficina?.funcionalidades ?? {}
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary shrink-0">
-          <Plug size={16} />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold">Funções e APIs do sistema</h2>
+    <Dialog open={!!oficina} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Funções e APIs — {oficina?.nomeFantasia}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Desative aqui pra todas as oficinas de uma vez e escolha a mensagem que elas veem no lugar.
+            Desative aqui só pra essa oficina e escolha a mensagem que ela vê no lugar da função.
           </p>
+          {oficina && (
+            <div className="space-y-2">
+              {FUNCIONALIDADES_DISPONIVEIS.map((f) => (
+                <LinhaFuncionalidade key={f.codigo} {...f} valorSalvo={funcionalidades[f.codigo]} oficinaId={oficina.id} funcionalidades={funcionalidades} />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : (
-        <div className="space-y-2">
-          {FUNCIONALIDADES_DISPONIVEIS.map((f) => (
-            <LinhaFuncionalidade key={f.codigo} {...f} valorSalvo={funcionalidades[f.codigo]} funcionalidades={funcionalidades} />
-          ))}
-        </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -370,6 +362,7 @@ export function SuperAdminOficinas() {
   const atualizar = useAtualizarStatusOficinaAdmin()
   const [modalCriarAberto, setModalCriarAberto] = useState(false)
   const [oficinaParaBloquear, setOficinaParaBloquear] = useState<OficinaAdmin | null>(null)
+  const [oficinaParaFuncionalidades, setOficinaParaFuncionalidades] = useState<OficinaAdmin | null>(null)
 
   const oficinas = useMemo(
     () => [...(oficinasCarregadas ?? [])].sort((a, b) => prioridadeUrgencia(a) - prioridadeUrgencia(b)),
@@ -383,6 +376,13 @@ export function SuperAdminOficinas() {
     return dias != null && dias >= 0 && dias <= DIAS_LIMITE_VENCENDO
   }).length
   const qtdBloqueadas = oficinas.filter((o) => o.statusAssinatura === 'bloqueada').length
+
+  // Depois de salvar uma funcionalidade a lista é invalidada/refeita — busca
+  // a versão atualizada da oficina pelo id em vez de manter o snapshot
+  // antigo, pra manter o modal aberto já refletindo o que acabou de salvar.
+  const oficinaFuncionalidadesAtual = oficinaParaFuncionalidades
+    ? oficinas.find((o) => o.id === oficinaParaFuncionalidades.id) ?? oficinaParaFuncionalidades
+    : null
 
   return (
     <div className="space-y-4">
@@ -401,7 +401,6 @@ export function SuperAdminOficinas() {
       </div>
 
       <CardChavePix />
-      <CardFuncionalidades />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <CardIndicador titulo="Total de Oficinas" valor={String(oficinas.length)} />
@@ -451,7 +450,15 @@ export function SuperAdminOficinas() {
                   {oficina.bloqueadaMotivo && <p className="text-xs text-muted-foreground mt-0.5 max-w-[200px] truncate" title={oficina.bloqueadaMotivo}>{oficina.bloqueadaMotivo}</p>}
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setOficinaParaFuncionalidades(oficina)}
+                      title="Funções e APIs"
+                      className="h-7 w-7 flex items-center justify-center rounded-md border text-muted-foreground"
+                    >
+                      <Plug size={13} />
+                    </button>
                     {oficina.statusAssinatura === 'ativa' ? (
                       <button
                         type="button"
@@ -482,6 +489,7 @@ export function SuperAdminOficinas() {
 
       <ModalCriarOficina open={modalCriarAberto} onOpenChange={setModalCriarAberto} />
       <ModalBloquear oficina={oficinaParaBloquear} onOpenChange={(open) => !open && setOficinaParaBloquear(null)} />
+      <ModalFuncionalidades oficina={oficinaFuncionalidadesAtual} onOpenChange={(open) => !open && setOficinaParaFuncionalidades(null)} />
     </div>
   )
 }

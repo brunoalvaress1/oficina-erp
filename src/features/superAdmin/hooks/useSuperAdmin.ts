@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/providers/AuthProvider'
 import {
   atualizarChavePixPlataforma,
-  atualizarFuncionalidadesPlataforma,
+  atualizarFuncionalidadesOficinaAdmin,
   atualizarStatusOficinaAdmin,
   atualizarValorMensalidadeOficinaAdmin,
   atualizarVencimentoOficinaAdmin,
@@ -98,14 +98,14 @@ export function useAtualizarChavePixPlataforma() {
   })
 }
 
-export function useAtualizarFuncionalidadesPlataforma() {
+export function useAtualizarFuncionalidadesOficinaAdmin() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (funcionalidades: Record<string, { ativo: boolean; mensagem: string }>) =>
-      atualizarFuncionalidadesPlataforma(funcionalidades),
+    mutationFn: ({ oficinaId, funcionalidades }: { oficinaId: string; funcionalidades: Record<string, { ativo: boolean; mensagem: string }> }) =>
+      atualizarFuncionalidadesOficinaAdmin(oficinaId, funcionalidades),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config-plataforma'] })
-      toast.success('Funcionalidade atualizada — já aparece pra todas as oficinas')
+      queryClient.invalidateQueries({ queryKey: ['oficinas-admin'] })
+      toast.success('Funcionalidade atualizada pra essa oficina')
     },
     onError: (error: Error) => toast.error('Erro ao atualizar funcionalidade', { description: error.message }),
   })

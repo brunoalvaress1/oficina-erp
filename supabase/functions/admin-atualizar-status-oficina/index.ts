@@ -13,12 +13,17 @@ Deno.serve(async (req) => {
 
   try {
     await autenticarSuperAdmin(req, admin)
-    const { oficinaId, statusAssinatura, motivo, vencimentoMensalidade, valorMensalidade } = await req.json()
+    const { oficinaId, statusAssinatura, motivo, vencimentoMensalidade, valorMensalidade, funcionalidades } = await req.json()
     if (!oficinaId) throw new Error('OFICINA_ID_OBRIGATORIO')
     if (statusAssinatura !== undefined && statusAssinatura !== 'ativa' && statusAssinatura !== 'bloqueada') {
       throw new Error('STATUS_INVALIDO')
     }
-    if (statusAssinatura === undefined && vencimentoMensalidade === undefined && valorMensalidade === undefined) {
+    if (
+      statusAssinatura === undefined &&
+      vencimentoMensalidade === undefined &&
+      valorMensalidade === undefined &&
+      funcionalidades === undefined
+    ) {
       throw new Error('NADA_PARA_ATUALIZAR')
     }
 
@@ -30,6 +35,10 @@ Deno.serve(async (req) => {
     }
     if (vencimentoMensalidade !== undefined) colunas.vencimento_mensalidade = vencimentoMensalidade || null
     if (valorMensalidade !== undefined) colunas.valor_mensalidade = valorMensalidade === null || valorMensalidade === '' ? null : Number(valorMensalidade)
+    // Kill switch por oficina (puxar placa/CEP/CNPJ/CPF, WhatsApp automático)
+    // — substitui o objeto inteiro (o client sempre manda o conjunto completo
+    // já mesclado, igual é feito pra toda coluna jsonb nessa function).
+    if (funcionalidades !== undefined) colunas.funcionalidades = funcionalidades
 
     const { data: oficina, error } = await admin.from('oficinas').update(colunas).eq('id', oficinaId).select('*').single()
     if (error) throw new Error(error.message)

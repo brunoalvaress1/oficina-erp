@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
   const admin = criarClienteAdmin()
 
   try {
-    await autenticarFuncionario(req, admin, 'clientes.visualizar')
-    await verificarFuncionalidadeAtiva(admin, 'puxar_cnpj')
+    const funcionario = await autenticarFuncionario(req, admin, 'clientes.visualizar')
+    await verificarFuncionalidadeAtiva(admin, funcionario.oficinaId, 'puxar_cnpj')
     const { cnpj } = await req.json()
     if (!cnpj) throw new Error('CNPJ_OBRIGATORIO')
 

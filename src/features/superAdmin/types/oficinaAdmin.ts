@@ -1,5 +1,10 @@
 export type StatusAssinatura = 'ativa' | 'bloqueada'
 
+export interface FuncionalidadeOficina {
+  ativo: boolean
+  mensagem: string
+}
+
 export interface OficinaAdmin {
   id: string
   nomeFantasia: string | null
@@ -11,6 +16,7 @@ export interface OficinaAdmin {
   bloqueadaMotivo: string | null
   vencimentoMensalidade: string | null
   valorMensalidade: number | null
+  funcionalidades: Record<string, FuncionalidadeOficina>
   createdAt: string
   qtdFuncionarios: number
 }

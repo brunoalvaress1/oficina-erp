@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
   try {
     const funcionario = await autenticarFuncionario(req, admin, 'caixa.receber')
-    await verificarFuncionalidadeAtiva(admin, 'whatsapp_automatico')
+    await verificarFuncionalidadeAtiva(admin, funcionario.oficinaId, 'whatsapp_automatico')
     const { caixaLancamentoId } = await req.json()
     if (!caixaLancamentoId) throw new Error('CAIXA_LANCAMENTO_ID_OBRIGATORIO')
 

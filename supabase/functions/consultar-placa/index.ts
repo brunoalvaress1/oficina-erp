@@ -31,8 +31,8 @@ Deno.serve(async (req) => {
   const admin = criarClienteAdmin()
 
   try {
-    await autenticarFuncionario(req, admin, 'veiculos.visualizar')
-    await verificarFuncionalidadeAtiva(admin, 'puxar_placa')
+    const funcionario = await autenticarFuncionario(req, admin, 'veiculos.visualizar')
+    await verificarFuncionalidadeAtiva(admin, funcionario.oficinaId, 'puxar_placa')
     const { placa } = await req.json()
     if (!placa) throw new Error('PLACA_OBRIGATORIA')
 

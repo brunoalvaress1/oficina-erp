@@ -9,11 +9,13 @@ export interface EnderecoPorCep {
   codigoCidade: string
 }
 
-// Kill switch do super admin (Admin → Oficinas). A busca de CEP é feita
-// direto do navegador (viacep), sem passar por Edge Function — por isso a
-// checagem acontece aqui antes do fetch, em vez de num servidor.
+// Kill switch do super admin pra essa oficina (Admin → Oficinas). A busca de
+// CEP é feita direto do navegador (viacep), sem passar por Edge Function —
+// por isso a checagem acontece aqui antes do fetch, em vez de num servidor.
+// RLS de `oficinas` já restringe a leitura à própria oficina do funcionário
+// logado, então não precisa filtrar por id explicitamente.
 async function funcionalidadeDesativada(codigo: string): Promise<string | null> {
-  const { data } = await supabase.from('configuracoes_plataforma').select('funcionalidades').eq('id', 'global').maybeSingle()
+  const { data } = await supabase.from('oficinas').select('funcionalidades').maybeSingle()
   const config = (data?.funcionalidades as Record<string, { ativo?: boolean; mensagem?: string }> | null)?.[codigo]
   if (config && config.ativo === false) return config.mensagem || 'Função temporariamente indisponível. Fale com o suporte.'
   return null

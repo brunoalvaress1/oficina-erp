@@ -21,8 +21,8 @@ Deno.serve(async (req) => {
   const admin = criarClienteAdmin()
 
   try {
-    await autenticarFuncionario(req, admin, 'clientes.visualizar')
-    await verificarFuncionalidadeAtiva(admin, 'puxar_cpf')
+    const funcionario = await autenticarFuncionario(req, admin, 'clientes.visualizar')
+    await verificarFuncionalidadeAtiva(admin, funcionario.oficinaId, 'puxar_cpf')
     const { cpf } = await req.json()
     if (!cpf) throw new Error('CPF_OBRIGATORIO')
 

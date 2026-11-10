@@ -55,13 +55,12 @@ export async function atualizarChavePixPlataforma(chavePix: string): Promise<voi
 }
 
 // Kill switch de funções que dependem de API externa (puxar placa, puxar
-// CEP, puxar CNPJ/CPF, WhatsApp automático) — desativa pra TODAS as oficinas
-// de uma vez e define a mensagem que aparece pra oficina enquanto estiver
-// desativada. Mesmo mecanismo da chave PIX: escreve direto via RLS (só super
-// admin tem permissão de update nessa tabela).
-export async function atualizarFuncionalidadesPlataforma(
+// CEP, puxar CNPJ/CPF, WhatsApp automático) — desativa só pra ESSA oficina e
+// define a mensagem que aparece pra ela enquanto estiver desativada.
+export async function atualizarFuncionalidadesOficinaAdmin(
+  oficinaId: string,
   funcionalidades: Record<string, { ativo: boolean; mensagem: string }>,
 ): Promise<void> {
-  const { error } = await supabase.from('configuracoes_plataforma').update({ funcionalidades }).eq('id', 'global')
-  if (error) throw new Error(error.message)
+  const { error } = await supabase.functions.invoke('admin-atualizar-status-oficina', { body: { oficinaId, funcionalidades } })
+  if (error) throw new Error(await extrairMensagemErro(error))
 }

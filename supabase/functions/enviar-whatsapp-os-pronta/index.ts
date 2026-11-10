@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
   try {
     const funcionario = await autenticarFuncionario(req, admin, 'ordens.finalizar')
-    await verificarFuncionalidadeAtiva(admin, 'whatsapp_automatico')
+    await verificarFuncionalidadeAtiva(admin, funcionario.oficinaId, 'whatsapp_automatico')
     const { ordemServicoId } = await req.json()
     if (!ordemServicoId) throw new Error('ORDEM_SERVICO_ID_OBRIGATORIO')
 
