@@ -23,6 +23,7 @@ interface ReceberPagamentoModalProps {
 export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: ReceberPagamentoModalProps) {
   const [formas, setFormas] = useState<FormaPagamentoForm[]>(() => [criarFormaPagamentoVazia()])
   const [observacoesPendente, setObservacoesPendente] = useState('')
+  const [dataVencimentoPendente, setDataVencimentoPendente] = useState('')
   const [mostrarSucesso, setMostrarSucesso] = useState(false)
   const [descontoTipo, setDescontoTipo] = useState<'percentual' | 'valor'>('percentual')
   const [descontoInput, setDescontoInput] = useState('')
@@ -105,7 +106,11 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
 
   function handleMarcarPendente() {
     marcarPendenteMutation.mutate(
-      { caixaLancamentoId: lancamento.id, observacoes: observacoesPendente || undefined },
+      {
+        caixaLancamentoId: lancamento.id,
+        observacoes: observacoesPendente || undefined,
+        dataVencimento: dataVencimentoPendente || undefined,
+      },
       { onSuccess: () => onOpenChange(false) },
     )
   }
@@ -284,14 +289,21 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
               {lancamento.status === 'aguardando' && (
                 <div className="border-t pt-3 space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Ou mover para Pendentes (observação opcional)
+                    Ou mover para Pendentes (observação e data-limite opcionais)
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <input
                       value={observacoesPendente}
                       onChange={(e) => setObservacoesPendente(e.target.value)}
                       placeholder="Observação..."
-                      className="flex-1 h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                      className="flex-1 min-w-35 h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                    <input
+                      type="date"
+                      value={dataVencimentoPendente}
+                      onChange={(e) => setDataVencimentoPendente(e.target.value)}
+                      title="Data-limite para o cliente pagar"
+                      className="h-9 rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-primary/30"
                     />
                     <button
                       type="button"
@@ -302,6 +314,11 @@ export function ReceberPagamentoModal({ lancamento, open, onOpenChange }: Recebe
                       {marcarPendenteMutation.isPending ? 'Movendo...' : 'Marcar como Pendente'}
                     </button>
                   </div>
+                  {dataVencimentoPendente && (
+                    <p className="text-xs text-muted-foreground">
+                      O cliente será avisado por WhatsApp que o pagamento deve ser feito até essa data.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

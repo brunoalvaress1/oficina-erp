@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     const { data: lancamento, error: erroLancamento } = await admin
       .from('caixa_lancamentos')
-      .select('id, oficina_id, ordem_servico_id, status')
+      .select('id, oficina_id, ordem_servico_id, status, data_vencimento_pendente')
       .eq('id', caixaLancamentoId)
       .single()
     if (erroLancamento || !lancamento) throw new Error('LANCAMENTO_NAO_ENCONTRADO')
@@ -77,15 +77,20 @@ Deno.serve(async (req) => {
     const nomeOficina = oficina?.nome_fantasia || oficina?.razao_social || 'Oficina'
 
     const formatarMoeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    const formatarDataBr = (data: string) => {
+      const [ano, mes, dia] = data.split('-')
+      return `${dia}/${mes}/${ano}`
+    }
     const telefone = normalizarTelefoneWhatsapp(cliente.telefone)
     const link = `${siteUrl.replace(/\/$/, '')}/os/${ordem.id}`
+    const dataVencimento = lancamento.data_vencimento_pendente as string | null
     const texto = pagamentoParcial
       ? [
           `Olá ${cliente.nome}!`,
           '',
           `Recebemos ${formatarMoeda(valorRecebidoAgora)} da sua Ordem de Serviço nº ${ordem.numero} (valor total ${formatarMoeda(Number(ordem.valor_total ?? 0))}).`,
           '',
-          `Ainda falta ${formatarMoeda(valorFaltando)}, que fica em aberto para pagamento posterior.`,
+          `Ainda falta ${formatarMoeda(valorFaltando)}, que fica em aberto para pagamento posterior${dataVencimento ? ` até ${formatarDataBr(dataVencimento)}` : ''}.`,
           '',
           `Acesse os detalhes aqui: ${link}`,
           '',

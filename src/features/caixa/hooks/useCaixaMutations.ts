@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cancelarRecebimento, marcarPendente, receberPagamento } from '../services/caixaService'
-import { enviarWhatsappOsPaga } from '@/features/whatsapp/services/whatsappService'
+import { enviarWhatsappOsPaga, enviarWhatsappOsPendente } from '@/features/whatsapp/services/whatsappService'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { FormaPagamentoInput } from '../types/caixa'
 
@@ -42,12 +42,25 @@ export function useMarcarPendente() {
   const { funcionario } = usePermissions()
 
   return useMutation({
-    mutationFn: ({ caixaLancamentoId, observacoes }: { caixaLancamentoId: string; observacoes?: string }) =>
-      marcarPendente(caixaLancamentoId, funcionario!.id, observacoes),
-    onSuccess: () => {
+    mutationFn: ({
+      caixaLancamentoId,
+      observacoes,
+      dataVencimento,
+    }: {
+      caixaLancamentoId: string
+      observacoes?: string
+      dataVencimento?: string
+    }) => marcarPendente(caixaLancamentoId, funcionario!.id, observacoes, dataVencimento),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['caixa-lancamentos'] })
       queryClient.invalidateQueries({ queryKey: ['caixa-dashboard'] })
       toast.success('Ordem movida para Pendentes')
+      // Mesma lógica das outras mensagens automáticas: falha no envio não
+      // desfaz a ação, e fica em silêncio se a integração estiver desativada.
+      enviarWhatsappOsPendente(variables.caixaLancamentoId).catch((error: Error) => {
+        if (error.message.includes('Integração de WhatsApp inativa')) return
+        toast.error('Ordem movida para Pendentes, mas a mensagem de WhatsApp não foi enviada', { description: error.message })
+      })
     },
     onError: (error: Error) => {
       toast.error('Erro ao marcar como pendente', { description: error.message })

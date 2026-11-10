@@ -65,6 +65,7 @@ function mapLancamento(row: any): CaixaLancamento {
       .filter((f: any) => f.forma_pagamento !== 'pendente')
       .reduce((soma: number, f: any) => soma + Number(f.valor ?? 0), 0),
     dataAbertura: ordem?.data_abertura,
+    dataVencimentoPendente: row.data_vencimento_pendente ?? null,
   }
 }
 
@@ -217,14 +218,21 @@ export async function marcarPendente(
   caixaLancamentoId: string,
   funcionarioId: string,
   observacoes?: string,
+  dataVencimento?: string,
 ): Promise<void> {
   const ip = await capturarIpPublico()
-  const { error } = await supabase.rpc('caixa_marcar_pendente', {
+  // Só manda p_data_vencimento quando há data — isso faz o Postgres escolher
+  // o overload certo da function (ver migration 20260919160000): com data
+  // vai pro overload novo (que também grava o vencimento), sem data continua
+  // no overload original de sempre, sem nenhuma mudança de comportamento.
+  const params: Record<string, unknown> = {
     p_caixa_lancamento_id: caixaLancamentoId,
     p_funcionario_id: funcionarioId,
     p_ip: ip,
     p_observacoes: observacoes || null,
-  })
+  }
+  if (dataVencimento) params.p_data_vencimento = dataVencimento
+  const { error } = await supabase.rpc('caixa_marcar_pendente', params)
   if (error) throw new Error(traduzirErro(error.message))
 }
 

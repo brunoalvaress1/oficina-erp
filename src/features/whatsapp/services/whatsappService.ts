@@ -35,8 +35,18 @@ export async function enviarWhatsappOsPronta(ordemServicoId: string): Promise<vo
 
 // Dispara o link público da OS pro cliente assim que o pagamento é recebido
 // no Caixa. Mesma lógica de "não travar o fluxo principal" do caso acima.
+// Também cobre o caso de recebimento PARCIAL (a Edge Function detecta pelo
+// status do lançamento e manda o texto certo, avisando quanto falta).
 export async function enviarWhatsappOsPaga(caixaLancamentoId: string): Promise<void> {
   const { error } = await supabase.functions.invoke('enviar-whatsapp-os-paga', { body: { caixaLancamentoId } })
+  if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
+}
+
+// Dispara quando a OS é marcada como Pendente com o valor CHEIO (nada
+// recebido ainda) — avisa o cliente do valor pendente e, se foi definida,
+// da data-limite pra pagar.
+export async function enviarWhatsappOsPendente(caixaLancamentoId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('enviar-whatsapp-os-pendente', { body: { caixaLancamentoId } })
   if (error) throw new Error(traduzirErro(await extrairMensagemErro(error)))
 }
 

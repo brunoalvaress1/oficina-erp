@@ -1,10 +1,11 @@
-import { formatCurrency, formatDate } from '@/utils/format'
+import { formatCurrency, formatDate, formatDateTime } from '@/utils/format'
 import type { CaixaLancamentoHistoricoEntry } from '../types/caixa'
 
 const ROTULOS_ACAO: Record<string, string> = {
   recebido: 'Pagamento recebido (completo)',
   recebido_parcial: 'Pagamento parcial recebido',
   marcado_pendente: 'Movido para Pendentes',
+  prazo_pagamento_definido: 'Prazo de pagamento definido',
   cancelado: 'Recebimento cancelado',
 }
 
@@ -20,6 +21,9 @@ function descreverDetalhes(entrada: CaixaLancamentoHistoricoEntry): string | nul
   }
   if (entrada.acao === 'marcado_pendente' && typeof detalhes.observacoes === 'string' && detalhes.observacoes) {
     return detalhes.observacoes
+  }
+  if (entrada.acao === 'prazo_pagamento_definido' && typeof detalhes.dataVencimento === 'string' && detalhes.dataVencimento) {
+    return `Vencimento: ${formatDate(detalhes.dataVencimento)}`
   }
   if (entrada.acao === 'recebido' || entrada.acao === 'recebido_parcial') {
     const valorRecebido = numero(detalhes.valorTotal)
@@ -59,7 +63,7 @@ export function HistoricoLancamento({ historico, dataAberturaOs }: HistoricoLanc
                 {detalhe && <span className="text-muted-foreground"> — {detalhe}</span>}
                 {entrada.funcionarioNome && <span className="text-muted-foreground"> por {entrada.funcionarioNome}</span>}
               </span>
-              <span className="text-muted-foreground text-xs shrink-0">{formatDate(entrada.createdAt)}</span>
+              <span className="text-muted-foreground text-xs shrink-0">{formatDateTime(entrada.createdAt)}</span>
             </div>
           )
         })}

@@ -54,6 +54,9 @@ export interface CaixaLancamento {
   // resto pendente). O modal de Receber usa isso pra cobrar só o que falta.
   valorRecebidoAcumulado: number
   dataAbertura: string
+  // Data-limite pra pagar o que ficou pendente, definida ao marcar a OS como
+  // Pendente — opcional, usada no WhatsApp automático pra avisar o cliente.
+  dataVencimentoPendente: string | null
 }
 
 export interface CaixaRecebimentoForma {

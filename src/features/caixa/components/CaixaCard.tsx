@@ -240,6 +240,9 @@ export function CaixaCard({ lancamento, onAbrirReceber }: CaixaCardProps) {
         <span className={`text-xs px-2 py-0.5 rounded-full ${COR_STATUS[lancamento.status]}`}>
           {ROTULO_STATUS[lancamento.status]}
         </span>
+        {lancamento.status === 'pendente' && lancamento.dataVencimentoPendente && (
+          <span className="block text-xs text-amber-600 mt-0.5">Pagar até {formatDate(lancamento.dataVencimentoPendente)}</span>
+        )}
       </td>
       <td className="px-3 py-2 text-right font-medium">
         {formatCurrency(lancamento.valorTotal - lancamento.valorRecebidoAcumulado)}

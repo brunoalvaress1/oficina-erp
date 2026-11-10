@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Lock, Unlock } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Clock, Lock, Unlock } from 'lucide-react'
 import { useDebouncedCallback } from 'use-debounce'
 import { useCaixaLancamentos } from '../hooks/useCaixaLancamentos'
 import { CaixaCard } from '../components/CaixaCard'
@@ -13,14 +14,18 @@ import { Pagination } from '@/components/ui/Pagination'
 import { formatDate } from '@/utils/format'
 import type { CaixaLancamento, FiltroCaixa } from '../types/caixa'
 
+// 'pendente' não entra aqui — antes filtrava a lista nessa mesma tela (com
+// colunas diferentes da página dedicada /caixa/pendentes), dando duas UIs
+// diferentes pra a mesma coisa dependendo de como a pessoa chegava nela. O
+// botão "Pendentes" abaixo manda direto pra página dedicada agora.
 const FILTROS: Array<{ valor: FiltroCaixa; rotulo: string }> = [
   { valor: 'todas', rotulo: 'Todas' },
   { valor: 'aguardando', rotulo: 'Ordens de Serviço' },
-  { valor: 'pendente', rotulo: 'Pendentes' },
   { valor: 'recebidas_hoje', rotulo: 'Recebidas Hoje' },
 ]
 
 export function CaixaList() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [busca, setBusca] = useState('')
@@ -129,6 +134,13 @@ export function CaixaList() {
                   {f.rotulo}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => navigate('/caixa/pendentes')}
+                className="flex items-center gap-1 h-7 px-3 rounded-full text-xs font-medium border bg-background"
+              >
+                <Clock size={12} /> Pendentes
+              </button>
             </div>
           </div>
 

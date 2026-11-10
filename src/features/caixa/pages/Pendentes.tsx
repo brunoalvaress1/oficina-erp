@@ -42,7 +42,12 @@ function LinhaPendente({ lancamento, onReceber }: { lancamento: CaixaLancamento;
         )}
       </td>
       <td className="px-3 py-2">{formatDate(lancamento.dataAbertura)}</td>
-      <td className="px-3 py-2">{diasEmAtraso(lancamento.updatedAt)} dia(s)</td>
+      <td className="px-3 py-2">
+        {diasEmAtraso(lancamento.updatedAt)} dia(s)
+        {lancamento.dataVencimentoPendente && (
+          <span className="block text-xs text-amber-600">Pagar até {formatDate(lancamento.dataVencimentoPendente)}</span>
+        )}
+      </td>
       <td className="px-3 py-2">{lancamento.responsavelNome ?? '-'}</td>
       <td className="px-3 py-2">{lancamento.observacoes ?? '-'}</td>
       <td className="px-3 py-2 text-right">

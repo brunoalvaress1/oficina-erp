@@ -42,6 +42,14 @@ export function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('pt-BR')
 }
 
+// Pra timestamps de verdade (created_at de histórico/recebimento) onde o
+// horário importa pra saber exatamente quando algo aconteceu — ex: "pagou
+// uma parte às 14:32" — diferente de formatDate, que é só a data (usado
+// pra colunas `date` puras, como data de abertura da OS).
+export function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
 export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
