@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
+import { extrairMensagemFuncionalidadeDesativada } from '@/utils/funcionalidadePlataforma'
 
 function traduzirErro(mensagem: string): string {
+  const mensagemDesativada = extrairMensagemFuncionalidadeDesativada(mensagem)
+  if (mensagemDesativada) return mensagemDesativada
   if (mensagem.includes('WHATSAPP_NAO_CONFIGURADO')) return 'Integração de WhatsApp inativa — ative em Configurações → WhatsApp.'
   if (mensagem.includes('WHATSAPP_SEM_INSTANCIA')) return 'Configure o nome da instância em Configurações → WhatsApp.'
   if (mensagem.includes('WHATSAPP_SEM_SITE_URL')) return 'Configure o endereço do site em Configurações → WhatsApp.'

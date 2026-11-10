@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { extrairMensagemFuncionalidadeDesativada } from '@/utils/funcionalidadePlataforma'
 
 export interface DadosConsultaCnpj {
   nome?: string
@@ -26,6 +27,8 @@ async function extrairMensagemErro(error: unknown): Promise<string> {
 }
 
 function traduzirErro(mensagem: string): string {
+  const mensagemDesativada = extrairMensagemFuncionalidadeDesativada(mensagem)
+  if (mensagemDesativada) return mensagemDesativada
   if (mensagem.includes('CNPJ_INVALIDO')) return 'CNPJ em formato inválido.'
   if (mensagem.includes('HUB_DESENVOLVEDOR_TOKEN')) return 'Token da API de consulta de CNPJ inválido ou não configurado.'
   return mensagem

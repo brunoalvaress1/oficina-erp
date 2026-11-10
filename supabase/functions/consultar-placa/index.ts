@@ -6,6 +6,7 @@
 // cor, ano, anoModelo, ...} }, chassi: { dados: { chassi } }, ... }
 import { corsHeaders } from '../_shared/cors.ts'
 import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
+import { verificarFuncionalidadeAtiva } from '../_shared/funcionalidades.ts'
 
 function mapearResposta(resposta: any) {
   const basico = resposta?.basico?.dados ?? {}
@@ -31,6 +32,7 @@ Deno.serve(async (req) => {
 
   try {
     await autenticarFuncionario(req, admin, 'veiculos.visualizar')
+    await verificarFuncionalidadeAtiva(admin, 'puxar_placa')
     const { placa } = await req.json()
     if (!placa) throw new Error('PLACA_OBRIGATORIA')
 

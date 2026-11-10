@@ -6,6 +6,7 @@
 // cep, situacao, ... } }
 import { corsHeaders } from '../_shared/cors.ts'
 import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
+import { verificarFuncionalidadeAtiva } from '../_shared/funcionalidades.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -14,6 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     await autenticarFuncionario(req, admin, 'clientes.visualizar')
+    await verificarFuncionalidadeAtiva(admin, 'puxar_cnpj')
     const { cnpj } = await req.json()
     if (!cnpj) throw new Error('CNPJ_OBRIGATORIO')
 

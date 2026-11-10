@@ -6,6 +6,7 @@
 // data_nascimento: "DD/MM/AAAA", situacao_cadastral, ... } }
 import { corsHeaders } from '../_shared/cors.ts'
 import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
+import { verificarFuncionalidadeAtiva } from '../_shared/funcionalidades.ts'
 
 function dataBrParaIso(data: string | undefined | null): string | null {
   if (!data) return null
@@ -21,6 +22,7 @@ Deno.serve(async (req) => {
 
   try {
     await autenticarFuncionario(req, admin, 'clientes.visualizar')
+    await verificarFuncionalidadeAtiva(admin, 'puxar_cpf')
     const { cpf } = await req.json()
     if (!cpf) throw new Error('CPF_OBRIGATORIO')
 

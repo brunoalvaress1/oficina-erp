@@ -8,6 +8,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
 import { enviarTextoWhatsapp, normalizarTelefoneWhatsapp } from '../_shared/whatsapp.ts'
+import { verificarFuncionalidadeAtiva } from '../_shared/funcionalidades.ts'
 
 function montarMensagem(nomeCliente: string, numeroOrdem: number, valorTotal: number, template: string | null, nomeEmpresa: string | null): string {
   const valorFormatado = Number(valorTotal ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -37,6 +38,7 @@ Deno.serve(async (req) => {
 
   try {
     const funcionario = await autenticarFuncionario(req, admin, 'ordens.finalizar')
+    await verificarFuncionalidadeAtiva(admin, 'whatsapp_automatico')
     const { ordemServicoId } = await req.json()
     if (!ordemServicoId) throw new Error('ORDEM_SERVICO_ID_OBRIGATORIO')
 

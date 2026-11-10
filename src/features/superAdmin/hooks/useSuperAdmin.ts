@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/providers/AuthProvider'
 import {
   atualizarChavePixPlataforma,
+  atualizarFuncionalidadesPlataforma,
   atualizarStatusOficinaAdmin,
   atualizarValorMensalidadeOficinaAdmin,
   atualizarVencimentoOficinaAdmin,
@@ -94,5 +95,18 @@ export function useAtualizarChavePixPlataforma() {
       toast.success('Chave PIX atualizada — já aparece pra todas as oficinas')
     },
     onError: (error: Error) => toast.error('Erro ao atualizar chave PIX', { description: error.message }),
+  })
+}
+
+export function useAtualizarFuncionalidadesPlataforma() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (funcionalidades: Record<string, { ativo: boolean; mensagem: string }>) =>
+      atualizarFuncionalidadesPlataforma(funcionalidades),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config-plataforma'] })
+      toast.success('Funcionalidade atualizada — já aparece pra todas as oficinas')
+    },
+    onError: (error: Error) => toast.error('Erro ao atualizar funcionalidade', { description: error.message }),
   })
 }

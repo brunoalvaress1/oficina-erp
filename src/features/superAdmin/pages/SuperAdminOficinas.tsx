@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Ban, CheckCircle2, KeyRound, Plus, TriangleAlert } from 'lucide-react'
+import { AlertTriangle, Ban, CheckCircle2, KeyRound, Plug, Plus, TriangleAlert } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CampoMoeda } from '@/components/ui/CampoMoeda'
 import { CardIndicador } from '@/features/financeiro/components/CardIndicador'
 import { useConfigPlataforma } from '@/features/pagamentoSistema/hooks/usePagamentoSistema'
+import type { FuncionalidadePlataforma } from '@/features/pagamentoSistema/types/pagamentoSistema'
 import { diasParaVencimento, DIAS_LIMITE_VENCENDO } from '@/features/pagamentoSistema/utils'
 import {
   useAtualizarChavePixPlataforma,
+  useAtualizarFuncionalidadesPlataforma,
   useAtualizarStatusOficinaAdmin,
   useAtualizarValorMensalidadeOficinaAdmin,
   useAtualizarVencimentoOficinaAdmin,
@@ -256,6 +258,113 @@ function CardChavePix() {
   )
 }
 
+// Funções que dependem de API externa e podem ser desligadas pra TODAS as
+// oficinas de uma vez — cada uma tem seu próprio on/off e sua própria
+// mensagem (escolhida pelo super admin) pra aparecer pra oficina enquanto
+// estiver desativada.
+const FUNCIONALIDADES_DISPONIVEIS: Array<{ codigo: string; nome: string; mensagemPadrao: string }> = [
+  { codigo: 'puxar_placa', nome: 'Buscar dados do veículo pela placa', mensagemPadrao: 'Consulta de placa temporariamente indisponível. Fale com o suporte.' },
+  { codigo: 'puxar_cep', nome: 'Buscar endereço pelo CEP', mensagemPadrao: 'Busca de CEP temporariamente indisponível. Fale com o suporte.' },
+  { codigo: 'puxar_cnpj', nome: 'Buscar dados pelo CNPJ', mensagemPadrao: 'Consulta de CNPJ temporariamente indisponível. Fale com o suporte.' },
+  { codigo: 'puxar_cpf', nome: 'Buscar dados pelo CPF', mensagemPadrao: 'Consulta de CPF temporariamente indisponível. Fale com o suporte.' },
+  { codigo: 'whatsapp_automatico', nome: 'Envio automático de mensagens no WhatsApp', mensagemPadrao: 'Envio automático de WhatsApp temporariamente indisponível. Fale com o suporte.' },
+]
+
+function LinhaFuncionalidade({
+  codigo,
+  nome,
+  mensagemPadrao,
+  valorSalvo,
+  funcionalidades,
+}: {
+  codigo: string
+  nome: string
+  mensagemPadrao: string
+  valorSalvo?: FuncionalidadePlataforma
+  funcionalidades: Record<string, FuncionalidadePlataforma>
+}) {
+  const atualizar = useAtualizarFuncionalidadesPlataforma()
+  const ativo = valorSalvo?.ativo ?? true
+  const [mensagem, setMensagem] = useState(valorSalvo?.mensagem ?? mensagemPadrao)
+
+  useEffect(() => {
+    if (valorSalvo?.mensagem != null) setMensagem((atual) => (atual === '' ? valorSalvo.mensagem : atual))
+  }, [valorSalvo?.mensagem])
+
+  function salvar(novosValores: Partial<FuncionalidadePlataforma>) {
+    atualizar.mutate({
+      ...funcionalidades,
+      [codigo]: { ativo, mensagem, ...novosValores },
+    })
+  }
+
+  const alterado = mensagem.trim() !== (valorSalvo?.mensagem ?? mensagemPadrao).trim()
+
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-sm">{nome}</span>
+        <button
+          type="button"
+          onClick={() => salvar({ ativo: !ativo })}
+          disabled={atualizar.isPending}
+          className={`h-6 px-2 rounded-full text-xs font-medium border disabled:opacity-50 ${ativo ? 'bg-green-500/10 text-green-600 border-green-500/30' : 'bg-red-500/10 text-red-600 border-red-500/30'}`}
+        >
+          {ativo ? 'Ativa' : 'Desativada'}
+        </button>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Mensagem exibida pra oficina quando desativada</label>
+        <div className="flex items-center gap-2">
+          <input
+            value={mensagem}
+            onChange={(e) => setMensagem(e.target.value)}
+            className="flex-1 h-8 rounded-md border bg-transparent px-2 text-xs outline-none focus:ring-1 focus:ring-primary/30"
+          />
+          <button
+            type="button"
+            disabled={!alterado || atualizar.isPending}
+            onClick={() => salvar({ mensagem })}
+            className="h-8 px-3 rounded-md border text-xs font-medium disabled:opacity-50 shrink-0"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CardFuncionalidades() {
+  const { data: config, isLoading } = useConfigPlataforma()
+  const funcionalidades = config?.funcionalidades ?? {}
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary shrink-0">
+          <Plug size={16} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold">Funções e APIs do sistema</h2>
+          <p className="text-xs text-muted-foreground">
+            Desative aqui pra todas as oficinas de uma vez e escolha a mensagem que elas veem no lugar.
+          </p>
+        </div>
+      </div>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : (
+        <div className="space-y-2">
+          {FUNCIONALIDADES_DISPONIVEIS.map((f) => (
+            <LinhaFuncionalidade key={f.codigo} {...f} valorSalvo={funcionalidades[f.codigo]} funcionalidades={funcionalidades} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SuperAdminOficinas() {
   const { data: oficinasCarregadas, isLoading } = useOficinasAdmin()
   const atualizar = useAtualizarStatusOficinaAdmin()
@@ -292,6 +401,7 @@ export function SuperAdminOficinas() {
       </div>
 
       <CardChavePix />
+      <CardFuncionalidades />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <CardIndicador titulo="Total de Oficinas" valor={String(oficinas.length)} />

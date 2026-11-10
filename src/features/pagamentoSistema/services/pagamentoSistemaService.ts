@@ -26,10 +26,10 @@ export async function buscarInfoPagamentoSistema(): Promise<InfoPagamentoSistema
 export async function buscarConfigPlataforma(): Promise<ConfigPlataforma | null> {
   const { data, error } = await supabase
     .from('configuracoes_plataforma')
-    .select('chave_pix, mensagem_urgencia')
+    .select('chave_pix, mensagem_urgencia, funcionalidades')
     .eq('id', 'global')
     .maybeSingle()
   if (error) throw new Error(error.message)
   if (!data) return null
-  return { chavePix: data.chave_pix, mensagemUrgencia: data.mensagem_urgencia }
+  return { chavePix: data.chave_pix, mensagemUrgencia: data.mensagem_urgencia, funcionalidades: data.funcionalidades ?? {} }
 }

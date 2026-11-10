@@ -70,6 +70,26 @@ export async function buscarVeiculoPorId(id: string): Promise<Veiculo> {
   return mapRow(data)
 }
 
+export interface AnoVeiculoResumo {
+  ano: string | null
+  anoModelo: string | null
+}
+
+// Busca só ano/ano-modelo dos veículos visíveis na página atual da lista de
+// OS (coluna "Ano"), sem precisar alterar a view ordens_servico_lista.
+export async function buscarAnoVeiculosPorIds(veiculoIds: string[]): Promise<Record<string, AnoVeiculoResumo>> {
+  if (veiculoIds.length === 0) return {}
+
+  const { data, error } = await supabase.from('veiculos').select('id, ano, ano_modelo').in('id', veiculoIds)
+  if (error) throw new Error(error.message)
+
+  const resultado: Record<string, AnoVeiculoResumo> = {}
+  for (const row of data ?? []) {
+    resultado[row.id] = { ano: row.ano, anoModelo: row.ano_modelo }
+  }
+  return resultado
+}
+
 export async function buscarVeiculoPorPlaca(placa: string): Promise<Veiculo | null> {
   const { data, error } = await supabase
     .from('veiculos')

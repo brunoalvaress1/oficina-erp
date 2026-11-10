@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { extrairMensagemFuncionalidadeDesativada } from '@/utils/funcionalidadePlataforma'
 
 export interface DadosConsultaPlaca {
   marca?: string
@@ -25,6 +26,8 @@ async function extrairMensagemErro(error: unknown): Promise<string> {
 }
 
 function traduzirErro(mensagem: string): string {
+  const mensagemDesativada = extrairMensagemFuncionalidadeDesativada(mensagem)
+  if (mensagemDesativada) return mensagemDesativada
   if (mensagem.includes('PLACA_INVALIDA')) return 'Placa em formato inválido.'
   if (mensagem.includes('TOKEN_INVALIDO')) return 'Token da API Placas inválido ou expirado — verifique a configuração.'
   if (mensagem.includes('LIMITE_ATINGIDO')) return 'Limite diário de consultas da API Placas foi atingido.'

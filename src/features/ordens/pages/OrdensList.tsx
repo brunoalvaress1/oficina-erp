@@ -4,6 +4,7 @@ import { useDebouncedCallback } from 'use-debounce'
 import { ChevronDown, ChevronUp, FileText, Plus, Search } from 'lucide-react'
 import { useOrdens } from '../hooks/useOrdens'
 import { useSemaforoItens } from '../hooks/useSemaforoItens'
+import { useAnoVeiculosOrdens } from '../hooks/useAnoVeiculosOrdens'
 import { OrdemCard } from '../components/OrdemCard'
 import { PermissionGate } from '../components/PermissionGate'
 import { Pagination } from '@/components/ui/Pagination'
@@ -82,6 +83,8 @@ export function OrdensList() {
   const totalOrdens = data?.total ?? 0
 
   const { data: semaforos = {} } = useSemaforoItens(ordens.map((o) => o.id))
+  const veiculoIds = ordens.flatMap((o) => (o.veiculoId ? [o.veiculoId] : []))
+  const { data: anosVeiculos = {} } = useAnoVeiculosOrdens(veiculoIds)
 
   return (
     <div className="space-y-4">
@@ -153,7 +156,7 @@ export function OrdensList() {
               <ThOrdenavel campo="veiculoPlaca" rotulo="Placa" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
               <ThOrdenavel campo="kmAtual" rotulo="KM" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
               <ThOrdenavel campo="status" rotulo="Status" sortBy={sortBy} sortDirection={sortDirection} onOrdenar={handleOrdenarPor} />
-              <th className="text-left font-medium px-3 py-2">Mecânico</th>
+              <th className="text-left font-medium px-3 py-2">Ano</th>
               <ThOrdenavel
                 campo="valorTotal"
                 rotulo="Valor Total"
@@ -181,7 +184,12 @@ export function OrdensList() {
               </tr>
             )}
             {ordens.map((ordem) => (
-              <OrdemCard key={ordem.id} ordem={ordem} semaforo={semaforos[ordem.id] ?? 'verde'} />
+              <OrdemCard
+                key={ordem.id}
+                ordem={ordem}
+                semaforo={semaforos[ordem.id] ?? 'verde'}
+                anoVeiculo={ordem.veiculoId ? anosVeiculos[ordem.veiculoId] : undefined}
+              />
             ))}
           </tbody>
         </table>

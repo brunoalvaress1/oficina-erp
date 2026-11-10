@@ -3,6 +3,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { autenticarFuncionario, criarClienteAdmin } from '../_shared/auth.ts'
 import { enviarTextoWhatsapp, normalizarTelefoneWhatsapp } from '../_shared/whatsapp.ts'
+import { verificarFuncionalidadeAtiva } from '../_shared/funcionalidades.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -11,6 +12,7 @@ Deno.serve(async (req) => {
 
   try {
     const funcionario = await autenticarFuncionario(req, admin, 'caixa.receber')
+    await verificarFuncionalidadeAtiva(admin, 'whatsapp_automatico')
     const { caixaLancamentoId } = await req.json()
     if (!caixaLancamentoId) throw new Error('CAIXA_LANCAMENTO_ID_OBRIGATORIO')
 

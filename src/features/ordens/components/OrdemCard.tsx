@@ -34,9 +34,17 @@ import { COR_STATUS_ORDEM, ROTULO_STATUS_ORDEM, type OrdemServico } from '../typ
 interface OrdemCardProps {
   ordem: OrdemServico
   semaforo?: 'verde' | 'amarelo' | 'vermelho'
+  anoVeiculo?: { ano: string | null; anoModelo: string | null }
 }
 
-export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
+function formatarAnoVeiculo(anoVeiculo?: { ano: string | null; anoModelo: string | null }): string {
+  if (!anoVeiculo) return '-'
+  const { ano, anoModelo } = anoVeiculo
+  if (ano && anoModelo && ano !== anoModelo) return `${ano}/${anoModelo}`
+  return ano || anoModelo || '-'
+}
+
+export function OrdemCard({ ordem, semaforo, anoVeiculo }: OrdemCardProps) {
   const navigate = useNavigate()
   const { data: oficina } = useDadosOficina()
   const [menuAberto, setMenuAberto] = useState(false)
@@ -271,7 +279,7 @@ export function OrdemCard({ ordem, semaforo }: OrdemCardProps) {
           {ROTULO_STATUS_ORDEM[ordem.status]}
         </span>
       </td>
-      <td className="px-3 py-2">{ordem.mecanicoNome ?? '-'}</td>
+      <td className="px-3 py-2">{formatarAnoVeiculo(anoVeiculo)}</td>
       <td className="px-3 py-2 text-right font-medium">{formatCurrency(ordem.valorTotal)}</td>
       <td className="px-3 py-2">{formatDate(ordem.dataAbertura)}</td>
 
