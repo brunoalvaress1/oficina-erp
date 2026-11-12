@@ -7,9 +7,22 @@ import { PermissionGate } from '../components/PermissionGate'
 import { formatCpfCnpj as showCpfCnpj } from '@/utils/format'
 import { Pagination } from '@/components/ui/Pagination'
 import { ColunasDropdown } from '@/components/ui/ColunasDropdown'
+import { usePermissions } from '@/hooks/usePermissions'
+import { useColunasVisiveis } from '@/hooks/useColunasVisiveis'
 import type { CampoOrdenacaoCliente, Cliente, ListarClientesResult } from '../types/cliente'
 
+const COLUNAS_PADRAO = {
+  cpfCnpj: true,
+  telefone: true,
+  cidade: true,
+  email: true,
+  endereco: true,
+  cep: true,
+  codigoCidade: false,
+}
+
 export function ClientesList() {
+  const { funcionario } = usePermissions()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [busca, setBusca] = useState('')
@@ -45,15 +58,7 @@ export function ClientesList() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [clienteEditando, setClienteEditando] = useState<Cliente | undefined>()
-  const [colunasVisiveis, setColunasVisiveis] = useState({
-    cpfCnpj: true,
-    telefone: true,
-    cidade: true,
-    email: true,
-    endereco: true,
-    cep: true,
-    codigoCidade: false,
-  })
+  const [colunasVisiveis, alternarColuna] = useColunasVisiveis('clientes', funcionario?.id, COLUNAS_PADRAO)
 
   const clientesFiltrados = clientes
 
@@ -69,10 +74,6 @@ export function ClientesList() {
     total += 1 // Ações
     return total
   }, [colunasVisiveis])
-
-  function alternarColuna(coluna: keyof typeof colunasVisiveis) {
-    setColunasVisiveis((prev) => ({ ...prev, [coluna]: !prev[coluna] }))
-  }
 
   function handleNovo() {
     setClienteEditando(undefined)

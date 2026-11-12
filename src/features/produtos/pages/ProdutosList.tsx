@@ -9,6 +9,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ColunasDropdown } from '@/components/ui/ColunasDropdown'
 import { formatCurrency } from '@/utils/format'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useColunasVisiveis } from '@/hooks/useColunasVisiveis'
 import type { CampoOrdenacaoProduto, ListarProdutosResult, Produto } from '../types/produto'
 
 function calcularMargem(produto: Produto): number | null {
@@ -16,8 +17,17 @@ function calcularMargem(produto: Produto): number | null {
   return ((produto.valorOs - produto.valorCusto) / produto.valorCusto) * 100
 }
 
+const COLUNAS_PADRAO = {
+  categoria: true,
+  marca: true,
+  valorCusto: true,
+  valorOs: true,
+  margem: true,
+  estoqueFisico: true,
+}
+
 export function ProdutosList() {
-  const { hasPermission } = usePermissions()
+  const { funcionario, hasPermission } = usePermissions()
   const podeVerLucro = hasPermission('estoque.visualizar_lucro')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -42,14 +52,7 @@ export function ProdutosList() {
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [produtoEditando, setProdutoEditando] = useState<Produto | undefined>()
   const [produtoParaClonar, setProdutoParaClonar] = useState<Produto | undefined>()
-  const [colunasVisiveis, setColunasVisiveis] = useState({
-    categoria: true,
-    marca: true,
-    valorCusto: true,
-    valorOs: true,
-    margem: true,
-    estoqueFisico: true,
-  })
+  const [colunasVisiveis, alternarColuna] = useColunasVisiveis('produtos', funcionario?.id, COLUNAS_PADRAO)
 
   const totalColunas = useMemo(() => {
     let total = 2 // # + Nome
@@ -62,10 +65,6 @@ export function ProdutosList() {
     total += 1 // Ações
     return total
   }, [colunasVisiveis, podeVerLucro])
-
-  function alternarColuna(coluna: keyof typeof colunasVisiveis) {
-    setColunasVisiveis((prev) => ({ ...prev, [coluna]: !prev[coluna] }))
-  }
 
   function alternarOrdenacao(campo: CampoOrdenacaoProduto) {
     setOrdenacao((prev) =>
